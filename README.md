@@ -1,0 +1,2 @@
+# yeetcd
+Agent-friendly cd
