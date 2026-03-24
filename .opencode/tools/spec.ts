@@ -39,10 +39,17 @@ const FileChangeSchema = z.object({
 const PhaseSchema = z.object({
   name: z.string().describe("Phase name (e.g. 'Phase 1: Parser Implementation')"),
   description: z.string().describe("What this phase accomplishes"),
-  status: z.enum(["pending", "in_progress", "completed"]).describe("Phase status"),
+  status: z.enum(["pending", "in_progress", "completed", "released"]).describe("Phase status"),
   is_release_boundary: z.boolean().describe("Whether this phase marks a release boundary"),
   file_changes: z.array(FileChangeSchema).describe("File changes for this phase (filled by planner)"),
   test_cases: z.array(TestCaseSchema).describe("Test cases for this phase (filled by planner)"),
+})
+
+const ReviewSchema = z.object({
+  status: z.enum(["pending", "passed", "failed"]).describe("Review status"),
+  reviewer: z.string().describe("Reviewer agent identifier"),
+  timestamp: z.string().describe("ISO timestamp of review"),
+  feedback: z.string().optional().describe("Review feedback (required if failed)"),
 })
 
 const SpecSchema = z.object({
@@ -60,7 +67,8 @@ const SpecSchema = z.object({
     test_patterns: z.array(TestPatternSchema).min(1).describe("Test file patterns per language"),
   }),
   phases: z.array(PhaseSchema).min(1).describe("Implementation phases"),
-  status: z.enum(["draft", "approved", "in_progress", "completed"]).describe("Spec status"),
+  review: ReviewSchema.optional().describe("Adversarial review of the spec"),
+  status: z.enum(["draft", "planned", "reviewed", "approved", "in_progress", "completed"]).describe("Spec status"),
 })
 
 type Spec = z.infer<typeof SpecSchema>
@@ -153,7 +161,7 @@ export const spec_write = tool({
           tool.schema.object({
             name: tool.schema.string(),
             description: tool.schema.string(),
-            status: tool.schema.enum(["pending", "in_progress", "completed"]),
+            status: tool.schema.enum(["pending", "in_progress", "completed", "released"]),
             is_release_boundary: tool.schema.boolean(),
             file_changes: tool.schema.array(
               tool.schema.object({
@@ -173,7 +181,18 @@ export const spec_write = tool({
           })
         )
         .describe("Implementation phases"),
-      status: tool.schema.enum(["draft", "approved", "in_progress", "completed"]).describe("Spec status"),
+      review: tool.schema
+        .object({
+          status: tool.schema.enum(["pending", "passed", "failed"]),
+          reviewer: tool.schema.string(),
+          timestamp: tool.schema.string(),
+          feedback: tool.schema.string().optional(),
+        })
+        .optional()
+        .describe("Adversarial review of the spec"),
+      status: tool.schema
+        .enum(["draft", "planned", "reviewed", "approved", "in_progress", "completed"])
+        .describe("Spec status"),
     }),
   },
   async execute(args, context) {
@@ -292,6 +311,15 @@ export const spec_read = tool({
         output += `   Test cases:\n${phase.test_cases.map((t) => `     - [${t.type}] ${t.description} (targets: ${t.target_component})`).join("\n")}\n`
       }
     })
+    if (spec.review) {
+      output += `\n--- REVIEW ---\n`
+      output += `Status: ${spec.review.status}\n`
+      output += `Reviewer: ${spec.review.reviewer}\n`
+      output += `Timestamp: ${spec.review.timestamp}\n`
+      if (spec.review.feedback) {
+        output += `Feedback: ${spec.review.feedback}\n`
+      }
+    }
 
     return output
   },
@@ -300,15 +328,16 @@ export const spec_read = tool({
 export const spec_update = tool({
   description:
     "Update portions of a development spec. Supports updating the overall status, " +
-    "or updating a specific phase's status, file_changes, or test_cases. " +
-    "Use this to mark phases as in_progress/completed, or to add low-level details from the planner.",
+    "a specific phase's status, file_changes, or test_cases, or the review field. " +
+    "Use this to mark phases as in_progress/completed, add low-level details from the planner, " +
+    "or record review results from the reviewer.",
   args: {
     path: tool.schema
       .string()
       .optional()
       .describe("Optional: specific spec file path. If omitted, updates the most recent spec."),
     status: tool.schema
-      .enum(["draft", "approved", "in_progress", "completed"])
+      .enum(["draft", "planned", "reviewed", "approved", "in_progress", "completed"])
       .optional()
       .describe("Update the overall spec status"),
     phase_index: tool.schema
@@ -316,7 +345,7 @@ export const spec_update = tool({
       .optional()
       .describe("Index of the phase to update (0-based)"),
     phase_status: tool.schema
-      .enum(["pending", "in_progress", "completed"])
+      .enum(["pending", "in_progress", "completed", "released"])
       .optional()
       .describe("Update the phase status"),
     phase_file_changes: tool.schema
@@ -340,6 +369,18 @@ export const spec_update = tool({
       )
       .optional()
       .describe("Replace the phase's test cases"),
+    review_status: tool.schema
+      .enum(["pending", "passed", "failed"])
+      .optional()
+      .describe("Update the review status (only reviewer agent should use this)"),
+    review_feedback: tool.schema
+      .string()
+      .optional()
+      .describe("Review feedback (required if review_status is 'failed')"),
+    review_reviewer: tool.schema
+      .string()
+      .optional()
+      .describe("Reviewer agent identifier"),
   },
   async execute(args, context) {
     const dir = specsDir(context.worktree)
@@ -412,6 +453,23 @@ export const spec_update = tool({
         phase.test_cases = args.phase_test_cases
         updates.push(`Phase ${args.phase_index} test_cases → ${args.phase_test_cases.length} cases`)
       }
+    }
+
+    // Handle review updates
+    if (args.review_status !== undefined) {
+      if (args.review_status === "failed" && !args.review_feedback) {
+        return "ERROR: review_feedback is required when review_status is 'failed'"
+      }
+      if (!args.review_reviewer) {
+        return "ERROR: review_reviewer is required when updating review status"
+      }
+      spec.review = {
+        status: args.review_status,
+        reviewer: args.review_reviewer,
+        timestamp: new Date().toISOString(),
+        feedback: args.review_feedback,
+      }
+      updates.push(`Review status → ${args.review_status} (by ${args.review_reviewer})`)
     }
 
     if (updates.length === 0) {

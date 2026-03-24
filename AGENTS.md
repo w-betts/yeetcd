@@ -29,57 +29,99 @@ agent.bat vibe
 
 ## The Spec Workflow (Phase-Based Execution)
 
-The **spec** workflow is designed for complex features that require careful planning, architecture decisions, and comprehensive testing. It follows a structured approach where the spec agent creates a high-level plan and orchestrates subagents to execute each phase.
+The **spec** workflow is designed for complex features that require careful planning, architecture decisions, and comprehensive testing. It follows a structured approach where the spec agent creates a high-level plan, orchestrates subagents for planning and review, and gets user approval before implementation.
 
 ### Phase 1: Understand & Create High-Level Spec
 
 - **Agent**: Spec agent (primary orchestrator)
 - **Interaction**: Direct conversation with user
-- **Output**: Approved structured YAML spec file
+- **Output**: Structured YAML spec file (status: "draft")
 - **Actions**:
   - **Problem Understanding**:
     - Play back understanding of what user wants to build
     - Ask clarifying questions to get really clear on details and scope
     - Highlight ambiguities and edge cases
     - Confirm understanding before moving to planning
-  - **High-Level Planning** (spec agent does this, NOT planner):
-    - Analyze the problem and propose architecture
-    - Identify if work should be split into multiple phases:
-      - **Distinct components**: Work spanning multiple independent components
-      - **Release boundaries**: Backwards compatibility concerns or deployment checkpoints
-      - **Risk mitigation**: Early phases can validate assumptions
-    - If single phase is sufficient, create spec with one phase
-    - Write spec via `spec_write` tool with:
-      - Problem statement and goals
-      - Constraints and tech choices
-      - Architecture and components
-      - Test strategy and patterns
-      - Phases with high-level descriptions (file_changes and test_cases empty at this stage)
-      - Status: "draft"
-  - **User Approval** (CRITICAL):
-    - Present spec to user
-    - Use question tool to ask: "Are you happy with this spec? Should I proceed?"
-    - User MUST explicitly confirm before proceeding
-    - If user requests changes, update spec and ask again
-    - Once approved, update spec status to "approved"
+   - **High-Level Planning** (spec agent does this, NOT planner):
+     - Analyze the problem and propose architecture
+     - Identify if work should be split into multiple phases:
+       - **Distinct components**: Work spanning multiple independent components
+       - **Release boundaries**: CRITICAL - Backwards compatibility concerns, API changes requiring deployment before client updates, database migrations, or deployment checkpoints
+       - **Risk mitigation**: Early phases can validate assumptions
+     - **Release Boundary Identification**:
+       - A release boundary marks a point where changes MUST be deployed/released before subsequent phases can proceed
+       - Examples: API contract changes, database schema migrations, breaking changes requiring coordination
+       - Phases must be ordered so release boundaries come BEFORE phases that depend on them
+       - Mark phases with `is_release_boundary: true` when they contain changes that must be released first
+     - If single phase is sufficient, create spec with one phase
+     - Write spec via `spec_write` tool with:
+       - Problem statement and goals
+       - Constraints and tech choices
+       - Architecture and components
+       - Test strategy and patterns
+       - Phases with high-level descriptions (file_changes and test_cases empty at this stage)
+       - Status: "draft"
 
-### Phase 2: Execute Phases Iteratively
+### Phase 2: Plan All Phases (Delegate to @planner)
+
+- **Agent**: Spec agent (delegates to @planner)
+- **Output**: Spec with all phases filled in (status: "planned")
+- **Actions**:
+  - Spec agent invokes @planner subagent with:
+    - The spec path
+    - Instructions to fill in file_changes and test_cases for ALL phases
+  - The planner will:
+    - Read spec via `spec_read`
+    - Analyze codebase
+    - Define specific file_changes and test_cases for each phase
+    - Update each phase via `spec_update`
+  - Spec agent reviews planner's output
+  - If changes needed, loop back to planner
+  - Once all phases are planned, update spec status to "planned"
+
+### Phase 3: Adversarial Review (Delegate to @reviewer)
+
+- **Agent**: Spec agent (delegates to @reviewer)
+- **Output**: Spec with review recorded (status: "reviewed" if passed)
+- **Actions**:
+  - Spec agent invokes @reviewer subagent with:
+    - The spec path
+  - The reviewer will:
+    - Read spec via `spec_read`
+    - Examine codebase to inform review
+    - Review spec for:
+      - **Incorrectness**: Does the plan contradict the problem statement?
+      - **Incompleteness**: Are there missing phases, file changes, or test cases?
+      - **Over-complexity**: Is the plan unnecessarily complicated?
+    - Record review via `spec_update` (only reviewer can set review status)
+  - Spec agent reviews reviewer's output:
+    - If review passed: Update spec status to "reviewed" and proceed to Phase 4
+    - If review failed:
+      - Re-invoke @planner with review feedback to address issues
+      - Once planner completes, re-invoke @reviewer for re-review
+      - Loop until review passes
+
+### Phase 4: User Approval (CRITICAL)
+
+- **Agent**: Spec agent
+- **Interaction**: Direct conversation with user
+- **Output**: Approved spec (status: "approved")
+- **Actions**:
+  - Present complete spec to user (including all planned phases and review results)
+  - Use question tool to ask: "Are you happy with this spec? Should I proceed with implementation?"
+  - User MUST explicitly confirm before proceeding
+  - If user requests changes:
+    - Update spec as needed
+    - Re-invoke @planner if phase details need updating
+    - Re-invoke @reviewer for re-review
+    - Loop back to this phase for user approval
+  - Once approved, update spec status to "approved"
+
+### Phase 5: Execute Phases Iteratively
 
 For each phase (up to the next release boundary, if any):
 
-**2a. Low-Level Planning (Delegate to @planner)**:
-- Spec agent invokes @planner subagent with:
-  - The spec path
-  - The phase index to plan
-- The planner will:
-  - Read spec via `spec_read`
-  - Analyze codebase
-  - Define specific file_changes and test_cases for the phase
-  - Update phase via `spec_update`
-- Spec agent reviews planner's output
-- If changes needed, loop back to planner
-
-**2b. Write Tests (Delegate to @test-writer)**:
+**5a. Write Tests (Delegate to @test-writer)**:
 - Spec agent updates phase status to "in_progress" via `spec_update`
 - Spec agent invokes @test-writer subagent with:
   - The spec path
@@ -90,7 +132,7 @@ For each phase (up to the next release boundary, if any):
   - Verify tests compile/run
 - Spec agent reviews test-writer's output
 
-**2c. Implement (Delegate to @implementer)**:
+**5b. Implement (Delegate to @implementer)**:
 - Spec agent invokes @implementer subagent with:
   - The spec path
   - The phase index to implement
@@ -105,14 +147,18 @@ For each phase (up to the next release boundary, if any):
 - Once phase is complete:
   - Update phase status to "completed" via `spec_update`
 
-**2d. Release Boundary Check**:
-- If the phase is a release boundary:
-  - Pause and inform the user
-  - Ask if they want to continue to the next phase
-  - If yes, continue with next phase
-  - If no, stop and report progress
+**5c. Release Boundary Check (MANDATORY STOP)**:
+- If the phase has `is_release_boundary: true`:
+  - **STOP IMPLEMENTATION IMMEDIATELY**
+  - Inform the user that this phase marks a release boundary
+  - Explain that ALL changes from this phase (and any prior phases since the last release boundary) must be fully released before continuing
+  - "Fully released" means: deployed to production, merged to main branch, or otherwise made available as specified by the user
+  - Ask the user to confirm when the release is complete
+  - Update the phase status to "released" via `spec_update`
+  - Only after explicit user confirmation of release, continue to the next phase
+  - If the user cannot confirm release, STOP and report progress - do not proceed to the next phase
 
-### Phase 3: Completion
+### Phase 6: Completion
 
 - When all phases are complete, update spec status to "completed"
 - Report final status to user
@@ -127,6 +173,7 @@ Use `agent spec` when:
 - Working with unfamiliar domains or technologies
 - Building production-ready features
 - Work spans multiple phases or release boundaries
+- Quality assurance through adversarial review is needed
 
 ---
 
@@ -202,13 +249,13 @@ Even in vibe mode, you can delegate to subagents if needed:
 - Creates high-level spec itself (does NOT delegate to planner)
 - Identifies phases and release boundaries
 - Gets explicit user approval
-- Can delegate to: @planner, @test-writer, @implementer
+- Can delegate to: @planner, @reviewer, @test-writer, @implementer
 
 **Vibe Agent**:
 - Mode: Primary implementer
 - Prompt: Direct implementation workflow
 - Permissions: Full tool access (edit, bash, etc.)
-- Can optionally delegate to: @planner, @test-writer, @implementer
+- Can optionally delegate to: @planner, @reviewer, @test-writer, @implementer
 
 ### Subagents
 
@@ -217,6 +264,12 @@ Even in vibe mode, you can delegate to subagents if needed:
 - Writes: Updates phases via `spec_update` (fills in file_changes and test_cases)
 - Cannot: Execute code, write tests, write implementation, create new specs
 - Called by: Spec agent for low-level phase planning
+
+**Reviewer**:
+- Reads: Spec files via `spec_read`, codebase analysis
+- Writes: Updates review field via `spec_update` (only agent that can set review status)
+- Cannot: Write code, modify phases, create specs
+- Called by: Spec agent for adversarial review
 
 **Test-Writer**:
 - Reads: Spec files via `spec_read`, existing code
@@ -272,10 +325,21 @@ phases:
   - name: "Phase 2: API Layer"
     description: "Add HTTP endpoints"
     status: "pending"
-    is_release_boundary: true  # Stop here for user confirmation
+    is_release_boundary: true  # STOP here - changes must be released before Phase 3
     file_changes: []
     test_cases: []
-status: "draft"  # draft → approved → in_progress → completed
+  - name: "Phase 3: Client Updates"
+    description: "Update clients to use new API"
+    status: "pending"
+    is_release_boundary: false  # Can only proceed after Phase 2 is released
+    file_changes: []
+    test_cases: []
+review:  # Added by reviewer
+  status: "passed"
+  reviewer: "reviewer"
+  timestamp: "2024-01-15T10:30:00Z"
+  feedback: "Optional feedback"
+status: "draft"  # draft → planned → reviewed → approved → in_progress → completed
 ```
 
 All fields are mandatory for validation.
@@ -293,12 +357,12 @@ All fields are mandatory for validation.
 **`spec_read`**: Reads and validates spec files
 - Input: optional path (reads most recent if not specified)
 - Output: Formatted spec content with all fields
-- Used by: Spec agent, planner, test-writer, implementer
+- Used by: Spec agent, planner, reviewer, test-writer, implementer
 
 **`spec_update`**: Updates portions of a spec file
-- Input: path, optional status, optional phase updates
-- Supports: Overall status changes, phase status, phase file_changes, phase test_cases
-- Used by: Spec agent (status changes), planner (phase details)
+- Input: path, optional status, optional phase updates, optional review updates
+- Supports: Overall status changes, phase status, phase file_changes, phase test_cases, review status/feedback
+- Used by: Spec agent (status changes), planner (phase details), reviewer (review fields)
 
 ---
 
@@ -352,13 +416,15 @@ agent spec
 1. Engage with spec agent in Phase 1 (Understand & Create High-Level Spec)
 2. Work through problem understanding together
 3. Spec agent creates high-level spec with phases
-4. Review and explicitly approve the spec
-5. Spec agent iterates through phases:
-   - Delegates low-level planning to @planner
+4. Spec agent delegates to @planner to fill in all phase details
+5. Spec agent delegates to @reviewer for adversarial review
+6. If review fails, planner is re-invoked with feedback, then re-review
+7. Review and explicitly approve the spec
+8. Spec agent iterates through phases:
    - Delegates test writing to @test-writer
    - Delegates implementation to @implementer
-6. If non-trivial issues arise, loop back to planning
-7. At release boundaries, spec agent pauses for user confirmation
+9. If non-trivial issues arise, loop back to planning
+10. At release boundaries, spec agent pauses for user confirmation of release
 
 ### Starting a Vibe Session
 
@@ -393,6 +459,8 @@ The wrapper scripts:
 **Spec Workflow**:
 - Problems are well-understood before building
 - Architecture is approved before coding
+- All phases are planned before any implementation
+- Adversarial review catches issues early
 - Tests drive implementation
 - Non-trivial issues are escalated rather than worked around
 - Phase-based execution with release boundary support

@@ -11,6 +11,7 @@
         "task": {
           "*": "deny",
           "planner": "allow",
+          "reviewer": "allow",
           "test-writer": "allow",
           "implementer": "allow"
         }
@@ -29,6 +30,7 @@
         "task": {
           "*": "deny",
           "planner": "allow",
+          "reviewer": "allow",
           "test-writer": "allow",
           "implementer": "allow"
         }
@@ -38,6 +40,21 @@
       "mode": "subagent",
       "model": "opencode/glm-5",
       "hidden": false,
+      "prompt": "{file:./.opencode/prompts/planner.md}",
+      "temperature": 0.2,
+      "permission": {
+        "edit": {
+          "*": "deny",
+          ".opencode/specs/*.yaml": "allow"
+        },
+        "task": "deny"
+      }
+    },
+    "reviewer": {
+      "mode": "subagent",
+      "model": "opencode/glm-5",
+      "hidden": false,
+      "prompt": "{file:./.opencode/prompts/reviewer.md}",
       "temperature": 0.2,
       "permission": {
         "edit": {
