@@ -1,0 +1,57 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "mode": "primary",
+      "description": "Build mode - orchestrates feature development through planning, testing, and implementation phases",
+      "prompt": "{file:./.opencode/prompts/orchestrator.txt}",
+      "temperature": 0.3,
+      "permission": {
+        "task": {
+          "*": "deny",
+          "planner": "allow",
+          "test-writer": "allow",
+          "implementer": "allow"
+        }
+      }
+    },
+    "plan": {
+      "mode": "primary",
+      "description": "Plan mode - orchestrates feature development (same workflow as build, with restricted direct permissions)",
+      "prompt": "{file:./.opencode/prompts/orchestrator.txt}",
+      "temperature": 0.3,
+      "permission": {
+        "edit": "ask",
+        "bash": "ask",
+        "task": {
+          "*": "deny",
+          "planner": "allow",
+          "test-writer": "allow",
+          "implementer": "allow"
+        }
+      }
+    },
+    "planner": {
+      "mode": "subagent",
+      "hidden": false
+    },
+    "test-writer": {
+      "mode": "subagent",
+      "hidden": false
+    },
+    "implementer": {
+      "mode": "subagent",
+      "hidden": false
+    }
+  },
+  "permission": {
+    "edit": {
+      "*": "allow",
+      ".opencode/plans/*.yaml": "allow",
+      ".opencode/plans/*.json": "allow"
+    },
+    "bash": {
+      "*": "allow"
+    }
+  }
+}
