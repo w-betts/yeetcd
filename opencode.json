@@ -33,22 +33,56 @@
     },
     "planner": {
       "mode": "subagent",
-      "hidden": false
+      "hidden": false,
+      "temperature": 0.2,
+      "permission": {
+        "edit": {
+          "*": "deny",
+          ".opencode/plans/*.yaml": "allow",
+          ".opencode/plans/*.json": "allow"
+        },
+        "bash": {
+          "*": "deny",
+          "ls *": "allow",
+          "find *": "allow",
+          "git *": "allow",
+          "grep *": "allow"
+        },
+        "task": "deny"
+      }
     },
     "test-writer": {
       "mode": "subagent",
-      "hidden": false
+      "hidden": false,
+      "temperature": 0.3,
+      "permission": {
+        "edit": {
+          "*": "ask"
+        },
+        "bash": {
+          "*": "allow"
+        },
+        "task": "deny"
+      }
     },
     "implementer": {
       "mode": "subagent",
-      "hidden": false
+      "hidden": false,
+      "temperature": 0.3,
+      "permission": {
+        "edit": {
+          "*": "ask"
+        },
+        "bash": {
+          "*": "allow"
+        },
+        "task": "deny"
+      }
     }
   },
   "permission": {
     "edit": {
-      "*": "allow",
-      ".opencode/plans/*.yaml": "allow",
-      ".opencode/plans/*.json": "allow"
+      "*": "allow"
     },
     "bash": {
       "*": "allow"

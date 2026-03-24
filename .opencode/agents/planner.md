@@ -1,19 +1,5 @@
 ---
 description: Analyzes requirements and drafts technical plans. Writes plan YAML files with architecture, tech choices, and test strategies.
-mode: subagent
-temperature: 0.2
-permission:
-  edit:
-    "*": "deny"
-    ".opencode/plans/*.yaml": "allow"
-    ".opencode/plans/*.json": "allow"
-  bash:
-    "*": "deny"
-    "ls *": "allow"
-    "find *": "allow"
-    "git *": "allow"
-    "grep *": "allow"
-  task: "deny"
 ---
 
 You are a technical planner. Your job is to analyze requirements and create comprehensive development plans.
