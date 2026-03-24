@@ -4,7 +4,7 @@
     "spec": {
       "mode": "primary",
       "model": "opencode/glm-5",
-      "description": "Spec agent - orchestrates 4-phase structured workflow for complex features requiring planning and architecture",
+      "description": "Spec agent - orchestrates phase-based workflow for complex features requiring planning and architecture",
       "prompt": "{file:./.opencode/prompts/spec.md}",
       "temperature": 0.3,
       "permission": {
@@ -42,8 +42,7 @@
       "permission": {
         "edit": {
           "*": "deny",
-          ".opencode/plans/*.yaml": "allow",
-          ".opencode/plans/*.json": "allow"
+          ".opencode/specs/*.yaml": "allow"
         },
         "task": "deny"
       }

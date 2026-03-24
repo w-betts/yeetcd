@@ -1,0 +1,434 @@
+import { tool } from "@opencode-ai/plugin"
+import { z } from "zod"
+import path from "path"
+import fs from "fs"
+import yaml from "yaml"
+
+// --- Schema ---
+
+const TechChoiceSchema = z.object({
+  area: z.string().describe("Domain area (e.g. 'database', 'http-framework', 'testing')"),
+  choice: z.string().describe("The specific technology chosen"),
+  rationale: z.string().describe("Why this choice was made"),
+})
+
+const ComponentSchema = z.object({
+  name: z.string().describe("Component name"),
+  responsibility: z.string().describe("What this component does"),
+  interfaces: z.array(z.string()).describe("Public interfaces/APIs this component exposes"),
+})
+
+const TestPatternSchema = z.object({
+  language: z.string().describe("Programming language (e.g. 'go', 'typescript', 'python')"),
+  pattern: z.string().describe("Glob pattern for test files (e.g. '*_test.go', '*.test.ts')"),
+})
+
+const TestCaseSchema = z.object({
+  description: z.string().describe("What this test verifies"),
+  type: z.enum(["unit", "integration", "e2e"]).describe("Test type"),
+  target_component: z.string().describe("Which component this test targets"),
+})
+
+const FileChangeSchema = z.object({
+  path: z.string().describe("File path relative to project root"),
+  action: z.enum(["create", "modify", "delete"]).describe("What action to take"),
+  description: z.string().describe("What this file change accomplishes"),
+  is_test: z.boolean().describe("Whether this is a test file"),
+})
+
+const PhaseSchema = z.object({
+  name: z.string().describe("Phase name (e.g. 'Phase 1: Parser Implementation')"),
+  description: z.string().describe("What this phase accomplishes"),
+  status: z.enum(["pending", "in_progress", "completed"]).describe("Phase status"),
+  is_release_boundary: z.boolean().describe("Whether this phase marks a release boundary"),
+  file_changes: z.array(FileChangeSchema).describe("File changes for this phase (filled by planner)"),
+  test_cases: z.array(TestCaseSchema).describe("Test cases for this phase (filled by planner)"),
+})
+
+const SpecSchema = z.object({
+  version: z.literal(2).describe("Spec schema version"),
+  problem_statement: z.string().min(1).describe("Clear description of the problem being solved"),
+  goals: z.array(z.string().min(1)).min(1).describe("List of goals this spec achieves"),
+  constraints: z.array(z.string().min(1)).describe("Constraints and limitations to respect"),
+  tech_choices: z.array(TechChoiceSchema).min(1).describe("Technology choices with rationale"),
+  architecture: z.object({
+    description: z.string().min(1).describe("High-level architecture description"),
+    components: z.array(ComponentSchema).min(1).describe("System components"),
+  }),
+  test_strategy: z.object({
+    approach: z.string().min(1).describe("Overall testing approach"),
+    test_patterns: z.array(TestPatternSchema).min(1).describe("Test file patterns per language"),
+  }),
+  phases: z.array(PhaseSchema).min(1).describe("Implementation phases"),
+  status: z.enum(["draft", "approved", "in_progress", "completed"]).describe("Spec status"),
+})
+
+type Spec = z.infer<typeof SpecSchema>
+
+// --- Helpers ---
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+}
+
+function specsDir(worktree: string): string {
+  return path.join(worktree, ".opencode", "specs")
+}
+
+function formatValidationErrors(error: z.ZodError): string {
+  return error.issues
+    .map((issue) => {
+      const path = issue.path.join(".")
+      return `  - ${path ? path + ": " : ""}${issue.message}`
+    })
+    .join("\n")
+}
+
+function parseYaml(content: string): unknown {
+  try {
+    return yaml.parse(content)
+  } catch {
+    // Fallback to simple parsing if yaml library fails
+    return null
+  }
+}
+
+function toYamlString(obj: unknown): string {
+  return yaml.stringify(obj, { lineWidth: 0, defaultStringType: "QUOTE_DOUBLE", defaultKeyType: "PLAIN" })
+}
+
+// --- Tools ---
+
+export const spec_write = tool({
+  description:
+    "Write a development spec to a YAML file. Validates all mandatory fields against the spec schema. " +
+    "The spec file is saved to .opencode/specs/<timestamp>-<slug>.yaml. " +
+    "All fields are mandatory. Returns the file path on success, or validation errors on failure.",
+  args: {
+    title: tool.schema
+      .string()
+      .describe("Short descriptive title for the spec (used in filename, e.g. 'csv-parser' or 'auth-system')"),
+    spec: tool.schema.object({
+      problem_statement: tool.schema.string().describe("Clear description of the problem being solved"),
+      goals: tool.schema.array(tool.schema.string()).describe("List of goals this spec achieves"),
+      constraints: tool.schema.array(tool.schema.string()).describe("Constraints and limitations to respect"),
+      tech_choices: tool.schema
+        .array(
+          tool.schema.object({
+            area: tool.schema.string(),
+            choice: tool.schema.string(),
+            rationale: tool.schema.string(),
+          })
+        )
+        .describe("Technology choices with rationale"),
+      architecture: tool.schema.object({
+        description: tool.schema.string().describe("High-level architecture description"),
+        components: tool.schema
+          .array(
+            tool.schema.object({
+              name: tool.schema.string(),
+              responsibility: tool.schema.string(),
+              interfaces: tool.schema.array(tool.schema.string()),
+            })
+          )
+          .describe("System components"),
+      }),
+      test_strategy: tool.schema.object({
+        approach: tool.schema.string().describe("Overall testing approach"),
+        test_patterns: tool.schema
+          .array(
+            tool.schema.object({
+              language: tool.schema.string(),
+              pattern: tool.schema.string(),
+            })
+          )
+          .describe("Test file patterns per language"),
+      }),
+      phases: tool.schema
+        .array(
+          tool.schema.object({
+            name: tool.schema.string(),
+            description: tool.schema.string(),
+            status: tool.schema.enum(["pending", "in_progress", "completed"]),
+            is_release_boundary: tool.schema.boolean(),
+            file_changes: tool.schema.array(
+              tool.schema.object({
+                path: tool.schema.string(),
+                action: tool.schema.enum(["create", "modify", "delete"]),
+                description: tool.schema.string(),
+                is_test: tool.schema.boolean(),
+              })
+            ),
+            test_cases: tool.schema.array(
+              tool.schema.object({
+                description: tool.schema.string(),
+                type: tool.schema.enum(["unit", "integration", "e2e"]),
+                target_component: tool.schema.string(),
+              })
+            ),
+          })
+        )
+        .describe("Implementation phases"),
+      status: tool.schema.enum(["draft", "approved", "in_progress", "completed"]).describe("Spec status"),
+    }),
+  },
+  async execute(args, context) {
+    const fullSpec = { version: 2 as const, ...args.spec }
+
+    // Validate
+    const result = SpecSchema.safeParse(fullSpec)
+    if (!result.success) {
+      return `VALIDATION FAILED:\n${formatValidationErrors(result.error)}\n\nPlease fix the above issues and try again.`
+    }
+
+    // Generate filename
+    const epoch = Math.floor(Date.now() / 1000)
+    const slug = slugify(args.title)
+    const filename = `${epoch}-${slug}.yaml`
+    const dir = specsDir(context.worktree)
+
+    // Ensure directory exists
+    fs.mkdirSync(dir, { recursive: true })
+
+    // Write YAML only
+    const yamlPath = path.join(dir, filename)
+    const header = `# Spec: ${args.title}\n# Generated: ${new Date().toISOString()}\n\n`
+    const yamlContent = header + toYamlString(fullSpec)
+    fs.writeFileSync(yamlPath, yamlContent)
+
+    const phaseSummary = fullSpec.phases.map((p, i) => {
+      const boundary = p.is_release_boundary ? " [RELEASE BOUNDARY]" : ""
+      return `${i + 1}. ${p.name} (${p.status})${boundary}`
+    }).join("\n")
+
+    return `Spec written successfully.\n\nFile: ${yamlPath}\nStatus: ${fullSpec.status}\nTitle: ${args.title}\n\nThe spec contains:\n- ${fullSpec.goals.length} goals\n- ${fullSpec.constraints.length} constraints\n- ${fullSpec.tech_choices.length} tech choices\n- ${fullSpec.architecture.components.length} components\n- ${fullSpec.test_strategy.test_patterns.length} test patterns\n- ${fullSpec.phases.length} phases:\n${phaseSummary}`
+  },
+})
+
+export const spec_read = tool({
+  description:
+    "Read a development spec. If no path is specified, reads the most recent spec file. " +
+    "Returns the full spec content including all fields. " +
+    "Use this to understand what to implement or test.",
+  args: {
+    path: tool.schema
+      .string()
+      .optional()
+      .describe("Optional: specific spec file path. If omitted, reads the most recent spec."),
+  },
+  async execute(args, context) {
+    const dir = specsDir(context.worktree)
+
+    if (!fs.existsSync(dir)) {
+      return "ERROR: No specs directory found. No specs have been created yet."
+    }
+
+    let yamlPath: string
+
+    if (args.path) {
+      yamlPath = args.path.endsWith(".yaml") ? args.path : `${args.path}.yaml`
+      if (!path.isAbsolute(yamlPath)) {
+        yamlPath = path.join(context.worktree, yamlPath)
+      }
+    } else {
+      // Find most recent spec
+      const files = fs.readdirSync(dir).filter((f) => f.endsWith(".yaml"))
+      if (files.length === 0) {
+        return "ERROR: No spec files found. Use spec_write to create a spec first."
+      }
+      // Sort by name (timestamp prefix ensures chronological order)
+      files.sort()
+      const latest = files[files.length - 1]
+      yamlPath = path.join(dir, latest)
+    }
+
+    if (!fs.existsSync(yamlPath)) {
+      return `ERROR: Spec file not found: ${yamlPath}`
+    }
+
+    const content = fs.readFileSync(yamlPath, "utf-8")
+    let spec: Spec
+
+    try {
+      const parsed = parseYaml(content)
+      if (!parsed) {
+        return `ERROR: Failed to parse spec file: ${yamlPath}`
+      }
+      spec = parsed as Spec
+    } catch {
+      return `ERROR: Failed to parse spec file: ${yamlPath}`
+    }
+
+    // Validate
+    const result = SpecSchema.safeParse(spec)
+    if (!result.success) {
+      return `WARNING: Spec file has validation issues:\n${formatValidationErrors(result.error)}\n\nRaw content:\n${content}`
+    }
+
+    // Format output
+    let output = `SPEC: ${yamlPath}\n`
+    output += `STATUS: ${spec.status}\n`
+    output += `\n--- PROBLEM ---\n${spec.problem_statement}\n`
+    output += `\n--- GOALS ---\n${spec.goals.map((g, i) => `${i + 1}. ${g}`).join("\n")}\n`
+    output += `\n--- CONSTRAINTS ---\n${spec.constraints.map((c, i) => `${i + 1}. ${c}`).join("\n")}\n`
+    output += `\n--- TECH CHOICES ---\n${spec.tech_choices.map((t) => `- ${t.area}: ${t.choice} (${t.rationale})`).join("\n")}\n`
+    output += `\n--- ARCHITECTURE ---\n${spec.architecture.description}\n`
+    output += `\nComponents:\n${spec.architecture.components.map((c) => `- ${c.name}: ${c.responsibility}\n  Interfaces: ${c.interfaces.join(", ")}`).join("\n")}\n`
+    output += `\n--- TEST STRATEGY ---\n${spec.test_strategy.approach}\n`
+    output += `\nTest patterns:\n${spec.test_strategy.test_patterns.map((p) => `- ${p.language}: ${p.pattern}`).join("\n")}\n`
+    output += `\n--- PHASES ---\n`
+    spec.phases.forEach((phase, i) => {
+      const boundary = phase.is_release_boundary ? " [RELEASE BOUNDARY]" : ""
+      output += `\n${i + 1}. ${phase.name} (${phase.status})${boundary}\n`
+      output += `   ${phase.description}\n`
+      if (phase.file_changes.length > 0) {
+        output += `   File changes:\n${phase.file_changes.map((f) => `     - ${f.action} ${f.path}${f.is_test ? " [TEST]" : ""}: ${f.description}`).join("\n")}\n`
+      }
+      if (phase.test_cases.length > 0) {
+        output += `   Test cases:\n${phase.test_cases.map((t) => `     - [${t.type}] ${t.description} (targets: ${t.target_component})`).join("\n")}\n`
+      }
+    })
+
+    return output
+  },
+})
+
+export const spec_update = tool({
+  description:
+    "Update portions of a development spec. Supports updating the overall status, " +
+    "or updating a specific phase's status, file_changes, or test_cases. " +
+    "Use this to mark phases as in_progress/completed, or to add low-level details from the planner.",
+  args: {
+    path: tool.schema
+      .string()
+      .optional()
+      .describe("Optional: specific spec file path. If omitted, updates the most recent spec."),
+    status: tool.schema
+      .enum(["draft", "approved", "in_progress", "completed"])
+      .optional()
+      .describe("Update the overall spec status"),
+    phase_index: tool.schema
+      .number()
+      .optional()
+      .describe("Index of the phase to update (0-based)"),
+    phase_status: tool.schema
+      .enum(["pending", "in_progress", "completed"])
+      .optional()
+      .describe("Update the phase status"),
+    phase_file_changes: tool.schema
+      .array(
+        tool.schema.object({
+          path: tool.schema.string(),
+          action: tool.schema.enum(["create", "modify", "delete"]),
+          description: tool.schema.string(),
+          is_test: tool.schema.boolean(),
+        })
+      )
+      .optional()
+      .describe("Replace the phase's file changes"),
+    phase_test_cases: tool.schema
+      .array(
+        tool.schema.object({
+          description: tool.schema.string(),
+          type: tool.schema.enum(["unit", "integration", "e2e"]),
+          target_component: tool.schema.string(),
+        })
+      )
+      .optional()
+      .describe("Replace the phase's test cases"),
+  },
+  async execute(args, context) {
+    const dir = specsDir(context.worktree)
+
+    if (!fs.existsSync(dir)) {
+      return "ERROR: No specs directory found. No specs have been created yet."
+    }
+
+    let yamlPath: string
+
+    if (args.path) {
+      yamlPath = args.path.endsWith(".yaml") ? args.path : `${args.path}.yaml`
+      if (!path.isAbsolute(yamlPath)) {
+        yamlPath = path.join(context.worktree, yamlPath)
+      }
+    } else {
+      // Find most recent spec
+      const files = fs.readdirSync(dir).filter((f) => f.endsWith(".yaml"))
+      if (files.length === 0) {
+        return "ERROR: No spec files found. Use spec_write to create a spec first."
+      }
+      files.sort()
+      const latest = files[files.length - 1]
+      yamlPath = path.join(dir, latest)
+    }
+
+    if (!fs.existsSync(yamlPath)) {
+      return `ERROR: Spec file not found: ${yamlPath}`
+    }
+
+    const content = fs.readFileSync(yamlPath, "utf-8")
+    let spec: Spec
+
+    try {
+      const parsed = parseYaml(content)
+      if (!parsed) {
+        return `ERROR: Failed to parse spec file: ${yamlPath}`
+      }
+      spec = parsed as Spec
+    } catch {
+      return `ERROR: Failed to parse spec file: ${yamlPath}`
+    }
+
+    // Apply updates
+    const updates: string[] = []
+
+    if (args.status !== undefined) {
+      spec.status = args.status
+      updates.push(`Overall status → ${args.status}`)
+    }
+
+    if (args.phase_index !== undefined) {
+      if (args.phase_index < 0 || args.phase_index >= spec.phases.length) {
+        return `ERROR: Invalid phase_index ${args.phase_index}. Valid range: 0-${spec.phases.length - 1}`
+      }
+
+      const phase = spec.phases[args.phase_index]
+
+      if (args.phase_status !== undefined) {
+        phase.status = args.phase_status
+        updates.push(`Phase ${args.phase_index} status → ${args.phase_status}`)
+      }
+
+      if (args.phase_file_changes !== undefined) {
+        phase.file_changes = args.phase_file_changes
+        updates.push(`Phase ${args.phase_index} file_changes → ${args.phase_file_changes.length} changes`)
+      }
+
+      if (args.phase_test_cases !== undefined) {
+        phase.test_cases = args.phase_test_cases
+        updates.push(`Phase ${args.phase_index} test_cases → ${args.phase_test_cases.length} cases`)
+      }
+    }
+
+    if (updates.length === 0) {
+      return "ERROR: No updates specified. Provide at least one field to update."
+    }
+
+    // Validate updated spec
+    const result = SpecSchema.safeParse(spec)
+    if (!result.success) {
+      return `VALIDATION FAILED after update:\n${formatValidationErrors(result.error)}\n\nUpdates were not applied.`
+    }
+
+    // Write back
+    const header = `# Spec (updated)\n# Updated: ${new Date().toISOString()}\n\n`
+    const yamlContent = header + toYamlString(spec)
+    fs.writeFileSync(yamlPath, yamlContent)
+
+    return `Spec updated successfully.\n\nFile: ${yamlPath}\nUpdates:\n${updates.map((u) => `- ${u}`).join("\n")}`
+  },
+})

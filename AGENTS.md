@@ -6,7 +6,7 @@ Agent-friendly cd
 
 This project provides two distinct development workflows through the `agent` wrapper script:
 
-1. **Spec Workflow** (`agent spec`) - Structured 4-phase workflow for complex features
+1. **Spec Workflow** (`agent spec`) - Structured workflow for complex features with phase-based execution
 2. **Vibe Workflow** (`agent vibe`) - Direct implementation for rapid iteration
 
 ### Quick Start
@@ -27,63 +27,95 @@ agent.bat vibe
 
 ---
 
-## The Spec Workflow (4-Phase Structured)
+## The Spec Workflow (Phase-Based Execution)
 
-The **spec** workflow is designed for complex features that require careful planning, architecture decisions, and comprehensive testing. It follows a structured 4-phase approach:
+The **spec** workflow is designed for complex features that require careful planning, architecture decisions, and comprehensive testing. It follows a structured approach where the spec agent creates a high-level plan and orchestrates subagents to execute each phase.
 
-### Phase 1: Understand
+### Phase 1: Understand & Create High-Level Spec
+
 - **Agent**: Spec agent (primary orchestrator)
 - **Interaction**: Direct conversation with user
-- **Output**: Clear, unambiguous problem statement
+- **Output**: Approved structured YAML spec file
 - **Actions**:
-  - Play back understanding
-  - Ask clarifying questions
-  - Highlight ambiguities
-  - Confirm understanding before moving on
+  - **Problem Understanding**:
+    - Play back understanding of what user wants to build
+    - Ask clarifying questions to get really clear on details and scope
+    - Highlight ambiguities and edge cases
+    - Confirm understanding before moving to planning
+  - **High-Level Planning** (spec agent does this, NOT planner):
+    - Analyze the problem and propose architecture
+    - Identify if work should be split into multiple phases:
+      - **Distinct components**: Work spanning multiple independent components
+      - **Release boundaries**: Backwards compatibility concerns or deployment checkpoints
+      - **Risk mitigation**: Early phases can validate assumptions
+    - If single phase is sufficient, create spec with one phase
+    - Write spec via `spec_write` tool with:
+      - Problem statement and goals
+      - Constraints and tech choices
+      - Architecture and components
+      - Test strategy and patterns
+      - Phases with high-level descriptions (file_changes and test_cases empty at this stage)
+      - Status: "draft"
+  - **User Approval** (CRITICAL):
+    - Present spec to user
+    - Use question tool to ask: "Are you happy with this spec? Should I proceed?"
+    - User MUST explicitly confirm before proceeding
+    - If user requests changes, update spec and ask again
+    - Once approved, update spec status to "approved"
 
-### Phase 2: Plan
-- **Agent**: `@planner` subagent
-- **Interaction**: Primary agent delegates to planner
-- **Output**: Structured YAML plan file with:
-  - Problem statement and goals
-  - Technology choices with rationale
-  - System architecture and components
-  - Test strategy with language-specific patterns
-  - Detailed file changes list
-- **Actions**:
-  - Analyze existing codebase
-  - Propose architecture
-  - Define testing approach
-  - Generate plan via `plan_write` tool
-  - Primary agent presents plan to user for approval
-  - Loop back to planner if user requests changes
-  - Move to Phase 3 once user approves
+### Phase 2: Execute Phases Iteratively
 
-### Phase 3: Write Tests
-- **Agent**: `@test-writer` subagent
-- **Interaction**: Primary agent delegates to test-writer
-- **Output**: Test files matching language conventions
-- **Actions**:
-  - Read plan via `plan_read`
-  - Create test files using patterns from plan
-  - Implement all test cases from plan
-  - Verify tests compile/load
-  - Report test infrastructure created
+For each phase (up to the next release boundary, if any):
 
-### Phase 4: Implement
-- **Agent**: `@implementer` subagent
-- **Interaction**: Primary agent delegates to implementer
-- **Output**: Implementation code passing all tests
-- **Actions**:
-  - Read plan via `plan_read`
-  - Write implementation files
-  - Run tests incrementally
-  - Apply trivial fixes (formatting, simple bugs)
-  - If non-trivial issue found:
-    - Report clearly
-    - Loop back to Phase 2 via primary agent
-    - Continue after plan update
-  - Report final status with test results
+**2a. Low-Level Planning (Delegate to @planner)**:
+- Spec agent invokes @planner subagent with:
+  - The spec path
+  - The phase index to plan
+- The planner will:
+  - Read spec via `spec_read`
+  - Analyze codebase
+  - Define specific file_changes and test_cases for the phase
+  - Update phase via `spec_update`
+- Spec agent reviews planner's output
+- If changes needed, loop back to planner
+
+**2b. Write Tests (Delegate to @test-writer)**:
+- Spec agent updates phase status to "in_progress" via `spec_update`
+- Spec agent invokes @test-writer subagent with:
+  - The spec path
+  - The phase index to implement
+- The test-writer will:
+  - Read spec via `spec_read`
+  - Write test files for the phase's test_cases
+  - Verify tests compile/run
+- Spec agent reviews test-writer's output
+
+**2c. Implement (Delegate to @implementer)**:
+- Spec agent invokes @implementer subagent with:
+  - The spec path
+  - The phase index to implement
+- The implementer will:
+  - Read spec via `spec_read`
+  - Write implementation code for the phase's file_changes
+  - Run tests and apply trivial fixes
+  - Report any non-trivial issues
+- If non-trivial issues arise:
+  - Report clearly to user
+  - Loop back to Phase 1 for spec revision
+- Once phase is complete:
+  - Update phase status to "completed" via `spec_update`
+
+**2d. Release Boundary Check**:
+- If the phase is a release boundary:
+  - Pause and inform the user
+  - Ask if they want to continue to the next phase
+  - If yes, continue with next phase
+  - If no, stop and report progress
+
+### Phase 3: Completion
+
+- When all phases are complete, update spec status to "completed"
+- Report final status to user
 
 ### When to Use Spec Workflow
 
@@ -94,6 +126,7 @@ Use `agent spec` when:
 - The problem requires careful analysis before implementation
 - Working with unfamiliar domains or technologies
 - Building production-ready features
+- Work spans multiple phases or release boundaries
 
 ---
 
@@ -146,6 +179,8 @@ Even in vibe mode, you can delegate to subagents if needed:
 | Complex feature requiring architecture | `agent spec` |
 | Multiple components to coordinate | `agent spec` |
 | Production-ready implementation | `agent spec` |
+| Work spans multiple phases | `agent spec` |
+| Release boundaries needed | `agent spec` |
 | Quick bug fix | `agent vibe` |
 | Prototype/MVP | `agent vibe` |
 | Simple, well-understood task | `agent vibe` |
@@ -162,8 +197,11 @@ Even in vibe mode, you can delegate to subagents if needed:
 
 **Spec Agent**:
 - Mode: Primary orchestrator
-- Prompt: 4-phase structured workflow
+- Prompt: Phase-based execution workflow
 - Permissions: Task delegation only (no direct editing)
+- Creates high-level spec itself (does NOT delegate to planner)
+- Identifies phases and release boundaries
+- Gets explicit user approval
 - Can delegate to: @planner, @test-writer, @implementer
 
 **Vibe Agent**:
@@ -175,32 +213,34 @@ Even in vibe mode, you can delegate to subagents if needed:
 ### Subagents
 
 **Planner**:
-- Reads: Codebase analysis (git, ls, find, grep)
-- Writes: Plan YAML files only
-- Calls: `plan_write` tool to save plans
-- Cannot: Execute code, write tests, write implementation
+- Reads: Spec files via `spec_read`, codebase analysis (git, ls, find, grep)
+- Writes: Updates phases via `spec_update` (fills in file_changes and test_cases)
+- Cannot: Execute code, write tests, write implementation, create new specs
+- Called by: Spec agent for low-level phase planning
 
 **Test-Writer**:
-- Reads: Plan files via `plan_read`, existing code
-- Writes: Test files only (matching language patterns in plan)
+- Reads: Spec files via `spec_read`, existing code
+- Writes: Test files only (matching language conventions in spec)
 - Runs: Test commands to verify tests compile
-- Cannot: Write implementation code, modify plan
+- Cannot: Write implementation code, modify spec
+- Called by: Spec agent for test writing
 
 **Implementer**:
-- Reads: Plan files via `plan_read`, existing code
+- Reads: Spec files via `spec_read`, existing code
 - Writes: Implementation files only
 - Runs: Tests to verify implementation
-- Applies: Trivial fixes consistent with plan
-- Cannot: Write test code, modify plan, ignore test failures
+- Applies: Trivial fixes consistent with spec
+- Cannot: Write test code, modify spec, ignore test failures
+- Called by: Spec agent for implementation
 
 ---
 
-## Plan File Format
+## Spec File Format
 
-Plans are stored as `.opencode/plans/<timestamp>-<slug>.yaml` and include:
+Specs are stored as `.opencode/specs/<timestamp>-<slug>.yaml` and include:
 
 ```yaml
-version: 1
+version: 2
 problem_statement: "Clear description of the problem"
 goals:
   - "Goal 1"
@@ -222,20 +262,20 @@ test_strategy:
   test_patterns:
     - language: "go"
       pattern: "*_test.go"
-  test_cases:
-    - description: "Parser handles valid CSV"
-      type: "unit"
-      target_component: "Parser"
-file_changes:
-  - path: "src/parser.go"
-    action: "create"
-    description: "CSV parser implementation"
-    is_test: false
-  - path: "src/parser_test.go"
-    action: "create"
-    description: "Parser tests"
-    is_test: true
-status: "draft"  # Changes to "approved" by user
+phases:
+  - name: "Phase 1: Parser Implementation"
+    description: "Build the CSV parser"
+    status: "pending"
+    is_release_boundary: false
+    file_changes: []  # Filled by planner
+    test_cases: []    # Filled by planner
+  - name: "Phase 2: API Layer"
+    description: "Add HTTP endpoints"
+    status: "pending"
+    is_release_boundary: true  # Stop here for user confirmation
+    file_changes: []
+    test_cases: []
+status: "draft"  # draft → approved → in_progress → completed
 ```
 
 All fields are mandatory for validation.
@@ -244,22 +284,27 @@ All fields are mandatory for validation.
 
 ## Custom Tools
 
-**`plan_write`**: Writes and validates plan YAML files
-- Input: title, structured plan object
+**`spec_write`**: Writes and validates spec YAML files
+- Input: title, structured spec object
 - Validation: Ensures all mandatory fields present
 - Output: File path + summary
-- Used by: Planner
+- Used by: Spec agent (for high-level spec creation)
 
-**`plan_read`**: Reads and validates plan files
+**`spec_read`**: Reads and validates spec files
 - Input: optional path (reads most recent if not specified)
-- Output: Formatted plan content with all fields
-- Used by: Test-writer, Implementer
+- Output: Formatted spec content with all fields
+- Used by: Spec agent, planner, test-writer, implementer
+
+**`spec_update`**: Updates portions of a spec file
+- Input: path, optional status, optional phase updates
+- Supports: Overall status changes, phase status, phase file_changes, phase test_cases
+- Used by: Spec agent (status changes), planner (phase details)
 
 ---
 
 ## Language-Aware Test Patterns
 
-The planner must define test file patterns for each language:
+The spec must define test file patterns for each language:
 
 | Language | Pattern | Convention |
 |----------|---------|-----------|
@@ -270,7 +315,7 @@ The planner must define test file patterns for each language:
 | Java | `*Test.java` | Same package structure |
 
 When a new language is introduced:
-- Planner must research and define appropriate test patterns
+- Spec agent must research and define appropriate test patterns
 - If uncertain, ask user to clarify conventions
 - Include patterns in `test_strategy.test_patterns` list
 
@@ -304,14 +349,16 @@ When launching subagents, limit their tool access to only the essential tools re
 agent spec
 ```
 
-1. Engage with spec agent in Phase 1 (Understand)
-2. Summarize back what you heard
-3. Ask clarifying questions
-4. Once clear, agent will invoke the planner to draft a solution
-5. Review and approve the plan
-6. Agent invokes test-writer for Phase 3
-7. Agent invokes implementer for Phase 4
-8. If non-trivial issues arise, loop back to planning
+1. Engage with spec agent in Phase 1 (Understand & Create High-Level Spec)
+2. Work through problem understanding together
+3. Spec agent creates high-level spec with phases
+4. Review and explicitly approve the spec
+5. Spec agent iterates through phases:
+   - Delegates low-level planning to @planner
+   - Delegates test writing to @test-writer
+   - Delegates implementation to @implementer
+6. If non-trivial issues arise, loop back to planning
+7. At release boundaries, spec agent pauses for user confirmation
 
 ### Starting a Vibe Session
 
@@ -348,6 +395,8 @@ The wrapper scripts:
 - Architecture is approved before coding
 - Tests drive implementation
 - Non-trivial issues are escalated rather than worked around
+- Phase-based execution with release boundary support
+- High-level planning done by spec agent (not delegated)
 
 **Vibe Workflow**:
 - Rapid iteration and fast feedback
