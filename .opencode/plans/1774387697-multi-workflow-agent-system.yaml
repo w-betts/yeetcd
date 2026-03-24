@@ -1,0 +1,117 @@
+# Plan: multi-workflow-agent-system
+# Generated: 2026-03-24T21:28:17.856Z
+
+version: 1
+problem_statement: |
+  Create a multi-workflow agent system that provides users with two distinct development workflows: a structured 4-phase workflow (spec) for complex features requiring planning and architecture, and a direct vibe workflow for rapid iteration and simpler tasks. The system should include cross-platform wrapper scripts for easy agent selection.
+
+goals:
+  - Create Python wrapper script (agent) with shebang for Mac/Linux that maps subcommands to agent names
+  - Create Windows batch wrapper script (agent.bat) with same functionality
+  - Add spec agent configuration for 4-phase structured workflow (current orchestrator workflow)
+  - Add vibe agent configuration for direct implement/test loop workflow
+  - Remove custom build and plan agent configurations to use OpenCode defaults
+  - Update AGENTS.md to document both workflows and when to use each
+  - Ensure wrapper scripts launch opencode with appropriate agent selected without passing prompt
+
+constraints:
+  - Wrapper scripts must NOT pass any prompt to opencode - user enters prompt in TUI
+  - Spec agent must maintain the existing 4-phase structured workflow from AGENTS.md
+  - Vibe agent must have full tool access for direct implementation
+  - Vibe agent should optionally be able to delegate to subagents
+  - Both wrapper scripts must support subcommands: spec, vibe, build, plan
+  - Documentation must clearly explain when to use each workflow
+
+tech_choices:
+  - area: wrapper-scripts
+    choice: "Python 3 with shebang for Mac/Linux, Batch for Windows"
+    rationale: Python provides cross-platform compatibility and is already likely installed on developer machines. Shebang enables direct execution on Unix systems. Batch file is necessary for Windows compatibility.
+  - area: agent-configuration
+    choice: OpenCode agent configuration in opencode.json
+    rationale: OpenCode's native agent configuration system provides the flexibility needed for different workflow patterns
+  - area: spec-agent
+    choice: Primary agent with orchestrator prompt and subagent delegation
+    rationale: "The structured workflow requires orchestration between understanding, planning, testing, and implementation phases"
+  - area: vibe-agent
+    choice: Primary agent with full permissions and optional subagent access
+    rationale: "Direct implementation workflow needs full tool access for rapid iteration, with optional delegation for complex tasks"
+
+architecture:
+  description: |
+    The system consists of two main components: wrapper scripts for easy agent selection, and agent configurations for different workflow patterns. The wrapper scripts provide a simple CLI interface that maps subcommands to agent names, launching opencode with the appropriate agent selected. The agent configurations define two distinct workflows: spec (structured 4-phase) and vibe (direct implementation).
+  components:
+    - name: agent wrapper script (Mac/Linux)
+      responsibility: "Provides CLI interface for selecting agents on Unix systems. Parses subcommand, maps to agent name, and launches opencode with --agent flag. Does NOT pass any prompt."
+      interfaces:
+        - "agent <subcommand>"
+        - "Subcommands: spec, vibe, build, plan"
+    - name: agent.bat wrapper script (Windows)
+      responsibility: "Provides CLI interface for selecting agents on Windows systems. Parses subcommand, maps to agent name, and launches opencode with --agent flag. Does NOT pass any prompt."
+      interfaces:
+        - "agent.bat <subcommand>"
+        - "Subcommands: spec, vibe, build, plan"
+    - name: spec agent configuration
+      responsibility: "Orchestrates 4-phase structured workflow: Understand (direct with user), Plan (with @planner), Write Tests (with @test-writer), Implement (with @implementer). Uses orchestrator prompt and delegates to subagents."
+      interfaces:
+        - "opencode --agent spec"
+        - "Delegates to: @planner, @test-writer, @implementer"
+    - name: vibe agent configuration
+      responsibility: "Provides direct implementation workflow. Engages user to understand requirements, plans directly with user (no plan file), implements and tests in a loop. Has full tool access and can optionally delegate to subagents."
+      interfaces:
+        - "opencode --agent vibe"
+        - "Optional delegation to: @planner, @test-writer, @implementer"
+    - name: updated AGENTS.md
+      responsibility: "Documents both workflows, wrapper script usage, and guidance on when to use each workflow."
+      interfaces:
+        - "Human-readable documentation"
+
+test_strategy:
+  approach: "Manual testing of wrapper scripts and agent configurations. Since these are configuration and wrapper files, testing focuses on verification that scripts execute correctly and agents launch with expected behavior."
+  test_patterns:
+    - language: python
+      pattern: "test_*.py"
+  test_cases:
+    - description: Verify agent script executes with valid subcommand (spec)
+      type: unit
+      target_component: agent wrapper script (Mac/Linux)
+    - description: Verify agent script executes with valid subcommand (vibe)
+      type: unit
+      target_component: agent wrapper script (Mac/Linux)
+    - description: Verify agent script handles invalid subcommand gracefully
+      type: unit
+      target_component: agent wrapper script (Mac/Linux)
+    - description: Verify agent.bat executes with valid subcommand (spec)
+      type: unit
+      target_component: agent.bat wrapper script (Windows)
+    - description: Verify agent.bat executes with valid subcommand (vibe)
+      type: unit
+      target_component: agent.bat wrapper script (Windows)
+    - description: Verify spec agent launches with orchestrator prompt
+      type: integration
+      target_component: spec agent configuration
+    - description: Verify vibe agent launches with full permissions
+      type: integration
+      target_component: vibe agent configuration
+    - description: Verify build and plan agents use OpenCode defaults
+      type: integration
+      target_component: opencode.json
+
+file_changes:
+  - path: agent
+    action: create
+    description: "Python wrapper script with shebang for Mac/Linux. Maps subcommands (spec, vibe, build, plan) to agent names and launches opencode with --agent flag. Does NOT pass any prompt."
+    is_test: false
+  - path: agent.bat
+    action: create
+    description: "Windows batch wrapper script. Maps subcommands (spec, vibe, build, plan) to agent names and launches opencode with --agent flag. Does NOT pass any prompt."
+    is_test: false
+  - path: opencode.json
+    action: modify
+    description: "Add spec agent configuration (4-phase structured workflow), add vibe agent configuration (direct implementation workflow), remove custom build and plan configurations."
+    is_test: false
+  - path: AGENTS.md
+    action: modify
+    description: "Update documentation to include wrapper script usage, spec workflow documentation, vibe workflow documentation, and guidance on when to use each workflow."
+    is_test: false
+
+status: approved

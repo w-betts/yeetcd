@@ -1,11 +1,11 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "agent": {
-    "build": {
+    "spec": {
       "mode": "primary",
       "model": "opencode/glm-5",
-      "description": "Build mode - orchestrates feature development through planning, testing, and implementation phases",
-      "prompt": "{file:./.opencode/prompts/orchestrator.txt}",
+      "description": "Spec agent - orchestrates 4-phase structured workflow for complex features requiring planning and architecture",
+      "prompt": "{file:./.opencode/prompts/spec.md}",
       "temperature": 0.3,
       "permission": {
         "task": {
@@ -16,15 +16,16 @@
         }
       }
     },
-    "plan": {
+    "vibe": {
       "mode": "primary",
       "model": "opencode/glm-5",
-      "description": "Plan mode - orchestrates feature development (same workflow as build, with restricted direct permissions)",
-      "prompt": "{file:./.opencode/prompts/orchestrator.txt}",
+      "description": "Vibe agent - direct implementation workflow for rapid iteration and simpler tasks",
+      "prompt": "{file:./.opencode/prompts/vibe.md}",
       "temperature": 0.3,
       "permission": {
-        "edit": "ask",
-        "bash": "ask",
+        "edit": {
+          "*": "allow"
+        },
         "task": {
           "*": "deny",
           "planner": "allow",
@@ -44,13 +45,6 @@
           ".opencode/plans/*.yaml": "allow",
           ".opencode/plans/*.json": "allow"
         },
-        "bash": {
-          "*": "deny",
-          "ls *": "allow",
-          "find *": "allow",
-          "git *": "allow",
-          "grep *": "allow"
-        },
         "task": "deny"
       }
     },
@@ -62,9 +56,6 @@
       "permission": {
         "edit": {
           "*": "ask"
-        },
-        "bash": {
-          "*": "allow"
         },
         "task": "deny"
       }
@@ -78,9 +69,6 @@
         "edit": {
           "*": "ask"
         },
-        "bash": {
-          "*": "allow"
-        },
         "task": "deny"
       }
     }
@@ -88,9 +76,6 @@
   "permission": {
     "edit": {
       "*": "allow"
-    },
-    "bash": {
-      "*": "ask"
     }
   }
 }

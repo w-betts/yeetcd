@@ -2,16 +2,37 @@
 
 Agent-friendly cd
 
-## OpenCode Structured Development Workflow
+## Multi-Workflow Agent System
 
-This project uses a 4-phase structured workflow for all feature development. The workflow is orchestrated by OpenCode's `build` and `plan` agents, which delegate specialized work to three custom subagents.
+This project provides two distinct development workflows through the `agent` wrapper script:
 
-### The 4-Phase Workflow
+1. **Spec Workflow** (`agent spec`) - Structured 4-phase workflow for complex features
+2. **Vibe Workflow** (`agent vibe`) - Direct implementation for rapid iteration
 
-Every feature development session follows this flow:
+### Quick Start
 
-#### Phase 1: Understand
-- **Agent**: Primary agent (Build or Plan)
+```bash
+# For complex features requiring planning and architecture
+agent spec
+
+# For quick implementation and rapid iteration
+agent vibe
+```
+
+On Windows, use `agent.bat` instead:
+```cmd
+agent.bat spec
+agent.bat vibe
+```
+
+---
+
+## The Spec Workflow (4-Phase Structured)
+
+The **spec** workflow is designed for complex features that require careful planning, architecture decisions, and comprehensive testing. It follows a structured 4-phase approach:
+
+### Phase 1: Understand
+- **Agent**: Spec agent (primary orchestrator)
 - **Interaction**: Direct conversation with user
 - **Output**: Clear, unambiguous problem statement
 - **Actions**:
@@ -20,7 +41,7 @@ Every feature development session follows this flow:
   - Highlight ambiguities
   - Confirm understanding before moving on
 
-#### Phase 2: Plan
+### Phase 2: Plan
 - **Agent**: `@planner` subagent
 - **Interaction**: Primary agent delegates to planner
 - **Output**: Structured YAML plan file with:
@@ -38,7 +59,7 @@ Every feature development session follows this flow:
   - Loop back to planner if user requests changes
   - Move to Phase 3 once user approves
 
-#### Phase 3: Write Tests
+### Phase 3: Write Tests
 - **Agent**: `@test-writer` subagent
 - **Interaction**: Primary agent delegates to test-writer
 - **Output**: Test files matching language conventions
@@ -49,7 +70,7 @@ Every feature development session follows this flow:
   - Verify tests compile/load
   - Report test infrastructure created
 
-#### Phase 4: Implement
+### Phase 4: Implement
 - **Agent**: `@implementer` subagent
 - **Interaction**: Primary agent delegates to implementer
 - **Output**: Implementation code passing all tests
@@ -64,15 +85,94 @@ Every feature development session follows this flow:
     - Continue after plan update
   - Report final status with test results
 
-### Agent Roles and Boundaries
+### When to Use Spec Workflow
 
-#### Primary Agents (Build & Plan)
-- **Build**: Full permissions, acts as orchestrator
-- **Plan**: Restricted permissions (edit/bash: ask), but same orchestrator role
-- **Role**: Guide user through workflow, delegate to subagents, present decisions to user
-- **Key Principle**: Do NOT write code directly; orchestrate the process
+Use `agent spec` when:
+- Building complex features requiring architecture decisions
+- Multiple components need coordination
+- You need comprehensive test coverage
+- The problem requires careful analysis before implementation
+- Working with unfamiliar domains or technologies
+- Building production-ready features
 
-#### Subagents
+---
+
+## The Vibe Workflow (Direct Implementation)
+
+The **vibe** workflow is designed for rapid iteration and simpler tasks. It skips formal planning and goes straight to implementation with full tool access.
+
+### Phase 1: Understand
+- **Agent**: Vibe agent (primary)
+- **Interaction**: Direct conversation with user
+- **Output**: Clear understanding of what to build
+- **Actions**:
+  - Quickly understand requirements
+  - Ask clarifying questions
+  - Move to implementation immediately
+
+### Phase 2: Implement and Test (Iterative)
+- **Agent**: Vibe agent (with optional subagent delegation)
+- **Interaction**: Direct implementation
+- **Output**: Working implementation
+- **Actions**:
+  - Implement solution directly
+  - Test as you go
+  - Iterate based on results
+  - Optionally delegate to subagents for complex sub-tasks
+
+### When to Use Vibe Workflow
+
+Use `agent vibe` when:
+- Making quick fixes or small changes
+- Prototyping and experimenting
+- The task is simple and well-understood
+- You need rapid iteration
+- Working on proof-of-concepts
+- Time is more important than perfect architecture
+
+### Optional Subagent Delegation
+
+Even in vibe mode, you can delegate to subagents if needed:
+- `@planner` - If architecture becomes complex
+- `@test-writer` - If comprehensive tests are needed
+- `@implementer` - To parallelize work
+
+---
+
+## Choosing the Right Workflow
+
+| Scenario | Recommended Workflow |
+|----------|---------------------|
+| Complex feature requiring architecture | `agent spec` |
+| Multiple components to coordinate | `agent spec` |
+| Production-ready implementation | `agent spec` |
+| Quick bug fix | `agent vibe` |
+| Prototype/MVP | `agent vibe` |
+| Simple, well-understood task | `agent vibe` |
+| Experimentation | `agent vibe` |
+| Unfamiliar domain | `agent spec` |
+
+**Rule of thumb**: Start with `agent vibe` for speed. If you find yourself needing formal planning, switch to `agent spec`.
+
+---
+
+## Agent Roles and Boundaries
+
+### Primary Agents
+
+**Spec Agent**:
+- Mode: Primary orchestrator
+- Prompt: 4-phase structured workflow
+- Permissions: Task delegation only (no direct editing)
+- Can delegate to: @planner, @test-writer, @implementer
+
+**Vibe Agent**:
+- Mode: Primary implementer
+- Prompt: Direct implementation workflow
+- Permissions: Full tool access (edit, bash, etc.)
+- Can optionally delegate to: @planner, @test-writer, @implementer
+
+### Subagents
 
 **Planner**:
 - Reads: Codebase analysis (git, ls, find, grep)
@@ -93,7 +193,9 @@ Every feature development session follows this flow:
 - Applies: Trivial fixes consistent with plan
 - Cannot: Write test code, modify plan, ignore test failures
 
-### Plan File Format
+---
+
+## Plan File Format
 
 Plans are stored as `.opencode/plans/<timestamp>-<slug>.yaml` and include:
 
@@ -138,7 +240,9 @@ status: "draft"  # Changes to "approved" by user
 
 All fields are mandatory for validation.
 
-### Custom Tools
+---
+
+## Custom Tools
 
 **`plan_write`**: Writes and validates plan YAML files
 - Input: title, structured plan object
@@ -151,7 +255,9 @@ All fields are mandatory for validation.
 - Output: Formatted plan content with all fields
 - Used by: Test-writer, Implementer
 
-### Language-Aware Test Patterns
+---
+
+## Language-Aware Test Patterns
 
 The planner must define test file patterns for each language:
 
@@ -168,14 +274,15 @@ When a new language is introduced:
 - If uncertain, ask user to clarify conventions
 - Include patterns in `test_strategy.test_patterns` list
 
-### Configuration
+---
+
+## Configuration
 
 Configuration is in `opencode.json`:
-- Build agent uses orchestrator prompt
-- Plan agent uses same orchestrator prompt (with restricted direct permissions)
-- All three subagents are defined and configured
-- Tool permissions control what each subagent can do
-- Both agents can invoke all three subagents via task permissions
+- Spec agent uses orchestrator prompt with subagent delegation
+- Vibe agent uses direct implementation prompt with full permissions
+- Subagents (planner, test-writer, implementer) are defined and configured
+- Tool permissions control what each agent can do
 
 ### Working on opencode config
 
@@ -187,20 +294,63 @@ Tools provide more deterministic results and better control. Use tools (Bash, Re
 
 When launching subagents, limit their tool access to only the essential tools required for their specific task. Avoid giving broad access that isn't necessary for the job at hand.
 
-### Using the Workflow
+---
 
-To start a feature development session:
+## Using the Workflow
 
-1. In OpenCode, ask for a feature
-2. Build/Plan agent will engage you in Phase 1 (Understand)
-3. Agent will invoke planner for Phase 2
-4. Review and approve the plan
-5. Agent invokes test-writer for Phase 3
-6. Agent invokes implementer for Phase 4
-7. If non-trivial issues arise, loop back to planning
+### Starting a Spec Session
 
-The workflow ensures:
+```bash
+agent spec
+```
+
+1. Engage with spec agent in Phase 1 (Understand)
+2. Summarize back what you heard
+3. Ask clarifying questions
+4. Once clear, agent will invoke the planner to draft a solution
+5. Review and approve the plan
+6. Agent invokes test-writer for Phase 3
+7. Agent invokes implementer for Phase 4
+8. If non-trivial issues arise, loop back to planning
+
+### Starting a Vibe Session
+
+```bash
+agent vibe
+```
+
+1. Quickly explain what you need
+2. Agent starts implementing immediately
+3. Agent tests as they go
+4. Iterate until it works
+
+---
+
+## Wrapper Scripts
+
+The `agent` script (and `agent.bat` on Windows) provides a simple CLI for selecting agents:
+
+- `agent spec` - Launch spec agent (structured workflow)
+- `agent vibe` - Launch vibe agent (direct implementation)
+
+The wrapper scripts:
+- Map subcommands to agent names
+- Launch opencode with `--agent <agent-name>` flag
+- Do NOT pass any prompt - you enter it in the TUI
+- Handle invalid subcommands gracefully with helpful error messages
+
+---
+
+## Workflow Benefits
+
+**Spec Workflow**:
 - Problems are well-understood before building
 - Architecture is approved before coding
 - Tests drive implementation
 - Non-trivial issues are escalated rather than worked around
+
+**Vibe Workflow**:
+- Rapid iteration and fast feedback
+- Minimal overhead for simple tasks
+- Full tool access for maximum flexibility
+- Optional delegation when needed
