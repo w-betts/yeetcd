@@ -96,5 +96,5 @@
       "*": "allow"
     }
   },
-  "plugin": [".opencode/plugin/notification.ts"]
+  "plugin": [".opencode/notification-plugin.ts"]
 }

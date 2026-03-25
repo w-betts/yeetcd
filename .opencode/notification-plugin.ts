@@ -15,6 +15,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import type { Plugin, PluginInput } from '@opencode-ai/plugin';
 
 // ============================================================================
 // Type Definitions
@@ -35,23 +36,27 @@ export interface BunShell {
   run(command: string): Promise<{ exitCode: number; stdout: string; stderr: string }>;
 }
 
-export interface PluginInput {
-  BunShell: BunShell;
-  config?: NotificationConfig;
-}
-
 export interface Event {
   type: string;
 }
 
-export interface PermissionInput {
+export interface Permission {
+  id: string;
   type: string;
-  pattern?: string;
+  pattern?: string | Array<string>;
+  sessionID: string;
+  messageID: string;
+  callID?: string;
+  title: string;
+  metadata: {
+    [key: string]: unknown;
+  };
 }
 
 export interface ToolInput {
   tool: string;
-  params: Record<string, unknown>;
+  sessionID: string;
+  callID: string;
 }
 
 // ============================================================================
@@ -59,11 +64,23 @@ export interface ToolInput {
 // ============================================================================
 
 export function getPlatform(): 'macos' | 'linux' | 'windows' {
-  const platform = process.platform;
-  if (platform === 'darwin') return 'macos';
-  if (platform === 'linux') return 'linux';
-  if (platform === 'win32') return 'windows';
-  throw new Error(`Unsupported platform: ${platform}`);
+  try {
+    const platform = process.platform;
+    if (typeof platform !== 'string') {
+      // Fallback for environments where process.platform is not a string
+      console.warn('process.platform is not a string, defaulting to macOS');
+      return 'macos'; // Default to macOS
+    }
+    if (platform === 'darwin') return 'macos';
+    if (platform === 'linux') return 'linux';
+    if (platform === 'win32') return 'windows';
+    // Default to macOS for unknown platforms
+    console.warn(`Unknown platform: ${platform}, defaulting to macOS`);
+    return 'macos';
+  } catch (error) {
+    console.error('Error in getPlatform():', error);
+    return 'macos'; // Default to macOS on error
+  }
 }
 
 // ============================================================================
@@ -268,32 +285,34 @@ function getCachedPlatform(): string {
 /**
  * Main plugin function that registers hooks with OpenCode
  */
-export default function notificationPlugin(input: PluginInput) {
-  const config = input.config || getConfig();
+const notificationPlugin: Plugin = async (input: PluginInput) => {
+  const config = getConfig();
   const platform = getCachedPlatform();
-  const shell = input.BunShell;
+  const shell = input.$;
 
   // Create a bound playSound function for this platform and shell
   const playSoundBound = (soundFile?: string) => playSound(soundFile, platform, shell);
 
   return {
     // Hook: event - triggers on session.idle
-    event: (event: Event) => {
-      if (event.type === 'session.idle') {
+    event: async (input: { event: Event }) => {
+      if (input.event.type === 'session.idle') {
         scheduleNotification('idle', config, playSoundBound);
       }
     },
 
     // Hook: permission.ask - triggers on any permission request
-    'permission.ask': (permissionInput: PermissionInput) => {
+    'permission.ask': async (input: Permission, output: { status: "ask" | "deny" | "allow" }) => {
       scheduleNotification('permission', config, playSoundBound);
     },
 
     // Hook: tool.execute.before - triggers on question tool
-    'tool.execute.before': (toolInput: ToolInput) => {
-      if (toolInput.tool === 'question') {
+    'tool.execute.before': async (input: ToolInput, output: { args: any }) => {
+      if (input.tool === 'question') {
         scheduleNotification('question', config, playSoundBound);
       }
     },
   };
 }
+
+export default notificationPlugin;
