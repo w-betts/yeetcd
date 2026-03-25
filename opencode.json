@@ -52,7 +52,7 @@
     },
     "reviewer": {
       "mode": "subagent",
-      "model": "opencode/glm-5",
+      "model": "opencode/minimax-m2.5-free",
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/reviewer.md}",
       "temperature": 0.2,
