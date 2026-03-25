@@ -7,6 +7,7 @@
       "description": "Spec agent - orchestrates phase-based workflow for complex features requiring planning and architecture",
       "prompt": "{file:./.opencode/prompts/spec.md}",
       "temperature": 0.3,
+      "steps": 40,
       "permission": {
         "question": "allow",
         "task": {
@@ -24,6 +25,7 @@
       "description": "Vibe agent - direct implementation workflow for rapid iteration and simpler tasks",
       "prompt": "{file:./.opencode/prompts/vibe.md}",
       "temperature": 0.3,
+      "steps": 25,
       "permission": {
         "question": "allow",
         "edit": {
@@ -44,6 +46,7 @@
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/planner.md}",
       "temperature": 0.2,
+      "steps": 50,
       "permission": {
         "edit": {
           "*": "deny",
@@ -58,6 +61,7 @@
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/reviewer.md}",
       "temperature": 0.2,
+      "steps": 15,
       "permission": {
         "edit": {
           "*": "deny",
@@ -71,6 +75,7 @@
       "model": "opencode/kimi-k2.5",
       "hidden": false,
       "temperature": 0.3,
+      "steps": 25,
       "permission": {
         "edit": {
           "*": "ask"
@@ -83,6 +88,7 @@
       "model": "opencode/kimi-k2.5",
       "hidden": false,
       "temperature": 0.3,
+      "steps": 40,
       "permission": {
         "edit": {
           "*": "ask"
@@ -97,19 +103,19 @@
         "glm-5": {
           "limit": {
             "context": 64000,
-            "output": 65536
+            "output": 16384
           }
         },
         "minimax-m2.5-free": {
           "limit": {
             "context": 64000,
-            "output": 65536
+            "output": 16384
           }
         },
         "kimi-k2.5": {
           "limit": {
             "context": 64000,
-            "output": 65536
+            "output": 16384
           }
         }
       }
