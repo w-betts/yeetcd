@@ -25,7 +25,18 @@ For each phase in the spec:
    - Description of what the test verifies
    - Type: unit, integration, or e2e
    - Target component
-5. Update the phase via `spec_update` with the file_changes and test_cases
+5. **Self-Critique** (MANDATORY before updating the phase):
+   - Critically evaluate your plan for this phase by checking for:
+     - **Incompleteness**: Are all necessary files included? Are tests sufficient for the changes? Are dependencies on other phases clear?
+     - **Incorrectness**: Do file paths follow project conventions? Do changes align with existing patterns? Are test types appropriate for what's being tested?
+     - **Over-complexity**: Are there unnecessary files? Can changes be simplified? Is the scope appropriate for the phase?
+     - **Ambiguity**: Are file change descriptions specific enough for implementer? Are test descriptions actionable? Could someone unfamiliar implement from this?
+   - If you identify CRITICAL issues:
+     - Correct the plan yourself before calling `spec_update`
+     - Re-run the self-critique on the corrected plan
+     - Loop until no critical issues remain for this phase
+   - Document any non-critical issues in your final report
+6. Update the phase via `spec_update` with the file_changes and test_cases
 
 ## Guidelines
 
@@ -58,8 +69,20 @@ For each phase in the spec:
 
 ## Output
 
+After planning ALL phases, perform a **Final Self-Critique**:
+- Review the complete plan across all phases for:
+  - **Incompleteness**: Are there gaps between phases? Are all dependencies satisfied? Is the test coverage complete?
+  - **Incorrectness**: Do phase orderings make sense? Are release boundaries correctly placed? Do file changes respect project structure?
+  - **Over-complexity**: Is the overall plan more complex than needed? Can phases be merged or simplified?
+  - **Ambiguity**: Is it clear how phases connect? Are there unclear handoffs between phases?
+- If you identify CRITICAL issues:
+  - Correct the affected phases using `spec_update`
+  - Re-run the final self-critique
+  - Loop until no critical issues remain
+
 When complete, report:
 - Number of phases planned
 - Total file changes across all phases
 - Total test cases across all phases
 - Any observations about the codebase that influenced planning
+- Any non-critical issues noted during self-critique
