@@ -8,6 +8,7 @@
       "prompt": "{file:./.opencode/prompts/spec.md}",
       "temperature": 0.3,
       "permission": {
+        "question": "allow",
         "task": {
           "*": "deny",
           "planner": "allow",
@@ -24,6 +25,7 @@
       "prompt": "{file:./.opencode/prompts/vibe.md}",
       "temperature": 0.3,
       "permission": {
+        "question": "allow",
         "edit": {
           "*": "allow"
         },
