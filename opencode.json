@@ -74,6 +74,7 @@
       "mode": "subagent",
       "model": "opencode/kimi-k2.5",
       "hidden": false,
+      "prompt": "{file:./.opencode/prompts/test-writer.md}",
       "temperature": 0.3,
       "steps": 25,
       "permission": {
@@ -87,6 +88,7 @@
       "mode": "subagent",
       "model": "opencode/kimi-k2.5",
       "hidden": false,
+      "prompt": "{file:./.opencode/prompts/implementer.md}",
       "temperature": 0.3,
       "steps": 40,
       "permission": {
