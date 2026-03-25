@@ -96,19 +96,19 @@
       "models": {
         "glm-5": {
           "limit": {
-            "context": 32000,
+            "context": 64000,
             "output": 65536
           }
         },
         "minimax-m2.5-free": {
           "limit": {
-            "context": 32000,
+            "context": 64000,
             "output": 65536
           }
         },
         "kimi-k2.5": {
           "limit": {
-            "context": 32000,
+            "context": 64000,
             "output": 65536
           }
         }
@@ -119,6 +119,5 @@
     "edit": {
       "*": "allow"
     }
-  },
-  "plugin": [".opencode/notification-plugin.ts"]
+  }
 }
