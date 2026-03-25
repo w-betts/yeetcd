@@ -1,0 +1,10 @@
+{
+  "sounds": {
+    "enabled": true,
+    "idle": null,
+    "permission": null,
+    "question": null
+  },
+  "delay": 5000,
+  "volume": 0.5
+}

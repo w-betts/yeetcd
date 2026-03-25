@@ -95,5 +95,6 @@
     "edit": {
       "*": "allow"
     }
-  }
+  },
+  "plugin": [".opencode/plugin/notification.ts"]
 }

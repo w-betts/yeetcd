@@ -1,0 +1,239 @@
+# Spec (updated)
+# Updated: 2026-03-25T20:50:19.099Z
+
+version: 2
+problem_statement: "Create an OpenCode plugin that plays sound notifications when specific events occur: session goes idle, user is asked for permission, or the question tool is invoked. The plugin must work cross-platform (macOS, Linux, Windows) and use native system tools for sound playback. Notifications should be non-blocking and delayed by 5 seconds to allow UI to render before the sound plays."
+goals:
+  - "Play sound notification when session goes idle (session.idle event)"
+  - "Play sound notification when user is asked for permission (permission.ask hook)"
+  - "Play sound notification when question tool is invoked (tool.execute.before hook filtering for question tool)"
+  - "Implement cross-platform sound playback using native system tools (afplay on macOS, paplay/aplay/mpv on Linux, PowerShell on Windows)"
+  - "Make notifications non-blocking with 5-second delay before sound plays"
+  - "Make the plugin configurable via optional config file"
+  - "Register plugin in opencode.json so it loads at startup"
+constraints:
+  - "Plugin must be project-specific (in .opencode/plugin/)"
+  - "Must work on macOS, Linux, and Windows"
+  - "Should gracefully degrade if sound tools are unavailable (log warnings)"
+  - "Should not require external npm packages (use built-in system tools)"
+  - "Configuration should be optional with sensible defaults"
+  - "Notifications must be non-blocking (use setTimeout, don't await)"
+  - "5-second delay before sound plays to allow UI to render"
+tech_choices:
+  - area: "plugin-language"
+    choice: "TypeScript"
+    rationale: "Type safety with @opencode-ai/plugin types, better IDE support, matches existing project tooling"
+  - area: "sound-playback"
+    choice: "Native system tools"
+    rationale: "afplay (macOS), paplay/aplay/mpv (Linux), PowerShell (Windows) - no external dependencies needed"
+  - area: "notification-scheduling"
+    choice: "setTimeout with non-blocking behavior"
+    rationale: "Allows 5-second delay without blocking the hook, ensuring OpenCode remains responsive"
+  - area: "config-format"
+    choice: "JSON config file"
+    rationale: "Simple, standard, easy to edit"
+  - area: "event-detection"
+    choice: "Multiple hooks: event, permission.ask, tool.execute.before"
+    rationale: "Use event hook for session.idle, permission.ask hook for permissions, tool.execute.before hook for question tool detection"
+architecture:
+  description: "A single TypeScript plugin file that registers three hooks: (1) event hook filtering for session.idle events, (2) permission.ask hook for permission requests, and (3) tool.execute.before hook filtering for question tool execution. Each hook schedules a non-blocking sound playback with 5-second delay using setTimeout. The plugin detects the OS at runtime and uses the appropriate system tool for sound playback."
+  components:
+    - name: "NotificationPlugin"
+      responsibility: "Main plugin entry point that registers three hooks: event hook (filters for session.idle), permission.ask hook, and tool.execute.before hook (filters for question tool). Each hook schedules sound playback with 5-second delay."
+      interfaces:
+        - "Plugin export function"
+        - "event hook handler filtering event.type === 'session.idle'"
+        - "permission.ask hook handler"
+        - "tool.execute.before hook handler filtering tool === 'question'"
+    - name: "SoundPlayer"
+      responsibility: "Cross-platform sound playback using native system tools. Detects available tools and plays sound files. Defaults to system sounds."
+      interfaces:
+        - "playSound(soundFile?: string): Promise<void>"
+        - "getDefaultSound(): string"
+        - "getAvailableSoundCommand(): string | null"
+    - name: "NotificationScheduler"
+      responsibility: "Schedules sound playback with 5-second delay using setTimeout. Non-blocking - returns immediately without waiting for sound to play."
+      interfaces:
+        - "scheduleNotification(eventType: string): void"
+    - name: "PlatformDetector"
+      responsibility: "Detect current OS and available sound tools at runtime"
+      interfaces:
+        - "getPlatform(): 'macos' | 'linux' | 'windows'"
+        - "getSoundCommand(): string | null"
+    - name: "ConfigLoader"
+      responsibility: "Load optional configuration from .opencode/plugin/notification-config.json"
+      interfaces:
+        - "loadConfig(): NotificationConfig"
+test_strategy:
+  approach: "Manual testing across platforms since this is a UI/UX plugin. Unit tests for platform detection, config loading, and event filtering logic."
+  test_patterns:
+    - language: "typescript"
+      pattern: "*.test.ts"
+phases:
+  - name: "Phase 1: Sound Notification Plugin Implementation"
+    description: "Create the notification plugin with cross-platform sound support, non-blocking 5-second delay, and optional configuration. Register plugin in opencode.json."
+    status: "completed"
+    is_release_boundary: false
+    file_changes:
+      - path: ".opencode/plugin/notification.ts"
+        action: "create"
+        description: "Main plugin file that exports the Plugin function. Implements: (1) Platform detection using process.platform (darwin/linux/win32), (2) Sound command detection using BunShell to check for afplay/paplay/aplay/mpv/powershell availability, (3) Config loader that reads .opencode/plugin/notification-config.json with defaults, (4) Three hooks: event hook filtering event.type === 'session.idle', permission.ask hook, tool.execute.before hook filtering tool === 'question', (5) Non-blocking 5-second delay using setTimeout(() => playSound(), 5000) without awaiting, (6) Cross-platform sound playback using BunShell to execute system commands. Default sounds: macOS /System/Library/Sounds/Ping.aiff, Linux /usr/share/sounds/freedesktop/stereo/message.oga, Windows C:\\Windows\\Media\\notify.wav."
+        is_test: false
+      - path: ".opencode/plugin/notification-config.json"
+        action: "create"
+        description: "Optional configuration file with schema: { sounds: { enabled: boolean (default true), idle: string (optional custom path), permission: string (optional custom path), question: string (optional custom path) }, delay: number (default 5000ms), volume: number (0-1, default 0.5) }. If sound paths not specified, uses platform-specific system sounds. File is optional - plugin uses defaults if missing."
+        is_test: false
+      - path: "opencode.json"
+        action: "modify"
+        description: "Add plugin registration to enable loading at startup. Add 'plugin' key to root object with array value: { ..., 'plugin': ['.opencode/plugin/notification.ts'] }. This tells OpenCode to load the notification plugin when the project starts."
+        is_test: false
+      - path: ".opencode/plugin/notification.test.ts"
+        action: "create"
+        description: "Unit tests using Bun's built-in test runner (test() function from 'bun:test'). Tests: (1) Platform detection returns correct OS string, (2) Config loader reads and validates notification-config.json, (3) Config loader returns defaults when file missing, (4) Event hook only triggers on event.type === 'session.idle', (5) tool.execute.before hook only triggers on tool === 'question', (6) Sound command detection finds available tools on current platform, (7) Default sound paths are correct for each platform, (8) setTimeout is called with 5000ms delay. Mock BunShell and setTimeout for unit tests."
+        is_test: true
+    test_cases:
+      - description: "Test platform detection: mock process.platform to return 'darwin', 'linux', 'win32' and verify getPlatform() returns 'macos', 'linux', 'windows' respectively"
+        type: "unit"
+        target_component: "PlatformDetector"
+      - description: "Test config loader reads valid notification-config.json file and returns parsed config with correct values for enabled, delay, volume, and sound paths"
+        type: "unit"
+        target_component: "ConfigLoader"
+      - description: "Test config loader handles missing notification-config.json file gracefully by returning default config: { sounds: { enabled: true }, delay: 5000, volume: 0.5 }"
+        type: "unit"
+        target_component: "ConfigLoader"
+      - description: "Test config loader handles invalid JSON in notification-config.json by logging warning and returning default config"
+        type: "unit"
+        target_component: "ConfigLoader"
+      - description: "Test event hook handler filters events: should call scheduleNotification only when event.type === 'session.idle', should not call for other event types like 'session.created', 'file.edited', etc."
+        type: "unit"
+        target_component: "NotificationPlugin"
+      - description: "Test tool.execute.before hook handler filters tools: should call scheduleNotification only when input.tool === 'question', should not call for other tools like 'bash', 'read', 'edit', etc."
+        type: "unit"
+        target_component: "NotificationPlugin"
+      - description: "Test permission.ask hook handler always calls scheduleNotification regardless of permission type or pattern"
+        type: "unit"
+        target_component: "NotificationPlugin"
+      - description: "Test sound command detection on macOS: mock process.platform as 'darwin', verify getSoundCommand() returns 'afplay' and checks if command exists"
+        type: "unit"
+        target_component: "SoundPlayer"
+      - description: "Test sound command detection on Linux: mock process.platform as 'linux', verify getSoundCommand() tries paplay, then aplay, then mpv, returns first available or null if none found"
+        type: "unit"
+        target_component: "SoundPlayer"
+      - description: "Test sound command detection on Windows: mock process.platform as 'win32', verify getSoundCommand() returns PowerShell command for SoundPlayer"
+        type: "unit"
+        target_component: "SoundPlayer"
+      - description: "Test getDefaultSound() returns correct platform-specific paths: macOS /System/Library/Sounds/Ping.aiff, Linux /usr/share/sounds/freedesktop/stereo/message.oga, Windows C:\\Windows\\Media\\notify.wav"
+        type: "unit"
+        target_component: "SoundPlayer"
+      - description: "Test scheduleNotification calls setTimeout with 5000ms delay and callback that executes playSound. Verify setTimeout is called exactly once with correct delay."
+        type: "unit"
+        target_component: "NotificationScheduler"
+      - description: "Test playSound executes correct shell command for each platform: macOS 'afplay <soundfile>', Linux 'paplay <soundfile>' (or aplay/mpv), Windows PowerShell SoundPlayer command"
+        type: "unit"
+        target_component: "SoundPlayer"
+      - description: "Test playSound handles missing sound command gracefully by logging warning and not throwing error"
+        type: "unit"
+        target_component: "SoundPlayer"
+      - description: "Test playSound handles missing sound file gracefully by logging warning and not throwing error"
+        type: "unit"
+        target_component: "SoundPlayer"
+      - description: "Manual test: Trigger session.idle event and verify sound plays on macOS with afplay command. Check console logs for sound playback."
+        type: "e2e"
+        target_component: "NotificationPlugin"
+      - description: "Manual test: Trigger session.idle event and verify sound plays on Linux with paplay/aplay/mpv command. Check console logs for sound playback."
+        type: "e2e"
+        target_component: "NotificationPlugin"
+      - description: "Manual test: Trigger session.idle event and verify sound plays on Windows with PowerShell SoundPlayer. Check console logs for sound playback."
+        type: "e2e"
+        target_component: "NotificationPlugin"
+      - description: "Manual test: Trigger permission.ask hook and verify sound plays after 5-second delay. Use stopwatch to verify timing."
+        type: "e2e"
+        target_component: "NotificationScheduler"
+      - description: "Manual test: Invoke question tool and verify sound plays after 5-second delay. Use stopwatch to verify timing."
+        type: "e2e"
+        target_component: "NotificationScheduler"
+      - description: "Manual test: Uninstall/disable sound tools (afplay/paplay/aplay/mpv) and verify plugin logs warning but doesn't crash or block execution"
+        type: "e2e"
+        target_component: "NotificationPlugin"
+      - description: "Manual test: Add plugin to opencode.json plugin array, restart OpenCode, verify plugin loads without errors in console"
+        type: "e2e"
+        target_component: "NotificationPlugin"
+      - description: "Manual test: Create custom notification-config.json with custom sound paths and verify custom sounds are used instead of defaults"
+        type: "e2e"
+        target_component: "ConfigLoader"
+      - description: "Manual test: Set sounds.enabled = false in notification-config.json and verify no sounds play for any events"
+        type: "e2e"
+        target_component: "ConfigLoader"
+status: "completed"
+review:
+  status: "passed"
+  reviewer: "reviewer"
+  timestamp: "2026-03-25T20:42:46.929Z"
+  feedback: "## Review Summary
+
+
+    **Status: PASSED** with minor suggestions.
+
+
+    ### Technical Feasibility ✓
+
+    - All hooks referenced exist in @opencode-ai/plugin: `event`, `permission.ask`, `tool.execute.before`
+
+    - Event type `session.idle` exists in SDK types
+
+    - Plugin registration via `plugin?: Array<string>` in opencode.json is supported
+
+    - BunShell is available in PluginInput context for command execution
+
+    - setTimeout works in Bun runtime for non-blocking delays
+
+    - Cross-platform native tools (afplay/paplay/aplay/mpv/PowerShell) are feasible
+
+
+    ### Correctness ✓
+
+    - Hooks are used correctly: event hook for session.idle, permission.ask hook, tool.execute.before for tool filtering
+
+    - Platform detection using process.platform is correct (darwin/linux/win32)
+
+    - System sound paths are accurate for each platform
+
+    - Config file location (.opencode/plugin/) is consistent
+
+
+    ### Appropriateness ✓
+
+    - Solution addresses core user need: sound notifications for specific events
+
+    - Cross-platform requirement is met with native tools (no external dependencies)
+
+    - Optional config with sensible defaults is appropriate
+
+    - Non-blocking 5-second delay is reasonable UX pattern
+
+
+    ### Incompleteness ✓
+
+    - All goals have corresponding implementation details
+
+    - File changes cover all required components
+
+    - Test cases cover major scenarios
+
+
+    ### Over-complexity (Minor Issue)
+
+    - 5 components defined (NotificationPlugin, SoundPlayer, NotificationScheduler, PlatformDetector, ConfigLoader) - could be consolidated into 2-3
+
+    - 19 test cases is excessive - many are redundant (e.g., testing setTimeout delay with different values)
+
+    - Suggestion: Merge NotificationScheduler into NotificationPlugin, consolidate test cases
+
+
+    ### Suggestions for Improvement (not blocking)
+
+    1. **Unverified tool name**: The spec assumes \"question\" is a tool name for tool.execute.before. While this may work, it's unverified. Consider making the tool filter configurable.
+
+    2. **Consolidate components**: Could reduce from 5 to 2-3 components without losing clarity
+
+    3. **Reduce test redundancy**: Many test cases overlap (e.g., multiple tests for setTimeout delay, platform detection across multiple test cases)"
