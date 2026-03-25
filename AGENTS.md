@@ -35,3 +35,14 @@ Tools provide more deterministic results and better control. Use tools (Bash, Re
 #### Restrict subagent capabilities
 
 When launching subagents, limit their tool access to only the essential tools required for their specific task. Avoid giving broad access that isn't necessary for the job at hand.
+
+#### Always use the question tool for user interaction
+
+All primary agents (spec, vibe) MUST use the `question` tool for ANY interaction with the user. This includes:
+- Asking clarifying questions
+- Getting approval before making changes
+- Requesting feedback
+- Confirming understanding
+- Getting permission to proceed
+
+NEVER assume you know what the user wants without asking. The question tool ensures alignment throughout the workflow.

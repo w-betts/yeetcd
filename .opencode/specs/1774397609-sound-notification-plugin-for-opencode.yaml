@@ -1,0 +1,136 @@
+# Spec (updated)
+# Updated: 2026-03-25T00:30:00.000Z
+# Reviewer issues addressed:
+# 1. Removed question.asked (doesn't exist in SDK)
+# 2. Added plugin registration to opencode.json
+# 3. Using system sounds instead of binary files
+# 4. Defined config schema explicitly
+# 5. Fixed config file location for consistency
+
+version: 2
+problem_statement: "Create a custom OpenCode plugin that plays sounds and shows desktop notifications when specific events occur: session goes idle or user is asked for permission. The plugin must work cross-platform (macOS, Linux, Windows) and be project-specific. Note: 'question.asked' event does not exist in OpenCode SDK, so only session.idle and permission.asked events are supported."
+goals:
+  - "Play sound notifications on session.idle and permission.asked events (using the event hook, NOT permission.ask hook which is not triggered)"
+  - "Show desktop notifications on the same events (cross-platform)"
+  - "Implement cross-platform sound playback using system sounds (afplay on macOS, paplay/aplay/mpv on Linux, PowerShell on Windows)"
+  - "Implement cross-platform desktop notifications (osascript on macOS, notify-send on Linux, PowerShell toast on Windows)"
+  - "Make the plugin configurable via a config file with defined schema"
+  - "Use system sounds as defaults instead of bundled binary files"
+  - "Register plugin in opencode.json so it loads at startup"
+constraints:
+  - "Plugin must be project-specific (in .opencode/plugin/)"
+  - "Must work on macOS, Linux, and Windows"
+  - "Should gracefully degrade if sound/notification tools are unavailable (log warnings to client.app.log)"
+  - "Should not require external npm packages if possible (use built-in system tools)"
+  - "Configuration should be optional with sensible defaults (system sounds)"
+  - "Config file must be in .opencode/plugin/ for consistency with plugin location"
+tech_choices:
+  - area: "plugin-language"
+    choice: "TypeScript"
+    rationale: "Type safety with @opencode-ai/plugin types, better IDE support"
+  - area: "sound-playback"
+    choice: "Native system tools with system sounds"
+    rationale: "afplay (macOS), paplay/aplay/mpv (Linux), PowerShell (Windows) - no external dependencies needed. System sounds avoid binary file creation issue."
+  - area: "notifications"
+    choice: "Native system tools"
+    rationale: "osascript (macOS), notify-send (Linux), PowerShell toast (Windows) - no external dependencies needed"
+  - area: "config-format"
+    choice: "JSON config file"
+    rationale: "Simple, standard, easy to edit"
+  - area: "event-subscription"
+    choice: "event hook with type filtering"
+    rationale: "Subscribe to events via the event hook and filter by event.type. permission.asked is an EVENT (not a hook), and the permission.ask hook is not triggered per GitHub issue #9229."
+architecture:
+  description: "A single TypeScript plugin file that subscribes to OpenCode events via the event hook and triggers cross-platform sound/notification playback. The plugin detects the OS at runtime and uses the appropriate system tools. Uses system sounds as defaults."
+  components:
+    - name: "NotificationPlugin"
+      responsibility: "Main plugin entry point that registers event handlers for session.idle and permission.asked events via the event hook (filtering by event.type)"
+      interfaces:
+        - "Plugin export function"
+        - "event hook handler that filters event.type === 'session.idle' || event.type === 'permission.asked'"
+    - name: "SoundPlayer"
+      responsibility: "Cross-platform sound playback using native system tools. Defaults to system sounds: /System/Library/Sounds/Glass.aiff (macOS), /usr/share/sounds/freedesktop/stereo/message.oga (Linux), System.Media.SystemSounds.Asterisk (Windows)"
+      interfaces:
+        - "playSound(soundFile?: string): Promise<void>"
+        - "getDefaultSound(): string"
+    - name: "NotificationSender"
+      responsibility: "Cross-platform desktop notifications using native system tools (osascript, notify-send, PowerShell toast)"
+      interfaces:
+        - "sendNotification(title: string, message: string): Promise<void>"
+    - name: "PlatformDetector"
+      responsibility: "Detect current OS and available tools at runtime"
+      interfaces:
+        - "getPlatform(): 'macos' | 'linux' | 'windows'"
+        - "getSoundCommand(): string | null"
+        - "getNotificationCommand(): string | null"
+    - name: "ConfigLoader"
+      responsibility: "Load optional configuration from .opencode/plugin/notification-config.json"
+      interfaces:
+        - "loadConfig(): NotificationConfig"
+test_strategy:
+  approach: "Manual testing across platforms since this is a UI/UX plugin. Unit tests for platform detection and config loading."
+  test_patterns:
+    - language: "typescript"
+      pattern: "*.test.ts"
+phases:
+  - name: "Phase 1: Core Plugin Implementation"
+    description: "Create the notification plugin with cross-platform sound and notification support, system sounds as defaults, and optional configuration"
+    status: "pending"
+    is_release_boundary: false
+    file_changes:
+      - path: ".opencode/plugin/notification.ts"
+        action: "create"
+        description: "Main plugin file that exports the Plugin function, subscribes to session.idle and permission.asked events via the event hook (filtering by event.type), and implements cross-platform sound/notification playback using native system tools. Uses system sounds as defaults."
+        is_test: false
+      - path: ".opencode/plugin/notification-config.json"
+        action: "create"
+        description: "Configuration file with schema: { sounds: { enabled: boolean, idle: string (path to sound file, optional), permission: string (path to sound file, optional) }, notifications: { enabled: boolean, idle: boolean, permission: boolean }, volume: number (0-1, default 0.5) }. If sound paths not specified, uses platform-specific system sounds."
+        is_test: false
+      - path: "opencode.json"
+        action: "modify"
+        description: "Add plugin registration to the plugin array: { \"plugin\": [\".opencode/plugin/notification.ts\"] } so OpenCode loads the plugin at startup."
+        is_test: false
+      - path: ".opencode/plugin/notification.test.ts"
+        action: "create"
+        description: "Unit tests for platform detection, config loading, event filtering logic, and sound/notification command detection. Tests that session.idle and permission.asked events are handled correctly."
+        is_test: true
+    test_cases:
+      - description: "Test platform detection correctly identifies macOS, Linux, and Windows platforms"
+        type: "unit"
+        target_component: "PlatformDetector"
+      - description: "Test config loader reads and validates notification-config.json with correct defaults"
+        type: "unit"
+        target_component: "ConfigLoader"
+      - description: "Test config loader handles missing config file gracefully with sensible defaults (system sounds)"
+        type: "unit"
+        target_component: "ConfigLoader"
+      - description: "Test event handler filters for session.idle and permission.asked events only (NOT question.asked which doesn't exist)"
+        type: "unit"
+        target_component: "NotificationPlugin"
+      - description: "Test sound command detection finds available tools (afplay/paplay/aplay/mpv) on current platform"
+        type: "unit"
+        target_component: "SoundPlayer"
+      - description: "Test notification command detection finds available tools (osascript/notify-send/PowerShell) on current platform"
+        type: "unit"
+        target_component: "NotificationSender"
+      - description: "Test that system sound paths are used as defaults when no custom sounds configured"
+        type: "unit"
+        target_component: "SoundPlayer"
+      - description: "Manual test: Play sound on session.idle event across all supported platforms"
+        type: "e2e"
+        target_component: "SoundPlayer"
+      - description: "Manual test: Show desktop notification on permission.asked event across all supported platforms"
+        type: "e2e"
+        target_component: "NotificationSender"
+      - description: "Manual test: Verify graceful degradation when sound/notification tools are unavailable"
+        type: "e2e"
+        target_component: "NotificationPlugin"
+      - description: "Manual test: Verify plugin loads correctly after adding to opencode.json plugin array"
+        type: "e2e"
+        target_component: "NotificationPlugin"
+status: "draft"
+review:
+  status: "pending"
+  reviewer: ""
+  timestamp: ""
+  feedback: ""
