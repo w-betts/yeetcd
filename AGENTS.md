@@ -47,10 +47,10 @@ Continuous deployment solution with container-based pipeline execution.
 ./mvnw test
 
 # Run tests for specific module
-./mvnw test -pl controller
-./mvnw test -pl java-sdk
-./mvnw test -pl java-test
-./mvnw test -pl java-sample
+./mvnw test -pl controller -am
+./mvnw test -pl java-sdk -am
+./mvnw test -pl java-test -am
+./mvnw test -pl java-sample -am
 ```
 
 ## Core Concepts
