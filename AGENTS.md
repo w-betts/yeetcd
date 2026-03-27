@@ -1,32 +1,233 @@
 # yeetcd
 
-Agent-friendly cd
+Continuous deployment solution with container-based pipeline execution.
 
-## Project Context
+## Architecture Overview
 
-This project provides a multi-workflow agent system with two primary modes:
-- **spec**: Structured workflow for complex features (planning, review, phased implementation)
-- **vibe**: Direct implementation for rapid iteration
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Source Code (zip)                        │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Pipeline Definitions (Java SDK)  +  yeetcd.yaml        │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Controller                                 │
+│  1. Extract source from zip                                     │
+│  2. Build in container (using yeetcd.yaml config)              │
+│  3. Run built code to generate protobuf pipeline definitions    │
+│  4. Execute pipeline work items in containers                   │
+│                                                                 │
+│  Execution Engines: Docker | Kubernetes                        │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-Both modes have access to the same subagents and tools.
+## Maven Modules
 
-## Language-Aware Test Patterns
+| Module | Purpose |
+|--------|---------|
+| `protocol` | Protobuf definitions for language-agnostic pipeline format |
+| `java-sdk` | Java API for defining pipelines; annotation processor generates protobuf output |
+| `java-test` | Testing utilities (`FakePipelineRunner`) for unit testing pipeline logic |
+| `java-sample` | Example pipeline definitions demonstrating all features |
+| `controller` | Runtime engine that builds and executes pipelines |
 
-When writing tests, follow language conventions:
+## Build Commands
 
-| Language | Pattern | Convention |
-|----------|---------|-----------|
-| Go | `*_test.go` | Same dir as implementation |
-| TypeScript | `*.test.ts` or `*.spec.ts` | Per-file or in tests/ dir |
-| Python | `test_*.py` or `*_test.py` | Per-file or in tests/ dir |
-| Rust | `#[cfg(test)]` or `tests/` | In src/lib.rs or separate |
-| Java | `*Test.java` | Same package structure |
+```bash
+# Compile all modules
+./mvnw clean compile
 
-## Configuration
+# Compile protocol module (generates protobuf Java classes)
+./mvnw clean compile -pl protocol -am
 
-Agent configuration is in `opencode.json`. Subagent prompts are in `.opencode/prompts/`.
+# Run all tests
+./mvnw test
 
-### Working on opencode config
+# Run tests for specific module
+./mvnw test -pl controller
+./mvnw test -pl java-sdk
+./mvnw test -pl java-test
+./mvnw test -pl java-sample
+```
+
+## Core Concepts
+
+### Work Definition Types
+
+| Type | Use Case |
+|------|----------|
+| `ContainerisedWorkDefinition` | Run a command in an existing container image |
+| `CustomWorkDefinition` | Execute user-defined Java code in a built container |
+| `CompoundWorkDefinition` | Group multiple work items as a single unit |
+| `DynamicWorkGeneratingWorkDefinition` | Generate work at runtime based on parameters/context |
+
+### Work Dependencies
+
+Work items are connected via `PreviousWork`:
+
+```java
+Work producer = Work.builder("produce", workDef).build();
+Work consumer = Work.builder("consume", consumerDef)
+    .previousWork(PreviousWork.builder(producer)
+        .outputsMountPath("/mnt/outputs")  // Mount producer's output files
+        .stdOutEnvVar("PRODUCER_OUTPUT")   // Capture producer's stdout as env var
+        .build())
+    .build();
+```
+
+### Work Context
+
+Key-value context passed to work as environment variables:
+
+```java
+// Pipeline-level context (applies to all work)
+Pipeline.builder("name")
+    .workContext(WorkContext.of("KEY", "value"))
+    .finalWork(work)
+    .build();
+
+// Work-level context (merged with pipeline context)
+Work.builder("desc", workDef)
+    .workContext(WorkContext.of("WORK_KEY", "workValue"))
+    .build();
+```
+
+### Parameters
+
+Pipeline parameters with validation:
+
+```java
+Parameter param = Parameter.builder(Parameter.TypeCheck.STRING)
+    .required(true)
+    .defaultValue("default")
+    .choices(List.of("default", "other"))
+    .build();
+
+Pipeline.builder("name")
+    .parameters(Parameters.of("PARAM_NAME", param))
+    .finalWork(work)
+    .build();
+```
+
+### Conditions
+
+Control work execution based on context or previous work status:
+
+```java
+import static yeetcd.sdk.condition.Conditions.*;
+
+// Only run if context matches
+Work.builder("desc", workDef)
+    .condition(workContextCondition("key", EQUALS, "value"))
+    .build();
+
+// Only run if previous work succeeded (default behavior)
+Work.builder("desc", workDef)
+    .condition(previousWorkStatusCondition(SUCCESS))
+    .build();
+
+// Combine conditions
+Work.builder("desc", workDef)
+    .condition(andCondition(cond1, cond2))
+    .build();
+```
+
+### Work Outputs
+
+Expose file outputs for downstream work:
+
+```java
+Work producer = Work.builder("produce", workDef)
+    .workOutputPaths(WorkOutputPath.builder("outputName", "/path/in/container").build())
+    .build();
+```
+
+## Key Patterns
+
+### Adding a New Work Definition Type
+
+1. Add message to `protocol/src/main/proto/yeetcd/protocol/pipeline/pipeline.proto`
+2. Add corresponding class in `java-sdk/src/main/java/yeetcd/sdk/` implementing `WorkDefinition`
+3. Add controller-side class in `controller/src/main/java/yeetcd/controller/pipeline/` implementing `WorkDefinition`
+4. Update `WorkDefinitions.fromWorkProtobuf()` in controller to handle new type
+5. Update `Work.java` in both java-sdk and controller as needed
+
+### Pipeline Definition Flow (Java)
+
+1. User annotates a static method with `@PipelineGenerator` that returns `Pipeline`
+2. Annotation processor (`PipelineGeneratorAnnotationProcessor`) generates `GeneratedPipelineDefinitions` class
+3. At runtime, `GeneratedPipelineDefinitions.main()` outputs protobuf to stdout
+4. Controller captures this and deserializes into executable `Pipeline` objects
+
+### Custom Work Execution
+
+1. `CustomWorkDefinition` subclasses are serialized with a unique `executionId` (hash of class name + state)
+2. Controller builds a container image containing compiled user code
+3. Work is executed by running `GeneratedCustomWorkRunner <pipelineName> <executionId>`
+4. The runner invokes the custom code in the container
+
+## Testing
+
+### Unit Testing Pipeline Logic
+
+Use `FakePipelineRunner` from `java-test` module to test pipeline definitions without containers:
+
+```java
+FakePipelineRunner runner = FakePipelineRunner.builder()
+    .defaultWorkResult(FakeWorkResult.builder()
+        .status(FakeWorkStatus.SUCCESS)
+        .build())
+    .build();
+
+FakePipelineRunResult result = runner.run(
+    FakePipelineRun.builder(myPipeline)
+        .arguments(Map.of("PARAM", "value"))
+        .build()
+);
+```
+
+### Integration Testing
+
+Controller tests use actual Docker/Kubernetes. See `controller/src/test/` for examples.
+
+## Local Kubernetes Setup
+
+```bash
+# Start local k3d cluster with registry
+./local-k8s.sh start
+
+# Stop and cleanup
+./local-k8s.sh stop
+```
+
+This creates test config files in `controller/src/test/resources/`.
+
+## Project Configuration (yeetcd.yaml)
+
+Each pipeline project needs a `yeetcd.yaml`:
+
+```yaml
+name: "project-name"
+language: "JAVA"
+buildImage: "maven:3.9.9-eclipse-temurin-17"
+buildCmd: "mvn clean test package dependency:copy-dependencies"
+artifacts:
+  - name: "classes"
+    path: "target/classes"
+  - name: "dependencies"
+    path: "target/dependency"
+```
+
+---
+
+## OpenCode Configuration
+
+Agent configuration for this project is in `opencode.json`. Subagent prompts are in `.opencode/prompts/`.
+
+### Working with OpenCode
 
 #### Prefer tools over skills
 
@@ -34,7 +235,7 @@ Tools provide more deterministic results and better control. Use tools (Bash, Re
 
 #### Restrict subagent capabilities
 
-When launching subagents, limit their tool access to only the essential tools required for their specific task. Avoid giving broad access that isn't necessary for the job at hand.
+When launching subagents, limit their tool access to only the essential tools required for their specific task.
 
 #### Always use the question tool for user interaction
 
@@ -45,4 +246,4 @@ All primary agents (spec, vibe) MUST use the `question` tool for ANY interaction
 - Confirming understanding
 - Getting permission to proceed
 
-NEVER assume you know what the user wants without asking. The question tool ensures alignment throughout the workflow.
+NEVER assume you know what the user wants without asking.
