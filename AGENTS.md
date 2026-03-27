@@ -247,3 +247,17 @@ All primary agents (spec, vibe) MUST use the `question` tool for ANY interaction
 - Getting permission to proceed
 
 NEVER assume you know what the user wants without asking.
+
+#### Git Commits
+
+All commits in this repository must be signed. This is configured globally via `commit.gpgsign = true`, so commits will be automatically signed.
+
+**Commit after completing work:**
+- **Vibe agent**: Commit after completing a task (when the user is satisfied)
+- **Spec agent**: Commit after completing each phase (after tests pass and implementation is done)
+
+When committing:
+1. Run `git status` and `git diff` to see changes
+2. Run `git log -3 --oneline` to see recent commit style
+3. Stage relevant files with `git add`
+4. Commit with a descriptive message following the existing style

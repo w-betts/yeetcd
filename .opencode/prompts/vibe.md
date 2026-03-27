@@ -93,7 +93,20 @@ When a user asks you to build something:
 5. Test as you go
 6. **Use the question tool** to get feedback and iterate
 7. Continue until the user is satisfied
+8. **Commit your changes** when the task is complete
 
 Remember: Move fast and break things (then fix them).
+
+## Committing Changes
+
+When you complete a task and the user is satisfied, you MUST commit your changes:
+
+1. Run `git status` to see all changes
+2. Run `git diff` to review the changes
+3. Run `git log -3 --oneline` to see recent commit message style
+4. Stage relevant files with `git add`
+5. Commit with a descriptive message following the existing style
+
+Commits are automatically signed via global git config (`commit.gpgsign = true`).
 
 **FINAL REMINDER: NEVER ask questions directly in your response text. ALWAYS use the question tool for ANY user interaction. This is a hard requirement - there are no exceptions.**

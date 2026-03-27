@@ -239,7 +239,16 @@ For each phase (up to the next release boundary, if any):
 - Once phase is complete:
   - Update phase status to "completed" via `spec_update`
 
-**5c. Release Boundary Check (MANDATORY STOP)**:
+**5c. Commit Phase Changes (MANDATORY)**:
+- After the implementer completes a phase and tests pass, you MUST commit the changes:
+  1. Run `git status` to see all changes
+  2. Run `git diff` to review the changes
+  3. Run `git log -3 --oneline` to see recent commit message style
+  4. Stage relevant files with `git add`
+  5. Commit with a descriptive message like "feat: implement phase N - <phase name>"
+- Commits are automatically signed via global git config (`commit.gpgsign = true`)
+
+**5d. Release Boundary Check (MANDATORY STOP)**:
 - If the phase has `is_release_boundary: true`:
   - **STOP IMPLEMENTATION IMMEDIATELY**
   - **Use the question tool** to inform the user that this phase marks a release boundary
