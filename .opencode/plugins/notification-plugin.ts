@@ -150,15 +150,32 @@ async function playNotification(options?: {
  * Sound Notification Plugin
  * 
  * Plays a sound/notification when:
- * - Session goes idle (agent finished responding)
+ * - Session goes idle (agent finished responding) - only for primary sessions
  * - Permission is requested
  * - Question tool is invoked (with 5-second delay)
  */
-export const NotificationPlugin: Plugin = async () => {
+export const NotificationPlugin: Plugin = async (input) => {
   return {
-    // Play notification when session goes idle
+    // Play notification when session goes idle (only for primary sessions)
     event: async ({ event }) => {
       if (event.type === 'session.idle') {
+        const sessionID = event.properties.sessionID;
+        
+        // Fetch session details to check if it's a subagent
+        try {
+          const sessionResult = await input.client.session.get({
+            path: { id: sessionID },
+          });
+          
+          if (sessionResult.data?.parentID) {
+            // This is a subagent session, suppress notification
+            return;
+          }
+        } catch (err) {
+          console.warn('[notification-plugin] Could not fetch session details:', err);
+          // Continue to play notification if we can't determine session type
+        }
+        
         await playNotification({
           message: 'Session is now idle',
         });

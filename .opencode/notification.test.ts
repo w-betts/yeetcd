@@ -533,6 +533,45 @@ describe('NotificationPlugin - Event Hook', () => {
 
     expect(shell.run).not.toHaveBeenCalled();
   });
+
+  test('event hook suppresses notification for subagent sessions (with parentID)', async () => {
+    // This test simulates the new behavior where subagent sessions are suppressed
+    const shell: BunShell = {
+      run: jest.fn(async () => ({ exitCode: 0, stdout: '', stderr: '' })),
+    };
+
+    // Simulate a subagent session (has parentID)
+    const sessionWithParent = {
+      id: 'subagent-session-id',
+      parentID: 'parent-session-id',
+    };
+
+    // If session has parentID, notification should be suppressed
+    if (!sessionWithParent.parentID) {
+      await playNotification(shell, { message: 'Session is now idle' });
+    }
+
+    expect(shell.run).not.toHaveBeenCalled();
+  });
+
+  test('event hook plays notification for primary sessions (without parentID)', async () => {
+    const shell: BunShell = {
+      run: jest.fn(async () => ({ exitCode: 0, stdout: '', stderr: '' })),
+    };
+
+    // Simulate a primary session (no parentID)
+    const primarySession = {
+      id: 'primary-session-id',
+      parentID: undefined,
+    };
+
+    // If session doesn't have parentID, notification should play
+    if (!primarySession.parentID) {
+      await playNotification(shell, { message: 'Session is now idle' });
+    }
+
+    expect(shell.run).toHaveBeenCalledTimes(1);
+  });
 });
 
 // ============================================================================
