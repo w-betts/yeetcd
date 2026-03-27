@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package yeetcd.protocol.pipeline;
+
+message CustomWorkDefinition {
+  string executionId = 1;
+}
+message DynamicWorkGeneratingWorkDefinition {
+  string executionId = 1;
+}
+
+message ContainerisedWorkDefinition {
+  string image = 1;
+  repeated string cmd = 2;
+}
+
+message CompoundWorkDefinition {
+  repeated Work finalWork = 3;
+}
+
+message WorkOutputPath {
+  string name = 1;
+  string path = 2;
+}
+
+message PreviousWork {
+  Work work = 1;
+  string outputPathsMount = 2;
+  string stdOutEnvVar = 3;
+}
+
+message Work {
+  string id = 1;
+  string description = 2;
+  oneof oneof_task_actions {
+    CustomWorkDefinition customWorkDefinition = 3;
+    ContainerisedWorkDefinition containerisedWorkDefinition = 4;
+    CompoundWorkDefinition compoundWorkDefinition = 5;
+    DynamicWorkGeneratingWorkDefinition dynamicWorkGeneratingWorkDefinition = 6;
+  }
+  map<string, string> workContext = 7;
+  repeated WorkOutputPath outputPaths = 8;
+  repeated PreviousWork previousWork = 9;
+  Condition condition = 10;
+}
+
+message Parameter {
+  enum TYPE_CHECK {
+    STRING = 0;
+    NUMBER = 1;
+    BOOLEAN = 2;
+  }
+  TYPE_CHECK typeCheck = 1;
+  bool required = 2;
+  optional string defaultValue = 3;
+  repeated string choices = 4;
+}
+
+message NotCondition {
+  Condition condition = 1;
+}
+
+message AndCondition {
+  Condition left = 1;
+  Condition right = 2;
+}
+
+message OrCondition {
+  Condition left = 1;
+  Condition right = 2;
+}
+
+message WorkContextCondition {
+  enum Operand {
+    EQUALS = 0;
+  }
+  string key = 1;
+  Operand operand = 2;
+  string value = 3;
+}
+
+message PreviousWorkStatusCondition {
+  enum Status {
+    SUCCESS = 0;
+    FAILURE = 1;
+    ANY = 2;
+  }
+  Status status = 1;
+}
+
+message Condition {
+  oneof conditions {
+    NotCondition notCondition = 1;
+    AndCondition andCondition = 2;
+    OrCondition orCondition = 3;
+    WorkContextCondition workContextCondition = 4;
+    PreviousWorkStatusCondition previousWorkStatusCondition = 5;
+  }
+}
+
+message Pipeline {
+  string name = 1;
+  repeated Work finalWork = 2;
+  map<string, Parameter> parameters = 3;
+  map<string, string> workContext = 4;
+}
+
+message Pipelines {
+  repeated Pipeline pipelines = 1;
+}

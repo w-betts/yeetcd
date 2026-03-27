@@ -1,0 +1,57 @@
+<project>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>java-sample</artifactId>
+    <version>0.0.1</version>
+    <packaging>jar</packaging>
+
+    <parent>
+        <groupId>yeetcd</groupId>
+        <artifactId>parent</artifactId>
+        <version>0.0.1</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>yeetcd</groupId>
+            <artifactId>java-sdk</artifactId>
+            <version>0.0.1</version>
+        </dependency>
+
+
+        <!--  TEST  -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.11.3</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>5.11.3</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.hamcrest/hamcrest -->
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest</artifactId>
+            <version>3.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>yeetcd</groupId>
+            <artifactId>java-test</artifactId>
+            <version>0.0.1</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

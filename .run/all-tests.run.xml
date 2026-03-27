@@ -1,0 +1,8 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="all-tests" type="CompoundRunConfigurationType">
+    <toRun name="controller-tests" type="JUnit" />
+    <toRun name="java-sdk-tests" type="JUnit" />
+    <toRun name="java-test-tests" type="JUnit" />
+    <method v="2" />
+  </configuration>
+</component>

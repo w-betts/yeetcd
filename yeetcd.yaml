@@ -1,0 +1,9 @@
+name: "java-sample"
+language: "JAVA"
+buildImage: "maven:3.9.9-eclipse-temurin-17"
+buildCmd: "mvn -am -pl java-sample clean test package dependency:copy-dependencies"
+artifacts:
+  - name: "classes"
+    path: "java-sample/target/classes"
+  - name: "dependencies"
+    path: "java-sample/target/dependency"
