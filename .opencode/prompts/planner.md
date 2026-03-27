@@ -53,10 +53,11 @@ For the assigned phase:
       - **Over-complexity**: Are there unnecessary files? Can changes be simplified? Is the scope appropriate for the phase?
       - **Ambiguity**: Are file change descriptions specific enough for implementer? Are test descriptions actionable? Could someone unfamiliar implement from this?
     - If you identify CRITICAL issues:
-      - Correct the plan yourself before calling `spec_update`
-      - Re-run the self-critique on the corrected plan
-      - Loop until no critical issues remain for this phase
-    - Document any non-critical issues in your final report
+      - **STOP - DO NOT auto-correct**
+      - Report ALL critical issues in your final report under "Critical Issues"
+      - The spec agent will ask the user how to address these issues
+      - You will be re-invoked with specific guidance after user input
+    - Document any non-critical issues in your final report under "Issues"
 6. Update the phase via `spec_update` with the file_changes and test_cases
 
 ## Guidelines
@@ -92,9 +93,12 @@ When complete, you MUST report back to the spec agent with a structured summary:
 
 **Planning Complete**
 - Phase Index: [The phase that was planned]
-- File Changes: [Number of file changes for this phase]
-- Test Cases: [Number of test cases for this phase]
+- File Changes: [Number of file changes for this phase, or "Not updated" if critical issues found]
+- Test Cases: [Number of test cases for this phase, or "Not updated" if critical issues found]
 - Observations: [Any observations about the codebase that influenced planning]
+- Critical Issues: [List each critical issue found, or "None" if no critical issues]
 - Issues: [Any non-critical issues noted during self-critique, or "None"]
+
+If Critical Issues is not "None", the spec agent will ask the user how to address them before you update the phase.
 
 This report is CRITICAL - the spec agent depends on it to proceed with the workflow.
