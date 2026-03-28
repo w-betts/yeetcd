@@ -1,51 +1,50 @@
 package yeetcd.controller.execution;
 
 import yeetcd.controller.config.Config;
+import yeetcd.controller.testinfra.TestClusterFixture;
 import io.kubernetes.client.openapi.ApiClient;
-import io.kubernetes.client.util.ClientBuilder;
-import io.kubernetes.client.util.KubeConfig;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.util.Objects;
-
-@Disabled
+/**
+ * Integration tests for KubernetesExecutionEngine.
+ * 
+ * Uses TestClusterFixture to manage k3d cluster lifecycle.
+ * The cluster is automatically created if missing, and test resources are cleaned up.
+ */
+@Disabled("Pending Phase 3: PVC support implementation")
+@ExtendWith(TestClusterFixture.class)
 public class KubernetesExecutionEngineTest extends AbstractExecutionEngineTest {
-
-    Config.Kubernetes kubernetesConfig = getKubernetesConfig();
 
     @Override
     String builtImagePullAddress() {
-        return kubernetesConfig.getRegistry().getPullAddress();
+        return TestClusterFixture.getRegistryPullAddress();
     }
 
     @Override
     ExecutionEngine executionEngine() {
         return new KubernetesExecutionEngine(
-            kubernetesConfig,
+            getKubernetesConfig(),
             testApiClient(),
             true
         );
     }
 
     private static Config.Kubernetes getKubernetesConfig() {
-        String configFile = "yeetcd-controller.yaml";
-        URL yeetcdControllerConfig = AbstractExecutionEngineTest.class.getClassLoader().getResource(configFile);
-        if (yeetcdControllerConfig == null) {
-            throw new RuntimeException("Config file '%s' not found on classpath. Make sure you have run `./local-k8s.sh start`".formatted(configFile));
-        }
-        return Config.createKubernetesConfig(yeetcdControllerConfig);
+        // Build config dynamically from test infrastructure
+        Config.Kubernetes config = new Config.Kubernetes();
+        
+        Config.Kubernetes.Registry registry = new Config.Kubernetes.Registry();
+        registry.setPushAddress(TestClusterFixture.getRegistryPushAddress());
+        registry.setPullAddress(TestClusterFixture.getRegistryPullAddress());
+        config.setRegistry(registry);
+        
+        return config;
     }
 
     @SneakyThrows
     private ApiClient testApiClient() {
-        try (InputStreamReader kubeconfigStreamReader = new InputStreamReader(Objects.requireNonNull(
-            AbstractExecutionEngineTest.class.getClassLoader().getResourceAsStream("kubeconfig")
-        ))
-        ) {
-            return ClientBuilder.kubeconfig(KubeConfig.loadKubeConfig(kubeconfigStreamReader)).build();
-        }
+        return TestClusterFixture.getApiClient();
     }
 }

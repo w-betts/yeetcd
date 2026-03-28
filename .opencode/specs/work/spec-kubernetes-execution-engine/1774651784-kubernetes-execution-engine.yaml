@@ -1,5 +1,5 @@
 # Spec (updated)
-# Updated: 2026-03-28T23:14:08.733Z
+# Updated: 2026-03-28T23:17:29.426Z
 
 version: 2
 problem_statement: "The KubernetesExecutionEngine exists but is incomplete - tests are disabled and it lacks support for input/output files. The current implementation cannot mount host directories into pods (since controller runs in Kubernetes) and has no mechanism for file transfer between work items. Additionally, the test infrastructure relies on bash scripts (local-k8s.sh) which should be replaced with Java-based test utilities."
@@ -77,7 +77,7 @@ test_strategy:
 phases:
   - name: "Phase 1: Helm Dependencies (RustFS + k8s-csi-s3)"
     description: "Add RustFS and k8s-csi-s3 as Helm dependencies to the yeetcd chart. Configure RustFS for standalone mode (1 pod). Configure k8s-csi-s3 StorageClass to use RustFS as the S3 backend. This phase is a release boundary because subsequent phases require these components to be deployed in the cluster before the controller can use PVC-based storage."
-    status: "completed"
+    status: "released"
     is_release_boundary: true
     file_changes:
       - path: "helm/Chart.yaml"
@@ -91,7 +91,7 @@ phases:
     test_cases: []
   - name: "Phase 2: Test Infrastructure"
     description: "Create Java-based test infrastructure for k3d cluster management. Implement: (1) Cluster existence check and creation if missing, (2) Test resource cleanup (jobs/pods only, not cluster), (3) Stale resource cleanup from failed test runs, (4) Bad state detection and auto-fix. Remove local-k8s.sh bash scripts and the test config files it generates. CRITICAL: Test infrastructure code is NOT unit tested separately. Instead, it is coded defensively and validated implicitly through Phase 3 integration tests. Defensive coding requirements: (1) Throw clear, actionable errors with full context (operation, resource, state, suggested fix) - never swallow exceptions or fail silently, (2) Validate all inputs and preconditions before operations, (3) Use descriptive error messages that help developers debug quickly, (4) Fail fast on misconfiguration or unexpected state, (5) Log operations for debugging when things go wrong. Test infrastructure should make failures obvious and debuggable without requiring separate tests."
-    status: "pending"
+    status: "completed"
     is_release_boundary: false
     file_changes:
       - path: "local-k8s.sh"
