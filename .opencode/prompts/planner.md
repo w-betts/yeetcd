@@ -80,11 +80,21 @@ Each test case MUST include:
    THEN: Expected outcome (e.g., "PVC is created with storageClassName 'yeetcd-s3' and status 'Bound'")
    ```
 
+## Test Helper Code
+
+Test-only helper methods and setup code do NOT need their own test cases. Instead:
+
+- **Write defensively**: Test helpers should validate their inputs and state, throwing clear errors when something is wrong
+- **Fail fast and clearly**: When a helper fails, the error message should make it obvious what went wrong in the helper itself
+- **Avoid confusing failures**: Issues in helpers should surface as clear errors from the helper, not as confusing test failures in the test cases that use them
+
+For example, a test fixture setup method should check that required resources exist and throw a descriptive error if they don't, rather than letting tests fail with cryptic "resource not found" errors later.
+
 ## Guidelines
 
 - **Be specific**: Don't say "create a parser", say "create src/parser.ts with a parseCSV function"
 - **Follow conventions**: Look at existing code for patterns, naming, structure
-- **Test coverage**: Each phase should have meaningful tests
+- **Test coverage**: Each phase should have meaningful tests for production code, not test helpers
 - **Dependencies**: Consider what this phase needs from previous phases (which may already be planned or released)
 - **Incremental**: This phase should build on previous phases
 - **Release Boundaries**: 
