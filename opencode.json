@@ -7,7 +7,6 @@
       "description": "Spec agent - orchestrates phase-based workflow for complex features requiring planning and architecture",
       "prompt": "{file:./.opencode/prompts/spec.md}",
       "temperature": 0.3,
-      "steps": 40,
       "permission": {
         "question": "allow",
         "task": {
@@ -25,7 +24,6 @@
       "description": "Vibe agent - direct implementation workflow for rapid iteration and simpler tasks",
       "prompt": "{file:./.opencode/prompts/vibe.md}",
       "temperature": 0.3,
-      "steps": 25,
       "permission": {
         "question": "allow",
         "edit": {
