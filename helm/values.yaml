@@ -1,1 +1,49 @@
 local: false
+
+# RustFS - S3-compatible object storage for pipeline input/output files
+# Deployed in standalone mode (1 pod) for simplicity
+rustfs:
+  enabled: true
+  mode:
+    standalone:
+      enabled: true
+    distributed:
+      enabled: false
+  persistence:
+    enabled: true
+    size: 10Gi
+  replicas: 1
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+# k8s-csi-s3 - CSI driver that exposes S3 buckets as Kubernetes PVCs
+# Configured to use the in-cluster RustFS instance
+csi-s3:
+  enabled: true
+  storageClass:
+    # Name of the StorageClass to create
+    name: "yeetcd-s3"
+    # Use GeeseFS for ReadWriteMany support
+    mounter: geesefs
+    # S3 endpoint - points to in-cluster RustFS service
+    endpoint: "http://rustfs:9000"
+    # Region (can be any value for RustFS)
+    region: "us-east-1"
+    # Bucket prefix for PVCs
+    bucketPrefix: "yeetcd-pipeline"
+    # Reclaim policy
+    reclaimPolicy: Delete
+    # Volume binding mode
+    volumeBindingMode: Immediate
+  # S3 credentials - will be created from RustFS secret
+  secret:
+    # Reference to RustFS credentials secret
+    name: "rustfs-credentials"
+    # Key names in the secret
+    accessKeyIdKey: "accesskey"
+    secretAccessKeyKey: "secretkey"

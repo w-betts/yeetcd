@@ -1,0 +1,9 @@
+dependencies:
+- name: rustfs
+  repository: https://rustfs.github.io/helm/
+  version: 0.0.90
+- name: csi-s3
+  repository: https://yandex-cloud.github.io/k8s-csi-s3/charts
+  version: 0.43.4
+digest: sha256:1b03a19651962b2e18f033b5c8a0340b088bcdcf6ecb4c0b2b51a72a0e5e6002
+generated: "2026-03-28T23:14:02.366123Z"

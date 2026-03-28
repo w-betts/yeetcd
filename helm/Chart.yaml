@@ -19,6 +19,19 @@ version: 0.1.0
 
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are not expected to
-# follow Semantic Versioning. They should reflect the version the application is using.
+# follow Semantic Versioning. They should reflect the version the application being deployed.
 # It is recommended to use it with quotes.
-appVersion: 1.16.0
+appVersion: "1.16.0"
+
+# Dependencies for in-cluster storage
+dependencies:
+  # RustFS - S3-compatible object storage for pipeline input/output files
+  - name: rustfs
+    version: "0.x.x"
+    repository: "https://rustfs.github.io/helm/"
+    condition: rustfs.enabled
+  # k8s-csi-s3 - CSI driver to expose S3 buckets as PVCs
+  - name: csi-s3
+    version: "0.x.x"
+    repository: "https://yandex-cloud.github.io/k8s-csi-s3/charts"
+    condition: csi-s3.enabled

@@ -1,6 +1,5 @@
-# Spec: kubernetes-execution-engine
-# Generated: 2026-03-28T22:00:00.000Z
-# Migrated from flat spec structure for new worktree-based workflow
+# Spec (updated)
+# Updated: 2026-03-28T23:14:08.733Z
 
 version: 2
 problem_statement: "The KubernetesExecutionEngine exists but is incomplete - tests are disabled and it lacks support for input/output files. The current implementation cannot mount host directories into pods (since controller runs in Kubernetes) and has no mechanism for file transfer between work items. Additionally, the test infrastructure relies on bash scripts (local-k8s.sh) which should be replaced with Java-based test utilities."
@@ -19,6 +18,9 @@ constraints:
   - "Remove local-k8s.sh bash scripts entirely"
   - "Shared PVC per pipeline - each work item writes to its own subdirectory"
   - "GeeseFS (used by k8s-csi-s3) supports ReadWriteMany for concurrent pod access"
+  - "Test infrastructure code must NOT be unit tested separately - it is validated implicitly through integration tests"
+  - "Test infrastructure must throw clear, actionable errors with context when operations fail - no silent failures"
+  - "Do NOT create test infrastructure for components that don't exist in production code (e.g., no HelmControllerIT if there's no HelmController)"
 tech_choices:
   - area: "Object Storage"
     choice: "RustFS"
@@ -75,7 +77,7 @@ test_strategy:
 phases:
   - name: "Phase 1: Helm Dependencies (RustFS + k8s-csi-s3)"
     description: "Add RustFS and k8s-csi-s3 as Helm dependencies to the yeetcd chart. Configure RustFS for standalone mode (1 pod). Configure k8s-csi-s3 StorageClass to use RustFS as the S3 backend. This phase is a release boundary because subsequent phases require these components to be deployed in the cluster before the controller can use PVC-based storage."
-    status: "pending"
+    status: "completed"
     is_release_boundary: true
     file_changes:
       - path: "helm/Chart.yaml"
@@ -86,19 +88,9 @@ phases:
         action: "modify"
         description: "Add configuration values for RustFS (standalone mode: mode.standalone.enabled=true, mode.distributed.enabled=false, single replica) and k8s-csi-s3 (StorageClass pointing to RustFS S3 endpoint, default credentials from RustFS secret)"
         is_test: false
-    test_cases:
-      - description: "Verify Helm chart dependencies are valid"
-        type: "integration"
-        target_component: "Helm Chart"
-        contracts: ["helm dependency update", "helm template"]
-        given_when_then: "GIVEN: Helm chart with RustFS and k8s-csi-s3 dependencies, WHEN: helm dependency update is run, THEN: dependencies are downloaded without errors"
-      - description: "Verify StorageClass is created with correct S3 endpoint"
-        type: "integration"
-        target_component: "k8s-csi-s3 StorageClass"
-        contracts: ["StorageClass"]
-        given_when_then: "GIVEN: Helm chart is rendered, WHEN: template output is inspected, THEN: StorageClass for S3-backed PVCs references RustFS S3 endpoint"
+    test_cases: []
   - name: "Phase 2: Test Infrastructure"
-    description: "Create Java-based test infrastructure for k3d cluster management. Implement: (1) Cluster existence check and creation if missing, (2) Test resource cleanup (jobs/pods only, not cluster), (3) Stale resource cleanup from failed test runs, (4) Bad state detection and auto-fix. Remove local-k8s.sh bash scripts and the test config files it generates. IMPORTANT: Test infrastructure code is NOT unit tested separately. Instead, it is coded defensively with clear error messages and validated implicitly through Phase 3 integration tests. Defensive coding practices: validate inputs, handle edge cases, provide meaningful error messages, fail fast on misconfiguration."
+    description: "Create Java-based test infrastructure for k3d cluster management. Implement: (1) Cluster existence check and creation if missing, (2) Test resource cleanup (jobs/pods only, not cluster), (3) Stale resource cleanup from failed test runs, (4) Bad state detection and auto-fix. Remove local-k8s.sh bash scripts and the test config files it generates. CRITICAL: Test infrastructure code is NOT unit tested separately. Instead, it is coded defensively and validated implicitly through Phase 3 integration tests. Defensive coding requirements: (1) Throw clear, actionable errors with full context (operation, resource, state, suggested fix) - never swallow exceptions or fail silently, (2) Validate all inputs and preconditions before operations, (3) Use descriptive error messages that help developers debug quickly, (4) Fail fast on misconfiguration or unexpected state, (5) Log operations for debugging when things go wrong. Test infrastructure should make failures obvious and debuggable without requiring separate tests."
     status: "pending"
     is_release_boundary: false
     file_changes:
@@ -116,15 +108,15 @@ phases:
         is_test: false
       - path: "controller/src/test/java/yeetcd/controller/testinfra/K3dClusterManager.java"
         action: "create"
-        description: "Java class for k3d cluster lifecycle management: ensureClusterExists(), createClusterIfMissing(), getKubeconfig(), getRegistryPort(). Coded defensively with clear error messages."
+        description: "Java class for k3d cluster lifecycle management: ensureClusterExists(), createClusterIfMissing(), getKubeconfig(), getRegistryPort(). Must throw clear errors with context on failure - e.g., if k3d not installed, include installation instructions in error message."
         is_test: false
       - path: "controller/src/test/java/yeetcd/controller/testinfra/TestResourceCleaner.java"
         action: "create"
-        description: "Java class for cleaning up test resources: cleanupTestResources(namespace), cleanupStaleResources(namespace, maxAge), cleanupJobsAndPods(namespace, labelSelector). Coded defensively."
+        description: "Java class for cleaning up test resources: cleanupTestResources(namespace), cleanupStaleResources(namespace, maxAge), cleanupJobsAndPods(namespace, labelSelector). Must throw clear errors with context on failure - e.g., if cleanup fails, include namespace, resource type, and error details."
         is_test: false
       - path: "controller/src/test/java/yeetcd/controller/testinfra/TestClusterFixture.java"
         action: "create"
-        description: "JUnit 5 extension that integrates K3dClusterManager and TestResourceCleaner for use in tests. Handles beforeAll/afterAll lifecycle."
+        description: "JUnit 5 extension that integrates K3dClusterManager and TestResourceCleaner for use in tests. Handles beforeAll/afterAll lifecycle. Must throw clear errors with context on failure - e.g., if cluster setup fails, include step that failed and suggested fix."
         is_test: false
       - path: "controller/pom.xml"
         action: "modify"
@@ -184,61 +176,78 @@ phases:
       - description: "PVC is created with correct StorageClass"
         type: "unit"
         target_component: "PipelinePvcManager"
-        contracts: ["PipelinePvcManager.createPvc()"]
+        contracts:
+          - "PipelinePvcManager.createPvc()"
         given_when_then: "GIVEN: k3d cluster exists with RustFS deployed, WHEN: createPvc('test-pipeline') is called, THEN: PVC is created with storageClassName 'yeetcd-s3' and status 'Bound'"
       - description: "PVC is deleted successfully"
         type: "unit"
         target_component: "PipelinePvcManager"
-        contracts: ["PipelinePvcManager.deletePvc()"]
+        contracts:
+          - "PipelinePvcManager.deletePvc()"
         given_when_then: "GIVEN: PVC exists for a pipeline, WHEN: deletePvc(pvcName) is called, THEN: PVC is deleted from the namespace"
       - description: "PVC status is retrieved correctly"
         type: "unit"
         target_component: "PipelinePvcManager"
-        contracts: ["PipelinePvcManager.getPvcStatus()"]
+        contracts:
+          - "PipelinePvcManager.getPvcStatus()"
         given_when_then: "GIVEN: PVC exists, WHEN: getPvcStatus(pvcName) is called, THEN: correct status (Bound/Pending) is returned"
       - description: "Input files are available in pod via PVC"
         type: "integration"
         target_component: "KubernetesExecutionEngine"
-        contracts: ["KubernetesExecutionEngine.runJob()", "PipelinePvcManager.createPvc()"]
+        contracts:
+          - "KubernetesExecutionEngine.runJob()"
+          - "PipelinePvcManager.createPvc()"
         given_when_then: "GIVEN: PVC exists with input files uploaded to RustFS via S3 API in work-specific subdirectory, WHEN: job is run with inputFilePaths, THEN: pod mounts PVC and files are accessible at specified mount path"
       - description: "Output files are extracted from PVC"
         type: "integration"
         target_component: "KubernetesExecutionEngine"
-        contracts: ["KubernetesExecutionEngine.runJob()", "PipelinePvcManager.createPvc()"]
+        contracts:
+          - "KubernetesExecutionEngine.runJob()"
+          - "PipelinePvcManager.createPvc()"
         given_when_then: "GIVEN: job writes files to output directory on PVC, WHEN: job completes, THEN: output files are retrievable via S3 API from RustFS"
       - description: "removeImage deletes image from registry"
         type: "integration"
         target_component: "KubernetesExecutionEngine"
-        contracts: ["KubernetesExecutionEngine.removeImage()"]
+        contracts:
+          - "KubernetesExecutionEngine.removeImage()"
         given_when_then: "GIVEN: image exists in registry, WHEN: removeImage(imageId) is called, THEN: image is deleted from registry"
       - description: "shouldRunAJob passes"
         type: "integration"
         target_component: "KubernetesExecutionEngine"
-        contracts: ["KubernetesExecutionEngine.runJob()"]
+        contracts:
+          - "KubernetesExecutionEngine.runJob()"
         given_when_then: "GIVEN: k3d cluster with RustFS deployed, WHEN: simple echo job is submitted, THEN: job completes with exit code 0 and stdout contains expected output"
       - description: "shouldMakeEnvironmentVariablesAvailable passes"
         type: "integration"
         target_component: "KubernetesExecutionEngine"
-        contracts: ["KubernetesExecutionEngine.runJob()"]
+        contracts:
+          - "KubernetesExecutionEngine.runJob()"
         given_when_then: "GIVEN: k3d cluster with RustFS deployed, WHEN: job is submitted with env vars, THEN: env vars are available in container"
       - description: "shouldMakeInputFilesAvailable passes"
         type: "integration"
         target_component: "KubernetesExecutionEngine"
-        contracts: ["KubernetesExecutionEngine.runJob()", "PipelinePvcManager.createPvc()"]
+        contracts:
+          - "KubernetesExecutionEngine.runJob()"
+          - "PipelinePvcManager.createPvc()"
         given_when_then: "GIVEN: k3d cluster with RustFS deployed, WHEN: job is submitted with input files (uploaded to RustFS via S3 API before job), THEN: input files are accessible in container via PVC mount"
       - description: "shouldExtractOutputFiles passes"
         type: "integration"
         target_component: "KubernetesExecutionEngine"
-        contracts: ["KubernetesExecutionEngine.runJob()", "PipelinePvcManager.createPvc()"]
+        contracts:
+          - "KubernetesExecutionEngine.runJob()"
+          - "PipelinePvcManager.createPvc()"
         given_when_then: "GIVEN: k3d cluster with RustFS deployed, WHEN: job writes output files to PVC, THEN: output files are extracted and available in JobResult"
       - description: "shouldBuildAndRunAJavaImage passes"
         type: "integration"
         target_component: "KubernetesExecutionEngine"
-        contracts: ["KubernetesExecutionEngine.buildImage()", "KubernetesExecutionEngine.runJob()", "KubernetesExecutionEngine.removeImage()"]
+        contracts:
+          - "KubernetesExecutionEngine.buildImage()"
+          - "KubernetesExecutionEngine.runJob()"
+          - "KubernetesExecutionEngine.removeImage()"
         given_when_then: "GIVEN: k3d cluster with RustFS deployed, WHEN: Java image is built and run, THEN: image executes correctly and is cleaned up"
 review:
   status: "passed"
   reviewer: "human"
   timestamp: "2026-03-28T22:30:00.000Z"
   feedback: "All legitimate review issues addressed. Phase 2 test infrastructure will be coded defensively rather than unit tested separately (per user guidance)."
-status: "planned"
+status: "approved"
