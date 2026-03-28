@@ -1,0 +1,94 @@
+# Spec: kubernetes-execution-engine
+# Generated: 2026-03-28T22:00:00.000Z
+# Migrated from flat spec structure for new worktree-based workflow
+
+version: 2
+problem_statement: "The KubernetesExecutionEngine exists but is incomplete - tests are disabled and it lacks support for input/output files. The current implementation cannot mount host directories into pods (since controller runs in Kubernetes) and has no mechanism for file transfer between work items. Additionally, the test infrastructure relies on bash scripts (local-k8s.sh) which should be replaced with Java-based test utilities."
+goals:
+  - "Enable KubernetesExecutionEngine tests by implementing missing functionality"
+  - "Support input/output files using in-cluster storage (k8s-csi-s3 + RustFS with shared PVC per pipeline)"
+  - "Replace bash-based test infrastructure with Java test utilities"
+  - "Implement removeImage() functionality for cleanup"
+  - "Ensure tests are developer-friendly: create cluster if missing, clean up only test resources, auto-fix bad state"
+constraints:
+  - "Controller runs inside Kubernetes (not outside)"
+  - "Use RustFS (Apache 2.0 license) as in-cluster S3-compatible object store"
+  - "Use k8s-csi-s3 (Apache 2.0 license) CSI driver to expose S3 buckets as PVCs"
+  - "Single tenant initially (multi-tenancy deferred)"
+  - "Tests must pass the 5 tests in AbstractExecutionEngineTest"
+  - "Remove local-k8s.sh bash scripts entirely"
+  - "Shared PVC per pipeline - each work item writes to its own subdirectory"
+  - "GeeseFS (used by k8s-csi-s3) supports ReadWriteMany for concurrent pod access"
+tech_choices:
+  - area: "Object Storage"
+    choice: "RustFS"
+    rationale: "Apache 2.0 license (permissive), simple Helm deployment, S3-compatible API, lightweight (1 pod in standalone mode)"
+  - area: "CSI Driver"
+    choice: "k8s-csi-s3"
+    rationale: "Apache 2.0 license, exposes S3 buckets as PVCs using GeeseFS, supports ReadWriteMany (RWX) for concurrent pod access"
+  - area: "Storage Architecture"
+    choice: "Shared PVC per pipeline"
+    rationale: "One PVC per pipeline, each work item writes to its own subdirectory (e.g., /mnt/pvc/outputs/work-a/), multiple pods can mount same PVC simultaneously, no file copying needed between work items"
+  - area: "Test Infrastructure"
+    choice: "Java-based with k3d"
+    rationale: "Eliminates bash script dependency, better IDE integration, automatic cleanup of stale resources"
+  - area: "Test Verification"
+    choice: "S3 API directly"
+    rationale: "Tests use S3 API to read RustFS and verify outputs - simpler and faster than mounting PVCs in test pods"
+architecture:
+  description: "The controller runs as a pod in Kubernetes. RustFS provides in-cluster S3-compatible storage. k8s-csi-s3 CSI driver exposes RustFS buckets as PVCs. Each pipeline gets a shared PVC - work items mount this PVC and write to their own subdirectories. Work B can read Work A's outputs directly from the shared PVC path. Tests use k3d for local Kubernetes, verify outputs via S3 API directly."
+  components:
+    - name: "RustFS Helm Chart"
+      responsibility: "Provides in-cluster S3-compatible object storage"
+      interfaces:
+        - "S3 API endpoint"
+        - "Helm values for configuration"
+    - name: "k8s-csi-s3 Helm Chart"
+      responsibility: "CSI driver that exposes S3 buckets as Kubernetes PVCs"
+      interfaces:
+        - "CSI provisioner"
+        - "StorageClass for S3-backed PVCs"
+    - name: "PipelinePvcManager"
+      responsibility: "Creates/deletes PVCs for each pipeline run"
+      interfaces:
+        - "createPvc(pipelineRunId) -> pvcName"
+        - "deletePvc(pvcName)"
+    - name: "KubernetesExecutionEngine"
+      responsibility: "Executes work items in Kubernetes pods, mounts shared PVC for input/output"
+      interfaces:
+        - "execute(work) -> result"
+        - "removeImage(imageId)"
+        - "configurePodWithPvc(podSpec, pvcName, workId)"
+    - name: "TestInfrastructure"
+      responsibility: "Manages k3d cluster lifecycle, test resource cleanup, stale resource detection"
+      interfaces:
+        - "ensureClusterExists()"
+        - "cleanupTestResources()"
+        - "cleanupStaleResources()"
+test_strategy:
+  approach: "Integration tests against real k3d cluster. Tests inherit from AbstractExecutionEngineTest which provides 5 core test cases. Tests verify outputs via S3 API directly (reading from RustFS). Additional tests for PVC lifecycle and cleanup logic."
+  test_patterns:
+    - language: "java"
+      pattern: "*Test.java"
+    - language: "java"
+      pattern: "*IT.java"
+phases:
+  - name: "Phase 1: Helm Dependencies (RustFS + k8s-csi-s3)"
+    description: "Add RustFS and k8s-csi-s3 as Helm dependencies to the yeetcd chart. Configure RustFS for standalone mode (1 pod). Configure k8s-csi-s3 StorageClass to use RustFS as the S3 backend. This phase is a release boundary because subsequent phases require these components to be deployed in the cluster before the controller can use PVC-based storage."
+    status: "pending"
+    is_release_boundary: true
+    file_changes: []
+    test_cases: []
+  - name: "Phase 2: Test Infrastructure"
+    description: "Create Java-based test infrastructure for k3d cluster management. Implement: (1) Cluster existence check and creation if missing, (2) Test resource cleanup (jobs/pods only, not cluster), (3) Stale resource cleanup from failed test runs, (4) Bad state detection and auto-fix. Remove local-k8s.sh bash scripts entirely."
+    status: "pending"
+    is_release_boundary: false
+    file_changes: []
+    test_cases: []
+  - name: "Phase 3: KubernetesExecutionEngine PVC Support"
+    description: "Implement input/output file handling in KubernetesExecutionEngine using shared PVC per pipeline. Add PipelinePvcManager component for PVC lifecycle. Update work pod configuration to mount shared PVC with work-specific subdirectories. Implement removeImage() for cleanup. Enable the 5 tests in AbstractExecutionEngineTest."
+    status: "pending"
+    is_release_boundary: false
+    file_changes: []
+    test_cases: []
+status: "planned"
