@@ -86,7 +86,55 @@ function slugify(text: string): string {
 }
 
 function specsDir(worktree: string): string {
-  return path.join(worktree, ".opencode", "specs")
+  // Get the current branch name
+  const branch = getCurrentBranch(worktree)
+  // Use branch name as subdirectory (e.g., work/spec-feature-auth)
+  const branchDir = branch || "unknown"
+  return path.join(worktree, ".opencode", "specs", branchDir)
+}
+
+function getCurrentBranch(worktree: string): string | null {
+  try {
+    // Read the HEAD file from the worktree's .git directory
+    // For worktrees, .git is a file containing the path to the git directory
+    const dotGitPath = path.join(worktree, ".git")
+    
+    if (fs.existsSync(dotGitPath)) {
+      const dotGitStat = fs.statSync(dotGitPath)
+      
+      if (dotGitStat.isFile()) {
+        // This is a worktree - .git file contains path to gitdir
+        const gitdirContent = fs.readFileSync(dotGitPath, "utf-8").trim()
+        const gitdirMatch = gitdirContent.match(/^gitdir: (.+)$/)
+        if (gitdirMatch) {
+          const gitdir = gitdirMatch[1]
+          // Read HEAD from the git directory
+          const headPath = path.join(gitdir, "HEAD")
+          if (fs.existsSync(headPath)) {
+            const headContent = fs.readFileSync(headPath, "utf-8").trim()
+            // HEAD can be either a branch ref or a commit hash
+            const branchMatch = headContent.match(/^ref: refs\/heads\/(.+)$/)
+            if (branchMatch) {
+              return branchMatch[1]
+            }
+          }
+        }
+      } else if (dotGitStat.isDirectory()) {
+        // This is the main repo - read HEAD directly
+        const headPath = path.join(dotGitPath, "HEAD")
+        if (fs.existsSync(headPath)) {
+          const headContent = fs.readFileSync(headPath, "utf-8").trim()
+          const branchMatch = headContent.match(/^ref: refs\/heads\/(.+)$/)
+          if (branchMatch) {
+            return branchMatch[1]
+          }
+        }
+      }
+    }
+  } catch (error) {
+    // If we can't determine the branch, return null
+  }
+  return null
 }
 
 function formatValidationErrors(error: z.ZodError): string {

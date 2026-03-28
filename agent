@@ -2,16 +2,23 @@
 """
 Agent wrapper script for Mac/Linux.
 
+Manages isolated worktrees for parallel OpenCode sessions.
 Maps subcommands to agent names and launches opencode with the appropriate agent.
-Does NOT pass any prompt - user enters prompt in TUI.
 
 Usage:
     agent spec    - Launch spec agent (4-phase structured workflow)
     agent vibe    - Launch vibe agent (direct implementation workflow)
 """
 
+import os
 import subprocess
 import sys
+import re
+from pathlib import Path
+from datetime import datetime
+from typing import Optional, List, Tuple, Dict
+import yaml
+
 
 # Map subcommands to agent names
 AGENT_MAP = {
@@ -19,25 +26,486 @@ AGENT_MAP = {
     "vibe": "vibe",
 }
 
+# Constants
+WORK_BRANCH_PREFIX = "work/"
+WORKTREE_DIR = ".worktrees"
+SPECS_DIR = ".opencode/specs"
 
-def main():
-    """Main entry point for the agent wrapper script."""
-    if len(sys.argv) < 2:
-        print("Error: No subcommand provided.", file=sys.stderr)
-        print_usage()
+
+class WorkItem:
+    """Represents a work item (branch + worktree)."""
+    
+    def __init__(self, branch_name: str, worktree_path: Optional[Path] = None):
+        self.branch_name = branch_name
+        self.worktree_path = worktree_path
+        self.workflow_type = self._extract_workflow_type()
+        self.name = self._extract_name()
+        
+    def _extract_workflow_type(self) -> str:
+        """Extract workflow type from branch name."""
+        # Branch format: work/<workflow>-<name>
+        if self.branch_name.startswith(WORK_BRANCH_PREFIX):
+            remainder = self.branch_name[len(WORK_BRANCH_PREFIX):]
+            if "-" in remainder:
+                return remainder.split("-", 1)[0]
+        return "unknown"
+    
+    def _extract_name(self) -> str:
+        """Extract descriptive name from branch name."""
+        if self.branch_name.startswith(WORK_BRANCH_PREFIX):
+            remainder = self.branch_name[len(WORK_BRANCH_PREFIX):]
+            if "-" in remainder:
+                return remainder.split("-", 1)[1]
+        return self.branch_name
+    
+    def get_specs_dir(self) -> Path:
+        """Get the specs directory for this work item."""
+        return Path(SPECS_DIR) / self.branch_name
+    
+    def get_status(self) -> str:
+        """Get the status of this work item."""
+        if not self.worktree_path or not self.worktree_path.exists():
+            return "no-worktree"
+        
+        if self.workflow_type == "spec":
+            return self._get_spec_status()
+        elif self.workflow_type == "vibe":
+            return self._get_vibe_status()
+        else:
+            return "unknown"
+    
+    def _get_spec_status(self) -> str:
+        """Get status for spec workflow."""
+        specs_dir = self.worktree_path / self.get_specs_dir()
+        if not specs_dir.exists():
+            return "no-specs"
+        
+        spec_files = list(specs_dir.glob("*.yaml"))
+        if not spec_files:
+            return "no-specs"
+        
+        # Find the most recent spec
+        latest_spec = max(spec_files, key=lambda p: p.stat().st_mtime)
+        
+        try:
+            with open(latest_spec, 'r') as f:
+                spec_data = yaml.safe_load(f)
+                status = spec_data.get('status', 'unknown')
+                
+                # Check if all specs are complete
+                all_complete = all(
+                    self._is_spec_complete(s) 
+                    for s in spec_files
+                )
+                
+                if all_complete:
+                    return "complete"
+                elif status in ['draft', 'planned', 'reviewed', 'approved', 'in_progress']:
+                    return f"incomplete ({status})"
+                else:
+                    return f"status: {status}"
+        except Exception as e:
+            return f"error: {e}"
+    
+    def _is_spec_complete(self, spec_file: Path) -> bool:
+        """Check if a spec file is complete."""
+        try:
+            with open(spec_file, 'r') as f:
+                spec_data = yaml.safe_load(f)
+                return spec_data.get('status') == 'completed'
+        except:
+            return False
+    
+    def _get_vibe_status(self) -> str:
+        """Get status for vibe workflow."""
+        # Vibe doesn't have structured status, just check if worktree exists
+        return "active"
+    
+    def is_merged(self) -> bool:
+        """Check if this branch has been merged to main."""
+        try:
+            # Check if branch exists
+            result = subprocess.run(
+                ["git", "branch", "--list", self.branch_name],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            if not result.stdout.strip():
+                # Branch doesn't exist locally, check if it was merged
+                result = subprocess.run(
+                    ["git", "branch", "-a", "--merged", "main"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                return self.branch_name in result.stdout
+            else:
+                # Branch exists, check if merged
+                result = subprocess.run(
+                    ["git", "branch", "--merged", "main"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                return self.branch_name in result.stdout
+        except subprocess.CalledProcessError:
+            return False
+
+
+def run_cmd(cmd: List[str], check: bool = True, capture: bool = False) -> subprocess.CompletedProcess:
+    """Run a command with optional output capture."""
+    return subprocess.run(
+        cmd,
+        check=check,
+        capture_output=capture,
+        text=True
+    )
+
+
+def get_worktrees() -> List[WorkItem]:
+    """Get all worktrees for this repo."""
+    try:
+        result = run_cmd(["git", "worktree", "list"], capture=True)
+        lines = result.stdout.strip().split('\n')
+        
+        worktrees = []
+        for line in lines:
+            parts = line.split()
+            if len(parts) >= 3:
+                path = Path(parts[0])
+                branch = parts[2].replace('[', '').replace(']', '')
+                
+                # Only include work branches
+                if branch.startswith(WORK_BRANCH_PREFIX):
+                    worktrees.append(WorkItem(branch, path))
+        
+        return worktrees
+    except subprocess.CalledProcessError:
+        return []
+
+
+def get_work_branches() -> List[str]:
+    """Get all work branches."""
+    try:
+        result = run_cmd(["git", "branch", "--list", f"{WORK_BRANCH_PREFIX}*"], capture=True)
+        branches = [b.strip().lstrip('* ') for b in result.stdout.strip().split('\n') if b.strip()]
+        return branches
+    except subprocess.CalledProcessError:
+        return []
+
+
+def check_cleanup() -> None:
+    """Check for completed/merged work and prompt for cleanup."""
+    worktrees = get_worktrees()
+    
+    cleanup_candidates = []
+    for work in worktrees:
+        status = work.get_status()
+        is_merged = work.is_merged()
+        
+        # Check if eligible for cleanup
+        if status == "complete" and is_merged:
+            cleanup_candidates.append((work, "completed and merged"))
+        elif is_merged and work.worktree_path:
+            cleanup_candidates.append((work, "merged to main"))
+    
+    if not cleanup_candidates:
+        return
+    
+    print("\n" + "="*60)
+    print("Cleanup Opportunities")
+    print("="*60)
+    print("\nThe following work items are ready for cleanup:\n")
+    
+    for i, (work, reason) in enumerate(cleanup_candidates, 1):
+        print(f"  {i}. {work.branch_name} ({reason})")
+    
+    print("\nWould you like to clean up these work items?")
+    print("This will remove the worktree and branch.")
+    
+    try:
+        response = clean_input("\nCleanup? [y/N]: ").lower()
+        if response == 'y':
+            for work, _ in cleanup_candidates:
+                cleanup_work(work)
+    except KeyboardInterrupt:
+        print("\nSkipping cleanup.")
+
+
+def cleanup_work(work: WorkItem) -> None:
+    """Remove a worktree and its branch."""
+    print(f"\nCleaning up {work.branch_name}...")
+    
+    # Remove worktree
+    if work.worktree_path and work.worktree_path.exists():
+        try:
+            run_cmd(["git", "worktree", "remove", str(work.worktree_path)])
+            print(f"  ✓ Removed worktree: {work.worktree_path}")
+        except subprocess.CalledProcessError as e:
+            print(f"  ✗ Failed to remove worktree: {e}")
+            return
+    
+    # Remove branch
+    try:
+        run_cmd(["git", "branch", "-D", work.branch_name])
+        print(f"  ✓ Removed branch: {work.branch_name}")
+    except subprocess.CalledProcessError as e:
+        print(f"  ✗ Failed to remove branch: {e}")
+
+
+class CancelledError(Exception):
+    """Raised when user cancels the operation."""
+    pass
+
+
+def clean_input(prompt: str) -> str:
+    """Get user input and clean it of carriage returns and whitespace."""
+    try:
+        return input(prompt).strip().replace('\r', '')
+    except EOFError:
+        return ''
+
+
+def prompt_new_or_resume(workflow_type: str) -> Optional[WorkItem]:
+    """Prompt user to start new work or resume existing.
+    
+    Returns:
+        WorkItem if a work item is selected/created
+        None if user chooses to work on main branch (vibe only)
+    
+    Raises:
+        CancelledError: If user cancels the operation
+    """
+    worktrees = get_worktrees()
+    
+    # Filter by workflow type
+    matching_work = [w for w in worktrees if w.workflow_type == workflow_type]
+    
+    # For vibe workflow, always offer main branch option
+    if workflow_type == "vibe":
+        print("\n" + "="*60)
+        print("Work Setup")
+        print("="*60)
+        print("\nHow would you like to proceed?")
+        print("  1. Continue on the main branch (no worktree)")
+        if matching_work:
+            print("  2. Resume existing vibe work")
+            print("  3. Start new vibe work")
+        else:
+            print("  2. Start new vibe work")
+        print()
+        
+        try:
+            choice = clean_input("Select option: ")
+            
+            if choice == '1':
+                print("\nContinuing on main branch...")
+                return None
+            elif choice == '2':
+                if matching_work:
+                    # Resume existing work
+                    print("\n" + "-"*40)
+                    print("Existing Vibe Work")
+                    print("-"*40 + "\n")
+                    for i, work in enumerate(matching_work, 1):
+                        status = work.get_status()
+                        print(f"  {i}. {work.name}")
+                        print(f"     Branch: {work.branch_name}")
+                        print(f"     Status: {status}")
+                        print()
+                    
+                    resume_choice = clean_input("Select work to resume: ")
+                    try:
+                        index = int(resume_choice) - 1
+                        if 0 <= index < len(matching_work):
+                            return matching_work[index]
+                        else:
+                            print("Invalid selection.")
+                            raise CancelledError()
+                    except ValueError:
+                        print("Invalid input.")
+                        raise CancelledError()
+                else:
+                    # Start new work
+                    return create_new_work(workflow_type, skip_main_branch_prompt=True)
+            elif choice == '3' and matching_work:
+                # Start new work
+                return create_new_work(workflow_type, skip_main_branch_prompt=True)
+            else:
+                print("Invalid selection.")
+                raise CancelledError()
+        except KeyboardInterrupt:
+            print("\nCancelled.")
+            raise CancelledError()
+    
+    # For spec workflow (or other workflows), use original logic
+    if not matching_work:
+        # No existing work, start new
+        return create_new_work(workflow_type, skip_main_branch_prompt=True)
+    
+    print("\n" + "="*60)
+    print(f"Existing {workflow_type} Work")
+    print("="*60)
+    print("\n")
+    
+    for i, work in enumerate(matching_work, 1):
+        status = work.get_status()
+        print(f"  {i}. {work.name}")
+        print(f"     Branch: {work.branch_name}")
+        print(f"     Status: {status}")
+        print()
+    
+    print(f"  n. Start new {workflow_type} work")
+    print()
+    
+    try:
+        choice = clean_input("Select work to resume or 'n' for new: ").lower()
+        
+        if choice == 'n':
+            return create_new_work(workflow_type, skip_main_branch_prompt=True)
+        
+        try:
+            index = int(choice) - 1
+            if 0 <= index < len(matching_work):
+                return matching_work[index]
+            else:
+                print("Invalid selection.")
+                raise CancelledError()
+        except ValueError:
+            print("Invalid input.")
+            raise CancelledError()
+    except KeyboardInterrupt:
+        print("\nCancelled.")
+        raise CancelledError()
+
+
+def create_new_work(workflow_type: str, skip_main_branch_prompt: bool = False) -> Optional[WorkItem]:
+    """Create a new work item.
+    
+    Args:
+        workflow_type: The type of workflow (spec, vibe, etc.)
+        skip_main_branch_prompt: If True, skip the main branch prompt (used when already prompted)
+    
+    Returns:
+        WorkItem if a work item is created
+        None if user chooses to work on main branch (vibe only)
+    
+    Raises:
+        CancelledError: If user cancels the operation
+    """
+    try:
+        # For vibe workflow, offer option to work on main branch (unless skipped)
+        if workflow_type == "vibe" and not skip_main_branch_prompt:
+            print("\n" + "="*60)
+            print("Work Setup")
+            print("="*60)
+            print("\nHow would you like to proceed?")
+            print("  1. Create a named work item with a worktree (isolated branch)")
+            print("  2. Just continue on the main branch (no worktree)")
+            print()
+            
+            choice = clean_input("Select option [1/2]: ")
+            
+            if choice == '2':
+                # Work on main branch - return None to signal this
+                print("\nContinuing on main branch...")
+                return None
+            elif choice != '1':
+                print("Invalid selection, defaulting to main branch.")
+                return None
+        
+        name = clean_input(f"\nEnter a name for this {workflow_type} work: ")
+        if not name:
+            print("Name is required.")
+            return None
+        
+        # Sanitize name for branch
+        safe_name = re.sub(r'[^a-zA-Z0-9-]', '-', name.lower())
+        safe_name = re.sub(r'-+', '-', safe_name).strip('-')
+        
+        branch_name = f"{WORK_BRANCH_PREFIX}{workflow_type}-{safe_name}"
+        
+        # Check if branch already exists
+        existing_branches = get_work_branches()
+        if branch_name in existing_branches:
+            print(f"\nBranch '{branch_name}' already exists.")
+            print("Would you like to resume that work instead?")
+            try:
+                response = clean_input("Resume? [Y/n]: ").lower()
+                if response != 'n':
+                    # Find and return existing work
+                    worktrees = get_worktrees()
+                    for work in worktrees:
+                        if work.branch_name == branch_name:
+                            return work
+                    # Branch exists but no worktree, create one
+                    return create_worktree_for_branch(branch_name)
+                else:
+                    # Ask for new name
+                    return create_new_work(workflow_type, skip_main_branch_prompt=True)
+            except KeyboardInterrupt:
+                raise CancelledError()
+        
+        # Create new branch and worktree
+        return create_worktree(branch_name)
+        
+    except KeyboardInterrupt:
+        print("\nCancelled.")
+        raise CancelledError()
+
+
+def create_worktree_for_branch(branch_name: str) -> Optional[WorkItem]:
+    """Create a worktree for an existing branch."""
+    # Replace "/" with "-" to avoid nested directories
+    worktree_name = branch_name.replace("/", "-")
+    worktree_path = Path(WORKTREE_DIR) / worktree_name
+    
+    try:
+        run_cmd(["git", "worktree", "add", str(worktree_path), branch_name])
+        print(f"\n✓ Created worktree: {worktree_path}")
+        return WorkItem(branch_name, worktree_path)
+    except subprocess.CalledProcessError as e:
+        print(f"\n✗ Failed to create worktree: {e}")
+        return None
+
+
+def create_worktree(branch_name: str) -> Optional[WorkItem]:
+    """Create a new branch and worktree."""
+    # Replace "/" with "-" to avoid nested directories
+    worktree_name = branch_name.replace("/", "-")
+    worktree_path = Path(WORKTREE_DIR) / worktree_name
+    
+    try:
+        # Create worktree with new branch
+        run_cmd(["git", "worktree", "add", "-b", branch_name, str(worktree_path)])
+        print(f"\n✓ Created branch: {branch_name}")
+        print(f"✓ Created worktree: {worktree_path}")
+        return WorkItem(branch_name, worktree_path)
+    except subprocess.CalledProcessError as e:
+        print(f"\n✗ Failed to create worktree: {e}")
+        return None
+
+
+def launch_agent(work: Optional[WorkItem], agent_name: str) -> None:
+    """Launch opencode in the worktree directory or current directory."""
+    if work is None:
+        # Working on main branch
+        print(f"\nLaunching {agent_name} agent in current directory...")
+        print("Branch: main")
+        print()
+    elif not work.worktree_path or not work.worktree_path.exists():
+        print(f"Error: Worktree does not exist: {work.worktree_path}", file=sys.stderr)
         sys.exit(1)
-
-    subcommand = sys.argv[1]
-
-    if subcommand not in AGENT_MAP:
-        print(f"Error: Invalid subcommand '{subcommand}'.", file=sys.stderr)
-        print_usage()
-        sys.exit(1)
-
-    agent_name = AGENT_MAP[subcommand]
-
+    else:
+        print(f"\nLaunching {agent_name} agent in {work.worktree_path}...")
+        print(f"Branch: {work.branch_name}")
+        print()
+        
+        # Change to worktree directory
+        os.chdir(work.worktree_path)
+    
     # Launch opencode with the selected agent
-    # Do NOT pass any prompt - user enters it in TUI
     try:
         subprocess.run(["opencode", "--agent", agent_name], check=True)
     except subprocess.CalledProcessError as e:
@@ -59,6 +527,36 @@ def print_usage():
     print("Examples:", file=sys.stderr)
     print("  agent spec    # Start structured workflow for complex features", file=sys.stderr)
     print("  agent vibe    # Start direct workflow for rapid iteration", file=sys.stderr)
+
+
+def main():
+    """Main entry point for the agent wrapper script."""
+    if len(sys.argv) < 2:
+        print("Error: No subcommand provided.", file=sys.stderr)
+        print_usage()
+        sys.exit(1)
+
+    subcommand = sys.argv[1]
+
+    if subcommand not in AGENT_MAP:
+        print(f"Error: Invalid subcommand '{subcommand}'.", file=sys.stderr)
+        print_usage()
+        sys.exit(1)
+
+    agent_name = AGENT_MAP[subcommand]
+    workflow_type = subcommand
+
+    # Check for cleanup opportunities
+    check_cleanup()
+    
+    # Prompt for new or resume
+    try:
+        work = prompt_new_or_resume(workflow_type)
+    except CancelledError:
+        sys.exit(1)
+    
+    # Launch agent in worktree (or current directory for main branch)
+    launch_agent(work, agent_name)
 
 
 if __name__ == "__main__":
