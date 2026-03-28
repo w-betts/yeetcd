@@ -1,8 +1,55 @@
 # yeetcd
 
-Continuous deployment solution with container-based pipeline execution.
+## Agent Principles
 
-## Architecture Overview
+### Challenge user assumptions
+
+Don't assume the user is right. If you think the user might be wrong or might not have considered other relevant options:
+
+1. **Challenge their thinking** - Lay out your reasoning and evidence clearly
+2. **Try to persuade them** - If they don't seem to understand, make your case more thoroughly
+3. **Accept their decision** - If you've made your point clearly and they still stick with their opinion, accept their thinking and proceed
+
+The goal is to be a helpful collaborator, not a yes-man. Push back when you have good reason to, but ultimately respect the user's autonomy.
+
+### Always use the question tool for user interaction
+
+All primary agents (spec, vibe) MUST use the `question` tool for ANY interaction with the user. This includes:
+- Asking clarifying questions
+- Getting approval before making changes
+- Requesting feedback
+- Confirming understanding
+- Getting permission to proceed
+
+NEVER assume you know what the user wants without asking.
+
+---
+
+## General guidance
+
+### Git Commits
+
+All commits in this repository must be signed. This is configured globally via `commit.gpgsign = true`, so commits will be automatically signed.
+
+**Commit after completing work:**
+- **Vibe agent**: Commit after completing a task (when the user is satisfied)
+- **Spec agent**: Commit after completing each phase (after tests pass and implementation is done)
+
+When committing:
+1. Run `git status` and `git diff` to see changes
+2. Run `git log -3 --oneline` to see recent commit style
+3. Stage relevant files with `git add`
+4. Commit with a descriptive message following the existing style
+
+---
+
+## Working on yeetcd
+
+### Context
+
+yeetcd is a continuous deployment solution with container-based pipeline execution.
+
+#### Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -24,7 +71,7 @@ Continuous deployment solution with container-based pipeline execution.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Maven Modules
+#### Maven Modules
 
 | Module | Purpose |
 |--------|---------|
@@ -34,7 +81,7 @@ Continuous deployment solution with container-based pipeline execution.
 | `java-sample` | Example pipeline definitions demonstrating all features |
 | `controller` | Runtime engine that builds and executes pipelines |
 
-## Build Commands
+#### Build Commands
 
 ```bash
 # Compile all modules
@@ -53,9 +100,9 @@ Continuous deployment solution with container-based pipeline execution.
 ./mvnw test -pl java-sample -am
 ```
 
-## Core Concepts
+#### Core Concepts
 
-### Work Definition Types
+##### Work Definition Types
 
 | Type | Use Case |
 |------|----------|
@@ -64,7 +111,7 @@ Continuous deployment solution with container-based pipeline execution.
 | `CompoundWorkDefinition` | Group multiple work items as a single unit |
 | `DynamicWorkGeneratingWorkDefinition` | Generate work at runtime based on parameters/context |
 
-### Work Dependencies
+##### Work Dependencies
 
 Work items are connected via `PreviousWork`:
 
@@ -78,7 +125,7 @@ Work consumer = Work.builder("consume", consumerDef)
     .build();
 ```
 
-### Work Context
+##### Work Context
 
 Key-value context passed to work as environment variables:
 
@@ -95,7 +142,7 @@ Work.builder("desc", workDef)
     .build();
 ```
 
-### Parameters
+##### Parameters
 
 Pipeline parameters with validation:
 
@@ -112,7 +159,7 @@ Pipeline.builder("name")
     .build();
 ```
 
-### Conditions
+##### Conditions
 
 Control work execution based on context or previous work status:
 
@@ -135,7 +182,7 @@ Work.builder("desc", workDef)
     .build();
 ```
 
-### Work Outputs
+##### Work Outputs
 
 Expose file outputs for downstream work:
 
@@ -145,9 +192,9 @@ Work producer = Work.builder("produce", workDef)
     .build();
 ```
 
-## Key Patterns
+#### Key Patterns
 
-### Adding a New Work Definition Type
+##### Adding a New Work Definition Type
 
 1. Add message to `protocol/src/main/proto/yeetcd/protocol/pipeline/pipeline.proto`
 2. Add corresponding class in `java-sdk/src/main/java/yeetcd/sdk/` implementing `WorkDefinition`
@@ -155,23 +202,23 @@ Work producer = Work.builder("produce", workDef)
 4. Update `WorkDefinitions.fromWorkProtobuf()` in controller to handle new type
 5. Update `Work.java` in both java-sdk and controller as needed
 
-### Pipeline Definition Flow (Java)
+##### Pipeline Definition Flow (Java)
 
 1. User annotates a static method with `@PipelineGenerator` that returns `Pipeline`
 2. Annotation processor (`PipelineGeneratorAnnotationProcessor`) generates `GeneratedPipelineDefinitions` class
 3. At runtime, `GeneratedPipelineDefinitions.main()` outputs protobuf to stdout
 4. Controller captures this and deserializes into executable `Pipeline` objects
 
-### Custom Work Execution
+##### Custom Work Execution
 
 1. `CustomWorkDefinition` subclasses are serialized with a unique `executionId` (hash of class name + state)
 2. Controller builds a container image containing compiled user code
 3. Work is executed by running `GeneratedCustomWorkRunner <pipelineName> <executionId>`
 4. The runner invokes the custom code in the container
 
-## Testing
+#### Testing
 
-### Unit Testing Pipeline Logic
+##### Unit Testing Pipeline Logic
 
 Use `FakePipelineRunner` from `java-test` module to test pipeline definitions without containers:
 
@@ -189,11 +236,11 @@ FakePipelineRunResult result = runner.run(
 );
 ```
 
-### Integration Testing
+##### Integration Testing
 
 Controller tests use actual Docker/Kubernetes. See `controller/src/test/` for examples.
 
-## Local Kubernetes Setup
+#### Local Kubernetes Setup
 
 ```bash
 # Start local k3d cluster with registry
@@ -205,7 +252,7 @@ Controller tests use actual Docker/Kubernetes. See `controller/src/test/` for ex
 
 This creates test config files in `controller/src/test/resources/`.
 
-## Project Configuration (yeetcd.yaml)
+#### Project Configuration (yeetcd.yaml)
 
 Each pipeline project needs a `yeetcd.yaml`:
 
@@ -223,11 +270,19 @@ artifacts:
 
 ---
 
-## OpenCode Configuration
+## Working on OpenCode Config
 
-Agent configuration for this project is in `opencode.json`. Subagent prompts are in `.opencode/prompts/`.
+### Context
 
-### Working with OpenCode
+#### Wrapper script is workflow entry point
+
+The `opencode` wrapper script is the entry point for all workflows. It handles environment setup and delegates to the appropriate agent.
+
+#### Workflows defined in agent system prompts
+
+Workflows are defined in the agent system prompts in `.opencode/prompts/`. Each prompt file defines a specific agent's behavior and capabilities.
+
+### Guidance
 
 #### Prefer tools over skills
 
@@ -236,28 +291,3 @@ Tools provide more deterministic results and better control. Use tools (Bash, Re
 #### Restrict subagent capabilities
 
 When launching subagents, limit their tool access to only the essential tools required for their specific task.
-
-#### Always use the question tool for user interaction
-
-All primary agents (spec, vibe) MUST use the `question` tool for ANY interaction with the user. This includes:
-- Asking clarifying questions
-- Getting approval before making changes
-- Requesting feedback
-- Confirming understanding
-- Getting permission to proceed
-
-NEVER assume you know what the user wants without asking.
-
-#### Git Commits
-
-All commits in this repository must be signed. This is configured globally via `commit.gpgsign = true`, so commits will be automatically signed.
-
-**Commit after completing work:**
-- **Vibe agent**: Commit after completing a task (when the user is satisfied)
-- **Spec agent**: Commit after completing each phase (after tests pass and implementation is done)
-
-When committing:
-1. Run `git status` and `git diff` to see changes
-2. Run `git log -3 --oneline` to see recent commit style
-3. Stage relevant files with `git add`
-4. Commit with a descriptive message following the existing style
