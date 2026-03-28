@@ -2,3 +2,5 @@
 .idea
 **/target
 trusted-cas.pem
+
+.worktrees
