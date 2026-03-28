@@ -44,11 +44,20 @@ public class Config {
     public static class Kubernetes {
 
         private Registry registry;
+        private S3 s3;
 
         @Data
         public static class Registry {
             private String pushAddress;
             private String pullAddress;
+        }
+
+        @Data
+        public static class S3 {
+            private String endpoint;
+            private String accessKey;
+            private String secretKey;
+            private String bucketName;
         }
     }
 }
