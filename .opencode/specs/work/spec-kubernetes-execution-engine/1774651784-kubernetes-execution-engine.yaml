@@ -80,11 +80,11 @@ phases:
     file_changes:
       - path: "helm/Chart.yaml"
         action: "modify"
-        description: "Add RustFS and k8s-csi-s3 as Helm chart dependencies with appropriate version constraints"
+        description: "Add RustFS and k8s-csi-s3 as Helm chart dependencies. RustFS from https://rustfs.github.io/helm/ (chart: rustfs), k8s-csi-s3 from https://yandex-cloud.github.io/k8s-csi-s3/charts (chart: csi-s3)"
         is_test: false
       - path: "helm/values.yaml"
         action: "modify"
-        description: "Add configuration values for RustFS (standalone mode, single replica) and k8s-csi-s3 (StorageClass pointing to RustFS S3 endpoint)"
+        description: "Add configuration values for RustFS (standalone mode: mode.standalone.enabled=true, mode.distributed.enabled=false, single replica) and k8s-csi-s3 (StorageClass pointing to RustFS S3 endpoint, default credentials from RustFS secret)"
         is_test: false
     test_cases:
       - description: "Verify Helm chart dependencies are valid"
@@ -98,13 +98,21 @@ phases:
         contracts: ["StorageClass"]
         given_when_then: "GIVEN: Helm chart is rendered, WHEN: template output is inspected, THEN: StorageClass for S3-backed PVCs references RustFS S3 endpoint"
   - name: "Phase 2: Test Infrastructure"
-    description: "Create Java-based test infrastructure for k3d cluster management. Implement: (1) Cluster existence check and creation if missing, (2) Test resource cleanup (jobs/pods only, not cluster), (3) Stale resource cleanup from failed test runs, (4) Bad state detection and auto-fix. Remove local-k8s.sh bash scripts entirely. Test helpers are coded defensively and verified via integration tests rather than unit tests."
+    description: "Create Java-based test infrastructure for k3d cluster management. Implement: (1) Cluster existence check and creation if missing, (2) Test resource cleanup (jobs/pods only, not cluster), (3) Stale resource cleanup from failed test runs, (4) Bad state detection and auto-fix. Remove local-k8s.sh bash scripts and the test config files it generates. IMPORTANT: Test infrastructure code is NOT unit tested separately. Instead, it is coded defensively with clear error messages and validated implicitly through Phase 3 integration tests. Defensive coding practices: validate inputs, handle edge cases, provide meaningful error messages, fail fast on misconfiguration."
     status: "pending"
     is_release_boundary: false
     file_changes:
       - path: "local-k8s.sh"
         action: "delete"
         description: "Remove bash script entirely as per constraints"
+        is_test: false
+      - path: "controller/src/test/resources/yeetcd-controller.yaml"
+        action: "delete"
+        description: "Remove bash-generated test config file (will be generated dynamically by Java test infrastructure)"
+        is_test: false
+      - path: "controller/src/test/resources/kubeconfig"
+        action: "delete"
+        description: "Remove bash-generated kubeconfig file (will be generated dynamically by Java test infrastructure)"
         is_test: false
       - path: "controller/src/test/java/yeetcd/controller/testinfra/K3dClusterManager.java"
         action: "create"
@@ -128,17 +136,21 @@ phases:
         is_test: true
     test_cases: []
   - name: "Phase 3: KubernetesExecutionEngine PVC Support"
-    description: "Implement input/output file handling in KubernetesExecutionEngine using shared PVC per pipeline. Add PipelinePvcManager component for PVC lifecycle. Update work pod configuration to mount shared PVC with work-specific subdirectories. Implement removeImage() for cleanup. Enable the 5 tests in AbstractExecutionEngineTest. CRITICAL: MountInput interface may need changes to support PVC-based mounts vs Docker's local filesystem approach."
+    description: "Implement input/output file handling in KubernetesExecutionEngine using shared PVC per pipeline. Add PipelinePvcManager component for PVC lifecycle. Update work pod configuration to mount shared PVC with work-specific subdirectories. Implement removeImage() for cleanup. Enable the 5 tests in AbstractExecutionEngineTest. CRITICAL: MountInput interface must be modified to support PVC-based mounts - current interface returns File directory() which is incompatible with PVC mounts. For Kubernetes, input files are uploaded to RustFS via S3 API before job execution, and outputs are downloaded from RustFS after completion."
     status: "pending"
     is_release_boundary: false
     file_changes:
+      - path: "controller/src/main/java/yeetcd/controller/execution/MountInput.java"
+        action: "modify"
+        description: "Modify interface to support both File-based (Docker) and PVC-based (Kubernetes) mounts. Add method to get mount type/identifier, or change to return a more abstract representation (e.g., MountSource with subclasses OnDiskMountInput and PvcMountInput)"
+        is_test: false
       - path: "controller/src/main/java/yeetcd/controller/execution/PipelinePvcManager.java"
         action: "create"
         description: "Manages PVC lifecycle for pipelines: createPvc(pipelineRunId, storageClassName), deletePvc(pvcName), getPvcStatus(pvcName)"
         is_test: false
       - path: "controller/src/main/java/yeetcd/controller/execution/PvcMountInput.java"
         action: "create"
-        description: "MountInput implementation for PVC-based mounts: pvcName, subPath. NOTE: May require MountInput interface changes."
+        description: "MountInput implementation for PVC-based mounts: pvcName, subPath. Works with modified MountInput interface."
         is_test: false
       - path: "controller/src/main/java/yeetcd/controller/execution/S3ClientFactory.java"
         action: "create"
@@ -146,11 +158,11 @@ phases:
         is_test: false
       - path: "controller/src/main/java/yeetcd/controller/execution/KubernetesExecutionEngine.java"
         action: "modify"
-        description: "Add PVC support: inject PipelinePvcManager, configure pod volumes for input/output, implement removeImage(), handle inputFilePaths and outputDirectoryPaths using PVC mounts"
+        description: "Add PVC support: inject PipelinePvcManager, configure pod volumes for input/output, implement removeImage(), handle inputFilePaths and outputDirectoryPaths using PVC mounts. Input files are uploaded to RustFS via S3 API before job execution."
         is_test: false
       - path: "controller/src/main/java/yeetcd/controller/config/Config.java"
         action: "modify"
-        description: "Add S3/RustFS configuration: endpoint, accessKey, secretKey, bucketName"
+        description: "Add S3/RustFS configuration to Kubernetes class: s3Endpoint, s3AccessKey, s3SecretKey, s3BucketName. Existing structure has Kubernetes class with nested Registry class (pushAddress, pullAddress). Add S3 nested class with endpoint, accessKey, secretKey, bucketName fields."
         is_test: false
       - path: "controller/src/test/java/yeetcd/controller/execution/PipelinePvcManagerTest.java"
         action: "create"
@@ -162,7 +174,7 @@ phases:
         is_test: true
       - path: "controller/src/test/java/yeetcd/controller/execution/KubernetesExecutionEngineTest.java"
         action: "modify"
-        description: "Remove @Disabled annotation, update to use TestClusterFixture, ensure all 5 AbstractExecutionEngineTest tests pass"
+        description: "Remove @Disabled annotation, update to use TestClusterFixture, ensure all 5 AbstractExecutionEngineTest tests pass. For shouldMakeInputFilesAvailable test, input files are uploaded to RustFS via S3 API before job execution."
         is_test: true
       - path: "controller/pom.xml"
         action: "modify"
@@ -188,7 +200,7 @@ phases:
         type: "integration"
         target_component: "KubernetesExecutionEngine"
         contracts: ["KubernetesExecutionEngine.runJob()", "PipelinePvcManager.createPvc()"]
-        given_when_then: "GIVEN: PVC exists with input files uploaded to work-specific subdirectory, WHEN: job is run with inputFilePaths, THEN: pod mounts PVC and files are accessible at specified mount path"
+        given_when_then: "GIVEN: PVC exists with input files uploaded to RustFS via S3 API in work-specific subdirectory, WHEN: job is run with inputFilePaths, THEN: pod mounts PVC and files are accessible at specified mount path"
       - description: "Output files are extracted from PVC"
         type: "integration"
         target_component: "KubernetesExecutionEngine"
@@ -213,7 +225,7 @@ phases:
         type: "integration"
         target_component: "KubernetesExecutionEngine"
         contracts: ["KubernetesExecutionEngine.runJob()", "PipelinePvcManager.createPvc()"]
-        given_when_then: "GIVEN: k3d cluster with RustFS deployed, WHEN: job is submitted with input files via PVC, THEN: input files are accessible in container"
+        given_when_then: "GIVEN: k3d cluster with RustFS deployed, WHEN: job is submitted with input files (uploaded to RustFS via S3 API before job), THEN: input files are accessible in container via PVC mount"
       - description: "shouldExtractOutputFiles passes"
         type: "integration"
         target_component: "KubernetesExecutionEngine"
@@ -224,4 +236,9 @@ phases:
         target_component: "KubernetesExecutionEngine"
         contracts: ["KubernetesExecutionEngine.buildImage()", "KubernetesExecutionEngine.runJob()", "KubernetesExecutionEngine.removeImage()"]
         given_when_then: "GIVEN: k3d cluster with RustFS deployed, WHEN: Java image is built and run, THEN: image executes correctly and is cleaned up"
+review:
+  status: "passed"
+  reviewer: "human"
+  timestamp: "2026-03-28T22:30:00.000Z"
+  feedback: "All legitimate review issues addressed. Phase 2 test infrastructure will be coded defensively rather than unit tested separately (per user guidance)."
 status: "planned"
