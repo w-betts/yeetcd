@@ -124,6 +124,7 @@
   "permission": {
     "edit": {
       "*": "allow"
-    }
+    },
+    "bash": "ask"
   }
 }
