@@ -304,9 +304,10 @@ export const spec_read = tool({
     output += `\n--- TEST STRATEGY ---\n${spec.test_strategy.approach}\n`
     output += `\nTest patterns:\n${spec.test_strategy.test_patterns.map((p) => `- ${p.language}: ${p.pattern}`).join("\n")}\n`
     output += `\n--- PHASES ---\n`
+    output += `(Note: Use 0-based index for spec_update, e.g., phase_index=0 for Phase 1)\n`
     spec.phases.forEach((phase, i) => {
       const boundary = phase.is_release_boundary ? " [RELEASE BOUNDARY]" : ""
-      output += `\n${i + 1}. ${phase.name} (${phase.status})${boundary}\n`
+      output += `\nPhase ${i + 1} (index ${i}): ${phase.name} (${phase.status})${boundary}\n`
       output += `   ${phase.description}\n`
       if (phase.file_changes.length > 0) {
         output += `   File changes:\n${phase.file_changes.map((f) => `     - ${f.action} ${f.path}${f.is_test ? " [TEST]" : ""}: ${f.description}`).join("\n")}\n`
@@ -347,7 +348,7 @@ export const spec_update = tool({
     phase_index: tool.schema
       .number()
       .optional()
-      .describe("Index of the phase to update (0-based)"),
+      .describe("Index of the phase to update (0-based: 0=Phase 1, 1=Phase 2, etc.)"),
     phase_status: tool.schema
       .enum(["pending", "in_progress", "completed", "released"])
       .optional()
@@ -447,17 +448,17 @@ export const spec_update = tool({
 
       if (args.phase_status !== undefined) {
         phase.status = args.phase_status
-        updates.push(`Phase ${args.phase_index} status → ${args.phase_status}`)
+        updates.push(`Phase ${args.phase_index} ("${phase.name}") status → ${args.phase_status}`)
       }
 
       if (args.phase_file_changes !== undefined) {
         phase.file_changes = args.phase_file_changes
-        updates.push(`Phase ${args.phase_index} file_changes → ${args.phase_file_changes.length} changes`)
+        updates.push(`Phase ${args.phase_index} ("${phase.name}") file_changes → ${args.phase_file_changes.length} changes`)
       }
 
       if (args.phase_test_cases !== undefined) {
         phase.test_cases = args.phase_test_cases
-        updates.push(`Phase ${args.phase_index} test_cases → ${args.phase_test_cases.length} cases`)
+        updates.push(`Phase ${args.phase_index} ("${phase.name}") test_cases → ${args.phase_test_cases.length} cases`)
       }
     }
 

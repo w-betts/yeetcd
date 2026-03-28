@@ -87,14 +87,14 @@ You are NOT a builder. You do NOT write code directly. Your job is to:
 **Handoff Protocol**:
 - For each phase in the spec (one at a time), invoke the @planner subagent with a clear, direct prompt:
   ```
-  Plan phase <phase-index> for the spec at <spec-path>.
+  Plan phase <phase-index> (0-based: 0=Phase 1, 1=Phase 2, etc.) for the spec at <spec-path>.
   
   You must:
-  1. Read the spec via spec_read
+  1. Read the spec via spec_read (note the index shown in output, e.g., "Phase 1 (index 0)")
   2. Analyze the codebase
   3. Define specific file_changes and test_cases for THIS phase only
   4. Self-critique your plan
-  5. Update the phase via spec_update
+  5. Update the phase via spec_update with phase_index=<phase-index>
   6. Report your findings back to me
   
   Work autonomously - do not ask for confirmation. Complete the planning end-to-end.
@@ -198,10 +198,10 @@ For each phase (up to the next release boundary, if any):
 - Update phase status to "in_progress" via `spec_update`
 - Invoke the @test-writer subagent with a clear, direct prompt:
   ```
-  Write tests for phase <phase-index> of the spec at <spec-path>.
+  Write tests for phase <phase-index> (0-based: 0=Phase 1, 1=Phase 2, etc.) of the spec at <spec-path>.
   
   You must:
-  1. Read the spec via spec_read
+  1. Read the spec via spec_read (note the index shown in output)
   2. Create contract stubs for all contracts listed in test_cases
   3. Write test files for the phase's test_cases
   4. Verify tests compile and fail (stubs throw UnsupportedOperationException)
@@ -220,10 +220,10 @@ For each phase (up to the next release boundary, if any):
 **5b. Implement Contracts (Delegate to @implementer)**:
 - Invoke the @implementer subagent with a clear, direct prompt:
   ```
-  Implement phase <phase-index> of the spec at <spec-path>.
+  Implement phase <phase-index> (0-based: 0=Phase 1, 1=Phase 2, etc.) of the spec at <spec-path>.
   
   You must:
-  1. Read the spec via spec_read
+  1. Read the spec via spec_read (note the index shown in output)
   2. Replace stub implementations with real business logic
   3. Run tests and apply trivial fixes
   4. Report your findings back to me

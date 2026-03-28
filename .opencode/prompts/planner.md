@@ -29,7 +29,7 @@ You are expected to make independent judgments and complete the task end-to-end.
 
 You will be given:
 - A spec file path
-- A phase index to plan
+- A phase index to plan (0-based: index 0 = Phase 1, index 1 = Phase 2, etc.)
 - Instructions to fill in file_changes and test_cases for THIS phase only
 
 For the assigned phase:
