@@ -40,10 +40,12 @@ For the assigned phase:
    - Action: create, modify, or delete
    - Description of what the change accomplishes
    - Whether it's a test file
-4. Define specific test_cases:
-   - Description of what the test verifies
-   - Type: unit, integration, or e2e
-   - Target component
+  4. Define specific test_cases:
+    - Description of what the test verifies
+    - Type: unit, integration, or e2e
+    - Target component
+    - **Contracts**: List of interfaces/classes/APIs under test (e.g., 'PipelinePvcManager.createPvc()', 'KubernetesExecutionEngine.runJob()')
+    - **Given/When/Then**: Pseudo test structure describing the test scenario
 5. **Self-Critique** (MANDATORY before updating the phase):
    - Critically evaluate your plan for this phase by checking for:
       - **Technical Feasibility**: Can these changes be implemented with the existing codebase? Are there technical blockers? Do the changes interact correctly with existing code?
@@ -59,6 +61,24 @@ For the assigned phase:
       - You will be re-invoked with specific guidance after user input
     - Document any non-critical issues in your final report under "Issues"
 6. Update the phase via `spec_update` with the file_changes and test_cases
+
+## Test Case Requirements
+
+Each test case MUST include:
+
+1. **Description**: Clear statement of what behavior is being verified
+2. **Type**: unit, integration, or e2e
+3. **Target Component**: The component being tested
+4. **Contracts**: The specific interfaces/classes/APIs under test. This is CRITICAL because:
+   - The test-writer will create dummy implementations of these contracts so tests can compile
+   - The implementer will then implement these contracts correctly
+   - Example: `['PipelinePvcManager.createPvc()', 'PipelinePvcManager.deletePvc()']`
+5. **Given/When/Then**: Pseudo test structure in this exact format:
+   ```
+   GIVEN: Initial state/context (e.g., "k3d cluster exists with RustFS deployed")
+   WHEN: Action is performed (e.g., "createPvc('test-pipeline') is called")
+   THEN: Expected outcome (e.g., "PVC is created with storageClassName 'yeetcd-s3' and status 'Bound'")
+   ```
 
 ## Guidelines
 

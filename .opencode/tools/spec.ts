@@ -27,6 +27,8 @@ const TestCaseSchema = z.object({
   description: z.string().describe("What this test verifies"),
   type: z.enum(["unit", "integration", "e2e"]).describe("Test type"),
   target_component: z.string().describe("Which component this test targets"),
+  contracts: z.array(z.string()).describe("Interfaces/classes/APIs under test (e.g., 'PipelinePvcManager.createPvc()', 'KubernetesExecutionEngine.runJob()')"),
+  given_when_then: z.string().describe("Pseudo test structure: GIVEN initial state/context, WHEN action is performed, THEN expected outcome"),
 })
 
 const FileChangeSchema = z.object({
@@ -176,6 +178,8 @@ export const spec_write = tool({
                 description: tool.schema.string(),
                 type: tool.schema.enum(["unit", "integration", "e2e"]),
                 target_component: tool.schema.string(),
+                contracts: tool.schema.array(tool.schema.string()),
+                given_when_then: tool.schema.string(),
               })
             ),
           })
@@ -308,7 +312,7 @@ export const spec_read = tool({
         output += `   File changes:\n${phase.file_changes.map((f) => `     - ${f.action} ${f.path}${f.is_test ? " [TEST]" : ""}: ${f.description}`).join("\n")}\n`
       }
       if (phase.test_cases.length > 0) {
-        output += `   Test cases:\n${phase.test_cases.map((t) => `     - [${t.type}] ${t.description} (targets: ${t.target_component})`).join("\n")}\n`
+        output += `   Test cases:\n${phase.test_cases.map((t) => `     - [${t.type}] ${t.description} (targets: ${t.target_component})\n       Contracts: ${t.contracts.join(", ")}\n       ${t.given_when_then}`).join("\n")}\n`
       }
     })
     if (spec.review) {
@@ -365,6 +369,8 @@ export const spec_update = tool({
           description: tool.schema.string(),
           type: tool.schema.enum(["unit", "integration", "e2e"]),
           target_component: tool.schema.string(),
+          contracts: tool.schema.array(tool.schema.string()),
+          given_when_then: tool.schema.string(),
         })
       )
       .optional()
