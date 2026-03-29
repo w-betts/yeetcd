@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * JUnit 5 extension that manages test cluster lifecycle.
@@ -44,6 +45,17 @@ public class TestClusterFixture implements BeforeAllCallback, AfterAllCallback {
     
     @Getter
     private static ApiClient apiClient;
+    
+    /**
+     * Port-forward process for RustFS.
+     * Started on-demand when getRustFsEndpoint() is called.
+     */
+    private static AtomicReference<Process> rustfsPortForwardProcess = new AtomicReference<>();
+    
+    /**
+     * Local port for RustFS port-forward.
+     */
+    private static final int RUSTFS_LOCAL_PORT = 19000;
 
     private static volatile boolean initialized = false;
     private static final Object initLock = new Object();
@@ -198,6 +210,9 @@ public class TestClusterFixture implements BeforeAllCallback, AfterAllCallback {
         String testClass = context.getRequiredTestClass().getName();
         log.info("Tearing down test resources for {}...", testClass);
         
+        // Stop RustFS port-forward
+        stopRustFsPortForward();
+        
         if (resourceCleaner != null) {
             try {
                 resourceCleaner.cleanupTestResources(TEST_NAMESPACE);
@@ -250,5 +265,113 @@ public class TestClusterFixture implements BeforeAllCallback, AfterAllCallback {
      */
     public static String getRegistryPullAddress() {
         return "yeetcd-registry:5000";
+    }
+    
+    /**
+     * Gets the RustFS endpoint for S3 operations from outside the cluster.
+     * Starts port-forward if not already running.
+     * Must be called after beforeAll.
+     * 
+     * @return the RustFS endpoint (e.g., "http://localhost:19000")
+     */
+    public static String getRustFsEndpoint() {
+        ensureRustFsPortForward();
+        return "http://localhost:" + RUSTFS_LOCAL_PORT;
+    }
+    
+    /**
+     * Gets the RustFS access key.
+     * Must be called after beforeAll.
+     */
+    public static String getRustFsAccessKey() {
+        return "rustfsadmin";
+    }
+    
+    /**
+     * Gets the RustFS secret key.
+     * Must be called after beforeAll.
+     */
+    public static String getRustFsSecretKey() {
+        return "rustfsadmin";
+    }
+    
+    /**
+     * Ensures port-forward for RustFS is running.
+     * Starts it if not already running.
+     */
+    private static void ensureRustFsPortForward() {
+        Process existing = rustfsPortForwardProcess.get();
+        if (existing != null && existing.isAlive()) {
+            log.debug("RustFS port-forward already running");
+            return;
+        }
+        
+        log.info("Starting port-forward for RustFS...");
+        
+        if (kubeconfigPath == null) {
+            throw new TestInfrastructureException(
+                "RUSTFS_PORT_FORWARD_NOT_READY",
+                "RustFS port-forward not available - kubeconfig not initialized",
+                "RustFS port-forward",
+                "kubeconfig is null",
+                "Ensure @ExtendWith(TestClusterFixture.class) is on your test class and beforeAll has completed"
+            );
+        }
+        
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                "kubectl", "port-forward",
+                "--kubeconfig", kubeconfigPath.toString(),
+                "svc/yeetcd-rustfs-svc", "-n", "yeetcd",
+                RUSTFS_LOCAL_PORT + ":9000"
+            );
+            pb.redirectErrorStream(true);
+            
+            Process process = pb.start();
+            
+            // Wait a moment for port-forward to establish
+            Thread.sleep(1000);
+            
+            if (!process.isAlive()) {
+                throw new TestInfrastructureException(
+                    "RUSTFS_PORT_FORWARD_FAILED",
+                    "Failed to start port-forward for RustFS",
+                    "RustFS port-forward",
+                    "process exited immediately",
+                    "Check RustFS is running with 'kubectl get pods -n yeetcd -l app.kubernetes.io/name=rustfs'"
+                );
+            }
+            
+            rustfsPortForwardProcess.set(process);
+            log.info("RustFS port-forward started on port {}", RUSTFS_LOCAL_PORT);
+            
+        } catch (Exception e) {
+            throw new TestInfrastructureException(
+                "RUSTFS_PORT_FORWARD_ERROR",
+                "Error starting port-forward for RustFS",
+                "RustFS port-forward",
+                "exception: " + e.getMessage(),
+                "Check kubectl is installed and RustFS is running",
+                e
+            );
+        }
+    }
+    
+    /**
+     * Stops the RustFS port-forward if running.
+     */
+    private static void stopRustFsPortForward() {
+        Process process = rustfsPortForwardProcess.getAndSet(null);
+        if (process != null && process.isAlive()) {
+            log.info("Stopping RustFS port-forward...");
+            process.destroy();
+            try {
+                process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                process.destroyForcibly();
+            }
+            log.info("RustFS port-forward stopped");
+        }
     }
 }

@@ -9,9 +9,12 @@ rustfs:
       enabled: true
     distributed:
       enabled: false
-  persistence:
-    enabled: true
-    size: 10Gi
+  # Storage class for RustFS data and logs PVCs
+  # k3d uses 'local-path' as the default storage class
+  storageclass:
+    name: local-path
+    dataStorageSize: 10Gi
+    logStorageSize: 1Gi
   replicas: 1
   resources:
     requests:
@@ -31,7 +34,7 @@ csi-s3:
     # Use GeeseFS for ReadWriteMany support
     mounter: geesefs
     # S3 endpoint - points to in-cluster RustFS service
-    endpoint: "http://rustfs:9000"
+    endpoint: "http://yeetcd-rustfs-svc:9000"
     # Region (can be any value for RustFS)
     region: "us-east-1"
     # Bucket prefix for PVCs
@@ -40,10 +43,13 @@ csi-s3:
     reclaimPolicy: Delete
     # Volume binding mode
     volumeBindingMode: Immediate
-  # S3 credentials - will be created from RustFS secret
+  # S3 credentials for RustFS
   secret:
-    # Reference to RustFS credentials secret
+    # Create the secret with these credentials
+    create: true
     name: "rustfs-credentials"
-    # Key names in the secret
-    accessKeyIdKey: "accesskey"
-    secretAccessKeyKey: "secretkey"
+    # RustFS default credentials
+    accessKey: "rustfsadmin"
+    secretKey: "rustfsadmin"
+    # Endpoint pointing to in-cluster RustFS service
+    endpoint: "http://yeetcd-rustfs-svc:9000"

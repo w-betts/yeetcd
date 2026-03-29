@@ -15,9 +15,7 @@ import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.*;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.*;
+
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -36,7 +34,6 @@ public class KubernetesExecutionEngine extends AbstractExecutionEngine {
     private final JibImageBuilder jibImageBuilder;
     private final BatchV1Api batchV1Api;
     private final PipelinePvcManager pvcManager;
-    private final S3ClientFactory s3ClientFactory;
     private static final String yeetcdJobNameLabel = "yeetcdJobName";
 
 //    @SneakyThrows
@@ -46,16 +43,15 @@ public class KubernetesExecutionEngine extends AbstractExecutionEngine {
 
     @VisibleForTesting
     public KubernetesExecutionEngine(Kubernetes config, ApiClient apiClient, boolean allowInsecureRegistries) {
-        this(config, apiClient, allowInsecureRegistries, null, null);
+        this(config, apiClient, allowInsecureRegistries, null);
     }
 
     @VisibleForTesting
     public KubernetesExecutionEngine(Kubernetes config, ApiClient apiClient, boolean allowInsecureRegistries, 
-                                       PipelinePvcManager pvcManager, S3ClientFactory s3ClientFactory) {
+                                       PipelinePvcManager pvcManager) {
         jibImageBuilder = new JibImageBuilder(config.getRegistry().getPushAddress(), allowInsecureRegistries);
         this.batchV1Api = new BatchV1Api(apiClient);
         this.pvcManager = pvcManager;
-        this.s3ClientFactory = s3ClientFactory;
         Configuration.setDefaultApiClient(apiClient);
     }
 
@@ -124,13 +120,17 @@ public class KubernetesExecutionEngine extends AbstractExecutionEngine {
         String workId = name;
         String pvcName = null;
         
-        // Check if we have PVC-based mounts
+        // Check if we have PVC-based mounts and extract PVC name
         boolean hasPvcMounts = jobDefinition.inputFilePaths().values().stream()
             .anyMatch(MountInput::isPvcMount);
         
-        // Upload input files to S3 if using PVC mounts
-        if (hasPvcMounts && s3ClientFactory != null) {
-            pvcName = uploadInputFilesToS3(jobDefinition.inputFilePaths(), workId);
+        if (hasPvcMounts) {
+            // Find the PVC name from the first PVC mount
+            pvcName = jobDefinition.inputFilePaths().values().stream()
+                .filter(MountInput::isPvcMount)
+                .map(m -> ((PvcMountInput) m).pvcName())
+                .findFirst()
+                .orElse(null);
         }
         
         // Build pod spec with PVC volumes if needed
@@ -148,52 +148,7 @@ public class KubernetesExecutionEngine extends AbstractExecutionEngine {
                 ))
             .execute();
         
-        // Download output files from S3 after job completes (if using PVC)
-        if (!jobDefinition.outputDirectoryPaths().isEmpty() && s3ClientFactory != null && pvcName != null) {
-            // Wait for job to complete, then download outputs
-            // This will be handled asynchronously in the checkResult method
-        }
-        
         return job;
-    }
-    
-    /**
-     * Uploads input files to S3 for PVC-based mounts.
-     * Returns the PVC name used for the uploads.
-     */
-    @SneakyThrows
-    private String uploadInputFilesToS3(Map<String, MountInput> inputFilePaths, String workId) {
-        if (s3ClientFactory == null) {
-            return null;
-        }
-        
-        // Find the first PVC mount to determine the PVC name
-        String pvcName = null;
-        String bucketName = "yeetcd-pipelines";
-        
-        try (S3Client s3Client = s3ClientFactory.createClient()) {
-            // Ensure bucket exists
-            try {
-                s3Client.headBucket(HeadBucketRequest.builder().bucket(bucketName).build());
-            } catch (NoSuchBucketException e) {
-                s3Client.createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
-            }
-            
-            for (Map.Entry<String, MountInput> entry : inputFilePaths.entrySet()) {
-                MountInput mountInput = entry.getValue();
-                if (mountInput.isPvcMount()) {
-                    PvcMountInput pvcMount = (PvcMountInput) mountInput;
-                    pvcName = pvcMount.pvcName();
-                    String subPath = pvcMount.subPath();
-                    
-                    // For now, we assume input files are already in S3 (uploaded by test or previous work)
-                    // In a full implementation, we would copy files from the source to S3 here
-                    log.debug("Using PVC mount: pvcName={}, subPath={}", pvcName, subPath);
-                }
-            }
-        }
-        
-        return pvcName;
     }
     
     /**

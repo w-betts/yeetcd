@@ -1,6 +1,7 @@
 package yeetcd.controller.execution;
 
 import yeetcd.controller.config.Config;
+import yeetcd.controller.testinfra.RustFsClient;
 import yeetcd.controller.testinfra.TestClusterFixture;
 import io.kubernetes.client.openapi.ApiClient;
 import lombok.SneakyThrows;
@@ -32,7 +33,7 @@ public class KubernetesExecutionEnginePvcIT {
 
     private KubernetesExecutionEngine executionEngine;
     private PipelinePvcManager pvcManager;
-    private S3ClientFactory s3ClientFactory;
+    private RustFsClient rustFsClient;
     private static final String TEST_IMAGE = "maven:3.9.9-eclipse-temurin-17";
     private static final String STORAGE_CLASS = "yeetcd-s3";
 
@@ -41,13 +42,15 @@ public class KubernetesExecutionEnginePvcIT {
         Config.Kubernetes config = getKubernetesConfig();
         ApiClient apiClient = TestClusterFixture.getApiClient();
         
-        pvcManager = new PipelinePvcManager();
-        s3ClientFactory = new S3ClientFactory(
+        pvcManager = new PipelinePvcManager(apiClient);
+        rustFsClient = new RustFsClient(
             config.getS3().getEndpoint(),
             config.getS3().getAccessKey(),
-            config.getS3().getSecretKey()
+            config.getS3().getSecretKey(),
+            config.getS3().getBucketName()
         );
-        executionEngine = new KubernetesExecutionEngine(config, apiClient, true, pvcManager, s3ClientFactory);
+        rustFsClient.configureAlias();
+        executionEngine = new KubernetesExecutionEngine(config, apiClient, true, pvcManager);
     }
 
     private static Config.Kubernetes getKubernetesConfig() {
@@ -59,9 +62,9 @@ public class KubernetesExecutionEnginePvcIT {
         config.setRegistry(registry);
         
         Config.Kubernetes.S3 s3 = new Config.Kubernetes.S3();
-        s3.setEndpoint("http://rustfs.yeetcd.svc.cluster.local:9000");
-        s3.setAccessKey("rustfs");
-        s3.setSecretKey("rustfs-secret");
+        s3.setEndpoint("http://localhost:9000");
+        s3.setAccessKey("rustfsadmin");
+        s3.setSecretKey("rustfsadmin");
         s3.setBucketName("yeetcd-pipelines");
         config.setS3(s3);
         
@@ -395,46 +398,11 @@ public class KubernetesExecutionEnginePvcIT {
     // Helper methods
     
     private void uploadFileToS3(String key, String content) {
-        software.amazon.awssdk.services.s3.S3Client s3Client = s3ClientFactory.createClient();
-        String bucketName = "yeetcd-pipelines";
-        
-        try {
-            // Create bucket if it doesn't exist
-            try {
-                s3Client.headBucket(software.amazon.awssdk.services.s3.model.HeadBucketRequest.builder()
-                    .bucket(bucketName)
-                    .build());
-            } catch (software.amazon.awssdk.services.s3.model.NoSuchBucketException e) {
-                s3Client.createBucket(software.amazon.awssdk.services.s3.model.CreateBucketRequest.builder()
-                    .bucket(bucketName)
-                    .build());
-            }
-            
-            // Upload the file
-            s3Client.putObject(software.amazon.awssdk.services.s3.model.PutObjectRequest.builder()
-                .bucket(bucketName)
-                .key(key)
-                .build(),
-                software.amazon.awssdk.core.sync.RequestBody.fromString(content));
-        } finally {
-            s3Client.close();
-        }
+        rustFsClient.uploadFile(key, content);
     }
     
     private String downloadFileFromS3(String key) {
-        software.amazon.awssdk.services.s3.S3Client s3Client = s3ClientFactory.createClient();
-        String bucketName = "yeetcd-pipelines";
-        
-        try {
-            software.amazon.awssdk.core.ResponseBytes<software.amazon.awssdk.services.s3.model.GetObjectResponse> response =
-                s3Client.getObjectAsBytes(software.amazon.awssdk.services.s3.model.GetObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(key)
-                    .build());
-            return response.asUtf8String();
-        } finally {
-            s3Client.close();
-        }
+        return rustFsClient.downloadFile(key);
     }
     
     private BuildImageDefinition createSimpleBuildImageDefinition(String image, String tag) {
