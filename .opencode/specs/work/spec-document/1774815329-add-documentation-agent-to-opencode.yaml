@@ -1,0 +1,395 @@
+# Spec (updated)
+# Updated: 2026-03-29T21:06:00.891Z
+
+version: 2
+problem_statement: "Add a new OpenCode agent for documenting code that can be run via the 'agent document' subcommand. The documentation process has two phases: (1) create/update agent-consumable documentation in YAML format with a structured schema, and (2) generate human-readable HTML documentation with mermaid.js diagrams. The agent should be triggered after implementation completes (with user confirmation) to keep documentation in sync with code."
+goals:
+  - "Create a documentation schema for agent-consumable docs (YAML, hierarchical, covering non-trivial classes)"
+  - "Build tools for reading/writing documentation (doc_read, doc_write, doc_update)"
+  - "Create subagents for Phase 1 (agent-doc-writer) and Phase 2 (human-doc-writer)"
+  - "Create a primary document agent that orchestrates the two phases"
+  - "Update the agent script to support 'agent document' subcommand"
+  - "Integrate with spec and vibe agents to prompt for documentation after implementation"
+constraints:
+  - "Documentation must be hierarchical: module → package → non-trivial classes (skip POJOs)"
+  - "Non-trivial classes are those with business logic (not just getters/setters/data classes)"
+  - "Document the current project only (not including its .opencode config)"
+  - "Agent docs stored in documentation/agent directory (relative to project root)"
+  - "Human docs stored in documentation/human directory as browsable HTML (relative to project root)"
+  - "Human docs must use mermaid.js for architecture visualization"
+  - "Human docs must have consistent style, navigation, and cross-linking"
+  - "User must be prompted before running documentation agent (not automatic)"
+  - "If docs exist, update them to correct drift (with user confirmation)"
+  - "Schema definition must be embedded in the custom tools"
+  - "HTML generation must use a template file stored in .opencode/templates/"
+  - "Only test Phase 1 (documentation tools) - other phases tested via manual verification"
+  - "Tool permissions: doc_write and doc_update are denied by default for all agents except document, agent-doc-writer, and human-doc-writer"
+  - "Tool permissions: doc_read is allowed for all agents (can read docs)"
+  - "Other agents cannot write documentation files via edit/write tools (enforced by permissions)"
+tech_choices:
+  - area: "documentation schema"
+    choice: "YAML with structured fields (schema embedded in tools)"
+    rationale: "Human-readable, supports comments, matches existing spec format, easy for agents to parse and update. Schema embedded in tools for validation."
+  - area: "human docs format"
+    choice: "HTML with mermaid.js (generated from template)"
+    rationale: "Browsable, supports interactive diagrams, standard web format. Template ensures consistent style."
+  - area: "documentation tools"
+    choice: "Custom OpenCode tools in .opencode/tools/doc.ts (doc_read, doc_write, doc_update)"
+    rationale: "Allows targeted reads/writes by agents, enforces schema validation, provides structured interface. Follows same pattern as spec.ts."
+  - area: "subagent architecture"
+    choice: "Two subagents (agent-doc-writer, human-doc-writer)"
+    rationale: "Separation of concerns, easier to test and debug each phase independently."
+  - area: "HTML template"
+    choice: "Template file in .opencode/templates/doc-template.html"
+    rationale: "Ensures consistent style across all generated documentation. Easy to maintain and update."
+architecture:
+  description: "The documentation system consists of: (1) a documentation schema defining the structure of agent-consumable docs, (2) tools for reading/writing docs, (3) two subagents for the documentation phases, (4) a primary document agent that orchestrates the workflow, and (5) integration hooks in spec/vibe agents.
+
+
+    The documentation schema is hierarchical (module → package → class) with the following structure:
+
+
+    ```yaml
+
+    # Module level (e.g., documentation/agent/java-sdk.yaml)
+
+    version: 1
+
+    component_type: module
+
+    name: \"java-sdk\"
+
+    description: \"Java API for defining pipelines\"
+
+    responsibilities:
+
+    \  - \"Provides fluent API for pipeline definition\"
+
+    \  - \"Annotation processor generates protobuf output\"
+
+    dependencies:
+
+    \  - \"protocol (protobuf definitions)\"
+
+    subcomponents:
+
+    \  - \"yeetcd.sdk\"
+
+    \  - \"yeetcd.sdk.annotation\"
+
+
+    # Package level (e.g., documentation/agent/java-sdk/yeetcd.sdk.yaml)
+
+    version: 1
+
+    component_type: package
+
+    name: \"yeetcd.sdk\"
+
+    description: \"Core SDK classes for pipeline definition\"
+
+    responsibilities:
+
+    \  - \"Define Pipeline, Work, WorkDefinition interfaces\"
+
+    \  - \"Provide builder pattern for pipeline construction\"
+
+    dependencies:
+
+    \  - \"yeetcd.protocol\"
+
+    subcomponents:
+
+    \  - \"Pipeline\"
+
+    \  - \"Work\"
+
+    \  - \"WorkDefinition\"
+
+
+    # Class level (e.g., documentation/agent/java-sdk/yeetcd.sdk/Pipeline.yaml)
+
+    version: 1
+
+    component_type: class
+
+    name: \"Pipeline\"
+
+    description: \"Immutable representation of a pipeline definition\"
+
+    responsibilities:
+
+    \  - \"Hold pipeline configuration (name, parameters, work context, final work)\"
+
+    \  - \"Serialize to protobuf format\"
+
+    interfaces:
+
+    \  - method: \"getName()\"
+
+    \    returns: \"String\"
+
+    \    description: \"Returns the pipeline name\"
+
+    \  - method: \"getParameters()\"
+
+    \    returns: \"Parameters\"
+
+    \    description: \"Returns pipeline parameters\"
+
+    \  - method: \"toProtobuf()\"
+
+    \    returns: \"PipelineProto\"
+
+    \    description: \"Serializes to protobuf format\"
+
+    dependencies:
+
+    \  - \"Work\"
+
+    \  - \"Parameters\"
+
+    \  - \"WorkContext\"
+
+    implementation_notes:
+
+    \  - \"Immutable: all fields are final\"
+
+    \  - \"Built via Pipeline.builder()\"
+
+    \  - \"Validates that finalWork is set before building\"
+
+    ```\n"
+  components:
+    - name: "Documentation Schema"
+      responsibility: "Defines the YAML structure for agent-consumable documentation. Hierarchical: module → package → class. Includes fields for description, responsibilities, interfaces, dependencies, and implementation notes."
+      interfaces:
+        - "Schema validation"
+        - "YAML serialization/deserialization"
+    - name: "Documentation Tools"
+      responsibility: "OpenCode tools for reading, writing, and updating documentation. Implemented in .opencode/tools/doc.ts following the pattern of spec.ts. Enforces schema validation and allows targeted updates to specific components."
+      interfaces:
+        - "doc_read(path) -> Documentation"
+        - "doc_write(path, documentation) -> void"
+        - "doc_update(path, component_path, updates) -> void"
+    - name: "Agent-Doc-Writer Subagent"
+      responsibility: "Phase 1 subagent that analyzes codebase and creates/updates agent-consumable documentation. Detects drift from existing docs and proposes corrections. Drift includes: missing documentation for new classes, outdated descriptions, changed interfaces, missing dependencies."
+      interfaces:
+        - "analyze_codebase() -> ComponentTree"
+        - "generate_docs(component_tree) -> Documentation"
+        - "detect_drift(existing_docs, current_code) -> DriftReport"
+    - name: "Human-Doc-Writer Subagent"
+      responsibility: "Phase 2 subagent that transforms agent docs into human-readable HTML with mermaid.js diagrams. Uses template file from .opencode/templates/doc-template.html. Ensures consistent style and navigation."
+      interfaces:
+        - "transform_docs(agent_docs) -> HtmlPages"
+        - "generate_diagrams(component_structure) -> MermaidCode"
+        - "build_navigation(pages) -> NavigationTree"
+    - name: "Document Agent"
+      responsibility: "Primary agent (mode: primary) that orchestrates the two-phase documentation workflow. Can be invoked directly via 'agent document' or by other agents. Prompts user for confirmation, invokes subagents, and handles the overall process."
+      interfaces:
+        - "run_documentation_workflow() -> void"
+        - "prompt_user_confirmation() -> bool"
+        - "invoke_agent_doc_writer() -> void"
+        - "invoke_human_doc_writer() -> void"
+    - name: "Agent Script Integration"
+      responsibility: "Updates to the agent script to support 'agent document' subcommand and worktree management for documentation work."
+      interfaces:
+        - "AGENT_MAP update"
+        - "prompt_new_or_resume for document workflow"
+    - name: "Spec/Vibe Integration"
+      responsibility: "Modifications to spec and vibe agents to prompt user to run documentation agent after successful implementation."
+      interfaces:
+        - "post_implementation_prompt() -> void"
+test_strategy:
+  approach: "Unit tests for documentation schema validation and doc_read/write/update tool operations only. Tests verify schema enforcement, YAML serialization/deserialization, and targeted updates. Other phases (subagents, agent integration) are verified manually via end-to-end testing."
+  test_patterns:
+    - language: "typescript"
+      pattern: "*.test.ts"
+phases:
+  - name: "Phase 1: Documentation Schema and Tools"
+    description: "Define the YAML schema for agent-consumable documentation and implement the doc_read, doc_write, and doc_update tools. The schema should support hierarchical documentation (module → package → class) with fields for description, responsibilities, interfaces, dependencies, and implementation notes."
+    status: "completed"
+    is_release_boundary: false
+    file_changes:
+      - action: "create"
+        description: "Create documentation tools file with Zod schemas for module/package/class documentation and three tools: doc_read (reads documentation YAML files), doc_write (writes documentation with schema validation), doc_update (updates specific fields in existing documentation). Follows the same pattern as spec.ts with embedded schema validation."
+        is_test: false
+        path: ".opencode/tools/doc.ts"
+      - action: "create"
+        description: "Unit tests for documentation tools covering schema validation, doc_read/doc_write/doc_update operations, and error handling. Uses Bun test runner following the pattern of notification.test.ts."
+        is_test: true
+        path: ".opencode/doc-tools.test.ts"
+    test_cases:
+      - description: "Valid module documentation passes schema validation"
+        type: "unit"
+        target_component: "Documentation Tools"
+        contracts:
+          - "ModuleDocSchema.safeParse()"
+          - "doc_write()"
+        given_when_then: "GIVEN: A valid module documentation object with version=1, component_type='module', name, description, responsibilities, dependencies, and subcomponents
+
+          WHEN: doc_write is called with the documentation
+
+          THEN: The documentation is written to the YAML file and the tool returns success"
+      - description: "Valid package documentation passes schema validation"
+        type: "unit"
+        target_component: "Documentation Tools"
+        contracts:
+          - "PackageDocSchema.safeParse()"
+          - "doc_write()"
+        given_when_then: "GIVEN: A valid package documentation object with version=1, component_type='package', name, description, responsibilities, dependencies, and subcomponents
+
+          WHEN: doc_write is called with the documentation
+
+          THEN: The documentation is written to the YAML file and the tool returns success"
+      - description: "Valid class documentation passes schema validation"
+        type: "unit"
+        target_component: "Documentation Tools"
+        contracts:
+          - "ClassDocSchema.safeParse()"
+          - "doc_write()"
+        given_when_then: "GIVEN: A valid class documentation object with version=1, component_type='class', name, description, responsibilities, interfaces (method, returns, description), dependencies, and implementation_notes
+
+          WHEN: doc_write is called with the documentation
+
+          THEN: The documentation is written to the YAML file and the tool returns success"
+      - description: "Invalid documentation fails schema validation with clear error"
+        type: "unit"
+        target_component: "Documentation Tools"
+        contracts:
+          - "DocSchema.safeParse()"
+          - "doc_write()"
+        given_when_then: "GIVEN: An invalid documentation object missing required fields (e.g., no name or no component_type)
+
+          WHEN: doc_write is called with the documentation
+
+          THEN: The tool returns a validation error message listing the missing/invalid fields"
+      - description: "doc_read returns documentation for existing file"
+        type: "unit"
+        target_component: "Documentation Tools"
+        contracts:
+          - "doc_read()"
+        given_when_then: "GIVEN: A documentation YAML file exists at documentation/agent/java-sdk.yaml with valid module documentation
+
+          WHEN: doc_read is called with the path 'documentation/agent/java-sdk.yaml'
+
+          THEN: The tool returns the parsed documentation object with all fields populated"
+      - description: "doc_read returns error for non-existent file"
+        type: "unit"
+        target_component: "Documentation Tools"
+        contracts:
+          - "doc_read()"
+        given_when_then: "GIVEN: No documentation file exists at the specified path
+
+          WHEN: doc_read is called with a non-existent path
+
+          THEN: The tool returns an error message indicating the file was not found"
+      - description: "doc_update modifies specific fields in existing documentation"
+        type: "unit"
+        target_component: "Documentation Tools"
+        contracts:
+          - "doc_update()"
+        given_when_then: "GIVEN: A documentation YAML file exists with description 'Old description'
+
+          WHEN: doc_update is called with the path and description='New description'
+
+          THEN: The documentation file is updated with the new description and other fields remain unchanged"
+      - description: "doc_update adds new responsibilities to existing documentation"
+        type: "unit"
+        target_component: "Documentation Tools"
+        contracts:
+          - "doc_update()"
+        given_when_then: "GIVEN: A documentation YAML file exists with 2 responsibilities
+
+          WHEN: doc_update is called with responsibilities=['New responsibility'] (append mode)
+
+          THEN: The documentation file now has 3 responsibilities including the new one"
+      - description: "doc_update validates updated documentation against schema"
+        type: "unit"
+        target_component: "Documentation Tools"
+        contracts:
+          - "doc_update()"
+          - "DocSchema.safeParse()"
+        given_when_then: "GIVEN: A documentation YAML file exists
+
+          WHEN: doc_update is called with an invalid field value (e.g., component_type='invalid')
+
+          THEN: The tool returns a validation error and the original file is unchanged"
+      - description: "Documentation directory is created if it does not exist"
+        type: "unit"
+        target_component: "Documentation Tools"
+        contracts:
+          - "doc_write()"
+        given_when_then: "GIVEN: The documentation/agent directory does not exist
+
+          WHEN: doc_write is called with a valid documentation object
+
+          THEN: The directory is created recursively and the documentation file is written successfully"
+  - name: "Phase 2: Documentation Subagents"
+    description: "Create the agent-doc-writer and human-doc-writer subagents. Agent-doc-writer analyzes codebase and generates/updates YAML docs. Human-doc-writer transforms YAML docs into HTML with mermaid.js diagrams."
+    status: "completed"
+    is_release_boundary: false
+    file_changes:
+      - action: "create"
+        description: "Create prompt for agent-doc-writer subagent that analyzes codebase and generates/updates YAML documentation. Defines agent's role, tools (glob, grep, read, bash, doc_read, doc_write, doc_update), and behavior (work autonomously, analyze code structure, generate hierarchical docs, detect drift). Follows the pattern of planner.md and reviewer.md with clear role definition, tool list, and workflow instructions."
+        is_test: false
+        path: ".opencode/prompts/agent-doc-writer.md"
+      - action: "create"
+        description: "Create prompt for human-doc-writer subagent that transforms YAML documentation into HTML with mermaid.js diagrams. Defines agent's role, tools (doc_read, write, glob), and behavior (read YAML docs, generate HTML pages using template, create mermaid diagrams, build navigation). Follows the pattern of planner.md and reviewer.md."
+        is_test: false
+        path: ".opencode/prompts/human-doc-writer.md"
+      - action: "create"
+        description: "Create the .opencode/templates directory for storing HTML templates."
+        is_test: false
+        path: ".opencode/templates"
+      - action: "create"
+        description: "Create HTML template for human-readable documentation. Contains HTML5 structure, mermaid.js CDN link, navigation placeholder, content placeholder for documentation, and CSS styling. Template is used by human-doc-writer to generate consistent HTML pages."
+        is_test: false
+        path: ".opencode/templates/doc-template.html"
+      - action: "modify"
+        description: "Add agent definitions for agent-doc-writer and human-doc-writer subagents. Each definition includes mode: 'subagent', model, prompt path, temperature, steps, and permissions. agent-doc-writer has permissions for doc_read: allow, doc_write: allow, doc_update: allow, glob: allow, grep: allow, read: allow, bash: allow. human-doc-writer has permissions for doc_read: allow, write: allow, glob: allow. Other agents have doc_read: allow (can read docs) but doc_write: deny and doc_update: deny (cannot modify docs)."
+        is_test: false
+        path: "opencode.json"
+    test_cases: []
+  - name: "Phase 3: Document Agent and Script Integration"
+    description: "Create the primary document agent that orchestrates the two phases. Update the agent script's AGENT_MAP to support 'agent document' subcommand. Update opencode.json with agent definitions for document, agent-doc-writer, and human-doc-writer."
+    status: "pending"
+    is_release_boundary: true
+    file_changes:
+      - action: "create"
+        description: "Create prompt for document primary agent that orchestrates the two-phase documentation workflow. Defines agent's role (orchestrator for documentation), tools (question, doc_read, doc_write, doc_update, glob, grep, read, bash, task for subagents), and behavior (prompt user for confirmation, invoke @agent-doc-writer for Phase 1 YAML docs, invoke @human-doc-writer for Phase 2 HTML generation). Follows the pattern of spec.md with clear role definition, workflow phases, key principles, and tool list. Includes critical rule about using question tool for all user interaction."
+        is_test: false
+        path: ".opencode/prompts/document.md"
+      - action: "modify"
+        description: "Add 'document' entry to AGENT_MAP dictionary (\"document\": \"document\") and update print_usage() function to include document subcommand in the help text. The document workflow follows the same pattern as spec and vibe - creates worktrees with 'work/document-' prefix."
+        is_test: false
+        path: "agent"
+      - action: "modify"
+        description: "Add document agent definition with mode: 'primary', model: 'opencode/glm-5', description: 'Document agent - orchestrates two-phase documentation workflow for keeping code docs in sync', prompt: '{file:./.opencode/prompts/document.md}', temperature: 0.3, and permissions for question: allow, doc_read: allow, doc_write: allow, doc_update: allow, and task: { agent-doc-writer: allow, human-doc-writer: allow }. Follows the existing pattern for spec and vibe primary agents."
+        is_test: false
+        path: "opencode.json"
+    test_cases: []
+  - name: "Phase 4: Integration with Spec and Vibe Agents"
+    description: "Modify spec and vibe agents to prompt user to run documentation agent after successful implementation. Add documentation agent as an allowed subagent for spec and vibe."
+    status: "pending"
+    is_release_boundary: false
+    file_changes:
+      - action: "modify"
+        description: "Add a new section 'Phase 7: Documentation' after Phase 6: Completion. This section instructs the spec agent to use the question tool to ask if the user wants to run the documentation agent after successful implementation. The section should explain that documentation keeps code docs in sync and the user can run 'agent document' to update documentation. Follows the existing pattern of using the question tool for all user interactions."
+        is_test: false
+        path: ".opencode/prompts/spec.md"
+      - action: "modify"
+        description: "Add a new section 'Documentation' after the Work Completion Workflow section. This section instructs the vibe agent to use the question tool to ask if the user wants to run the documentation agent after successful implementation. The section should explain that documentation keeps code docs in sync and the user can run 'agent document' to update documentation. Follows the existing pattern of using the question tool for all user interactions."
+        is_test: false
+        path: ".opencode/prompts/vibe.md"
+      - action: "modify"
+        description: "Add 'document' to the task permissions for both spec and vibe agents. In agent.spec.permission.task, add 'document': 'allow'. In agent.vibe.permission.task, add 'document': 'allow'. Also add doc_read: allow for both agents so they can read documentation. This allows spec and vibe agents to invoke the document agent as a subagent and read existing docs."
+        is_test: false
+        path: "opencode.json"
+    test_cases: []
+status: "approved"
+review:
+  status: "pending"
+  reviewer: "spec"
+  timestamp: "2026-03-29T20:51:40.896Z"
+  feedback: "Addressed: User confirmed that tools in .opencode/tools/ are auto-discovered by OpenCode. No need to add doc.ts to the plugin array. The spec.ts tools work despite not being in the plugin array, confirming auto-discovery."

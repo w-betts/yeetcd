@@ -95,6 +95,44 @@
         },
         "task": "deny"
       }
+    },
+    "agent-doc-writer": {
+      "mode": "subagent",
+      "model": "opencode/kimi-k2.5",
+      "hidden": false,
+      "prompt": "{file:./.opencode/prompts/agent-doc-writer.md}",
+      "temperature": 0.3,
+      "steps": 50,
+      "permission": {
+        "doc_read": "allow",
+        "doc_write": "allow",
+        "doc_update": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "read": "allow",
+        "bash": "allow",
+        "edit": {
+          "*": "deny"
+        },
+        "task": "deny"
+      }
+    },
+    "human-doc-writer": {
+      "mode": "subagent",
+      "model": "opencode/kimi-k2.5",
+      "hidden": false,
+      "prompt": "{file:./.opencode/prompts/human-doc-writer.md}",
+      "temperature": 0.3,
+      "steps": 40,
+      "permission": {
+        "doc_read": "allow",
+        "write": "allow",
+        "glob": "allow",
+        "edit": {
+          "*": "deny"
+        },
+        "task": "deny"
+      }
     }
   },
   "plugin": [
