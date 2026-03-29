@@ -151,6 +151,50 @@ class WorkItem:
                 return self.branch_name in result.stdout
         except subprocess.CalledProcessError:
             return False
+    
+    def has_uncommitted_changes(self) -> bool:
+        """Check if the worktree has uncommitted changes."""
+        if not self.worktree_path or not self.worktree_path.exists():
+            return False
+        
+        try:
+            result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=str(self.worktree_path)
+            )
+            # If there's any output, there are uncommitted changes
+            return bool(result.stdout.strip())
+        except subprocess.CalledProcessError:
+            return False
+    
+    def has_active_session(self) -> bool:
+        """Check if there's an active opencode session in this worktree."""
+        if not self.worktree_path or not self.worktree_path.exists():
+            return False
+        
+        # Check for opencode lock file
+        lock_file = self.worktree_path / ".opencode" / "session.lock"
+        if lock_file.exists():
+            return True
+        
+        # Also check for a simpler indicator - .opencode directory with recent activity
+        opencode_dir = self.worktree_path / ".opencode"
+        if opencode_dir.exists():
+            # Check if there are any recent files (modified in last hour)
+            import time
+            one_hour_ago = time.time() - 3600
+            for f in opencode_dir.rglob("*"):
+                if f.is_file() and f.stat().st_mtime > one_hour_ago:
+                    return True
+        
+        return False
+    
+    def is_in_progress(self) -> bool:
+        """Check if this work item is currently in progress."""
+        return self.has_uncommitted_changes() or self.has_active_session()
 
 
 def run_cmd(cmd: List[str], check: bool = True, capture: bool = False) -> subprocess.CompletedProcess:
@@ -203,6 +247,11 @@ def check_cleanup() -> None:
     for work in worktrees:
         status = work.get_status()
         is_merged = work.is_merged()
+        in_progress = work.is_in_progress()
+        
+        # Skip work that is in progress (uncommitted changes or active session)
+        if in_progress:
+            continue
         
         # Check if eligible for cleanup
         if status == "complete" and is_merged:
