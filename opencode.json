@@ -128,14 +128,19 @@
     "bash": {
         "*": "ask",
         "cat *": "allow",
+        "file *": "allow",
         "git add *": "allow",
+        "git branch *": "allow",
         "git commit *": "allow",
         "git diff *": "allow",
         "git log *": "allow",
         "git status *": "allow",
+        "git worktree *": "allow",
         "head *": "allow",
         "ls *": "allow",
+        "pwd *": "allow",
         "tail *": "allow",
+        "which *": "allow"
     }
   }
 }

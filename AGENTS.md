@@ -41,6 +41,21 @@ When committing:
 3. Stage relevant files with `git add`
 4. Commit with a descriptive message following the existing style
 
+### Work Completion Workflow (Worktree Merge)
+
+After committing work, agents should offer to merge the work to main. This workflow handles:
+
+1. **Rebasing onto main**: Fetch and rebase the current branch onto origin/main
+2. **Conflict resolution**: Try to auto-resolve simple conflicts, ask user for complex ones
+3. **Fast-forwarding main**: Use `git push . HEAD:main` to update main in-place (works even when main worktree has main checked out)
+4. **Pushing to remote**: Push the updated main branch to origin
+
+**When to offer:**
+- **Spec agent**: After each release boundary phase AND when the entire spec is complete
+- **Vibe agent**: After committing changes (when the user is satisfied)
+
+**Note**: Do NOT clean up the worktree after merging. The `agent` script handles cleanup on startup by checking for completed/merged work items.
+
 ---
 
 ## Working on yeetcd

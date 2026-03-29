@@ -294,9 +294,30 @@ For each phase (up to the next release boundary, if any):
   - Only after explicit user confirmation via the question tool, continue to the next phase
   - If the user cannot confirm release, STOP and report progress - do not proceed to the next phase
 
+**5f. Work Completion Workflow (Worktree Merge)**:
+- After committing a release boundary phase OR when the entire spec is complete:
+  - **Use the question tool** to ask if the user wants to merge the work to main
+  - If yes, execute the work completion workflow:
+    1. **Check if in worktree**: Run `git worktree list` to verify we're in a worktree (not the main worktree)
+    2. **Fetch latest main**: Run `git fetch origin main`
+    3. **Rebase onto main**: Run `git rebase origin/main`
+    4. **Handle conflicts** (if any):
+       - Try to auto-resolve simple conflicts (e.g., both sides added different lines)
+       - For complex conflicts, **use the question tool** to present the conflict and ask how to resolve
+       - Options: "Accept incoming (main)", "Accept current (work)", "Edit manually", "Abort rebase"
+       - If user chooses to edit manually, wait for them to resolve, then continue with `git rebase --continue`
+       - If user aborts, stop the workflow and report status
+    5. **Fast-forward main**: Run `git push . HEAD:main` to update the main branch in-place
+    6. **Push main to remote**: Run `git push origin main`
+    7. **Report success**: Inform the user that the work has been merged to main
+  - Note: Do NOT clean up the worktree - the agent script handles cleanup on startup
+
 ### Phase 6: Completion
 
 - When all phases are complete, update spec status to "completed"
+- **Offer work completion workflow** (same as step 5f):
+  - **Use the question tool** to ask if the user wants to merge the work to main
+  - If yes, execute the work completion workflow (see step 5f for details)
 - Report final status to user
 
 ## Key Principles

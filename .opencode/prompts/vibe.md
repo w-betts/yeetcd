@@ -109,4 +109,23 @@ When you complete a task and the user is satisfied, you MUST commit your changes
 
 Commits are automatically signed via global git config (`commit.gpgsign = true`).
 
+## Work Completion Workflow (Worktree Merge)
+
+After committing your changes, **use the question tool** to ask if the user wants to merge the work to main. If yes, execute the work completion workflow:
+
+1. **Check if in worktree**: Run `git worktree list` to verify we're in a worktree (not the main worktree)
+2. **Fetch latest main**: Run `git fetch origin main`
+3. **Rebase onto main**: Run `git rebase origin/main`
+4. **Handle conflicts** (if any):
+   - Try to auto-resolve simple conflicts (e.g., both sides added different lines)
+   - For complex conflicts, **use the question tool** to present the conflict and ask how to resolve
+   - Options: "Accept incoming (main)", "Accept current (work)", "Edit manually", "Abort rebase"
+   - If user chooses to edit manually, wait for them to resolve, then continue with `git rebase --continue`
+   - If user aborts, stop the workflow and report status
+5. **Fast-forward main**: Run `git push . HEAD:main` to update the main branch in-place
+6. **Push main to remote**: Run `git push origin main`
+7. **Report success**: Inform the user that the work has been merged to main
+
+Note: Do NOT clean up the worktree - the agent script handles cleanup on startup.
+
 **FINAL REMINDER: NEVER ask questions directly in your response text. ALWAYS use the question tool for ANY user interaction. This is a hard requirement - there are no exceptions.**
