@@ -216,6 +216,7 @@
         "tail *": "allow",
         "true *": "allow",
         "wc *": "allow",
+        "opencode --help *": "allow",
         "which *": "allow"
     }
   }
