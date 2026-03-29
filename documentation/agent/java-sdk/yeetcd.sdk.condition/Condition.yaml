@@ -1,0 +1,35 @@
+# Documentation: Condition
+# Generated: 2026-03-29T21:34:35.450Z
+
+component_type: "class"
+description: "Abstract base class for work execution conditions. Provides methods to apply conditions to protobuf builders."
+name: "Condition"
+responsibilities:
+  - "Define base class for all condition types"
+  - "Apply condition to Work protobuf builder"
+  - "Support nested conditions (And, Or, Not)"
+  - "Convert to protobuf Condition format"
+version: 1
+dependencies:
+  - "PipelineOuterClass"
+implementation_notes:
+  - "Uses abstract toProtobuf() method for serialization"
+  - "Provides overloaded applyTo methods for different builder types"
+  - "Supports left/right nesting for And/Or conditions"
+  - "EqualsAndHashCode for condition comparison"
+interfaces:
+  - description: "Applies condition to Work builder"
+    method: "applyTo(PipelineOuterClass.Work.Builder builder)"
+    returns: "void"
+  - description: "Applies condition to AndCondition builder (left or right)"
+    method: "applyTo(PipelineOuterClass.AndCondition.Builder builder, boolean isLeft)"
+    returns: "void"
+  - description: "Applies condition to OrCondition builder (left or right)"
+    method: "applyTo(PipelineOuterClass.OrCondition.Builder builder, boolean isLeft)"
+    returns: "void"
+  - description: "Applies condition to NotCondition builder"
+    method: "applyTo(PipelineOuterClass.NotCondition.Builder builder)"
+    returns: "void"
+  - description: "Converts condition to protobuf"
+    method: "toProtobuf()"
+    returns: "PipelineOuterClass.Condition"

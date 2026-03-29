@@ -1,0 +1,26 @@
+# Documentation: AbstractExecutionEngine
+# Generated: 2026-03-29T21:34:47.039Z
+
+component_type: "class"
+description: "Abstract base class providing common async execution utilities for execution engines."
+name: "AbstractExecutionEngine"
+responsibilities:
+  - "Provide async execution utilities"
+  - "Support retry logic with exponential backoff"
+  - "Manage scheduled executor service"
+  - "Handle async operation timeouts"
+version: 1
+dependencies:
+  - "ExecutionEngine"
+implementation_notes:
+  - "Uses ScheduledThreadPoolExecutor for async operations"
+  - "doAsync() wraps synchronous work in CompletableFuture"
+  - "doAsyncUntil() retries with predicate checking"
+  - "Exponential backoff with configurable limits"
+interfaces:
+  - description: "Executes work asynchronously"
+    method: "doAsync(Supplier<T> work)"
+    returns: "CompletableFuture<T>"
+  - description: "Executes work asynchronously until condition met"
+    method: "doAsyncUntil(Supplier<T> work, Predicate<T> workCheck, Duration timeLimit)"
+    returns: "CompletableFuture<T>"

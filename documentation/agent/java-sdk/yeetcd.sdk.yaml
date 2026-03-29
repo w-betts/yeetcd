@@ -1,0 +1,31 @@
+# Documentation: yeetcd.sdk
+# Generated: 2026-03-29T21:34:14.203Z
+
+component_type: "package"
+description: "Core SDK classes for pipeline definition including Pipeline, Work, WorkDefinition interfaces and implementations."
+name: "yeetcd.sdk"
+responsibilities:
+  - "Define Pipeline, Work, WorkDefinition interfaces"
+  - "Provide builder pattern for pipeline construction"
+  - "Implement work definition types (Containerised, Custom, Compound, Dynamic)"
+  - "Manage work context and parameters"
+  - "Handle pipeline serialization to protobuf"
+version: 1
+dependencies:
+  - "yeetcd.protocol"
+subcomponents:
+  - "Pipeline"
+  - "Work"
+  - "WorkDefinition"
+  - "ContainerisedWorkDefinition"
+  - "CustomWorkDefinition"
+  - "CompoundWorkDefinition"
+  - "DynamicWorkGeneratingWorkDefinition"
+  - "NativeWorkDefinition"
+  - "PipelineGeneratorAnnotationProcessor"
+  - "PreviousWork"
+  - "WorkContext"
+  - "Parameter"
+  - "Parameters"
+  - "WorkOutputPath"
+  - "Pipelines"

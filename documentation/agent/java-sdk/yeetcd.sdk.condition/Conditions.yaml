@@ -1,0 +1,39 @@
+# Documentation: Conditions
+# Generated: 2026-03-29T21:34:37.286Z
+
+component_type: "class"
+description: "Factory utility class providing static methods to create various condition types."
+name: "Conditions"
+responsibilities:
+  - "Provide factory methods for creating conditions"
+  - "Create logical conditions (and, or, not)"
+  - "Create work context conditions"
+  - "Create previous work status conditions"
+version: 1
+dependencies:
+  - "Condition"
+  - "AndCondition"
+  - "OrCondition"
+  - "NotCondition"
+  - "WorkContextCondition"
+  - "PreviousWorkStatusCondition"
+implementation_notes:
+  - "Static utility class with private constructor"
+  - "Fluent API for condition composition"
+  - "Delegates to specific condition builders"
+interfaces:
+  - description: "Creates negated condition"
+    method: "not(Condition condition)"
+    returns: "Condition"
+  - description: "Creates AND condition"
+    method: "and(Condition left, Condition right)"
+    returns: "Condition"
+  - description: "Creates OR condition"
+    method: "or(Condition left, Condition right)"
+    returns: "Condition"
+  - description: "Creates work context condition"
+    method: "workContextCondition(String key, WorkContextCondition.Operand operand, String value)"
+    returns: "Condition"
+  - description: "Creates previous work status condition"
+    method: "previousWorkStatusCondition(PreviousWorkStatusCondition.Status status)"
+    returns: "Condition"

@@ -1,0 +1,28 @@
+# Documentation: WorkResult
+# Generated: 2026-03-29T21:35:48.001Z
+
+component_type: "class"
+description: "Record representing the result of a single work item execution."
+name: "WorkResult"
+responsibilities:
+  - "Store work execution status"
+  - "Reference output directory"
+  - "Capture job streams (stdout/stderr)"
+version: 1
+dependencies:
+  - "WorkStatus"
+  - "JobStreams"
+interfaces:
+  - description: "Returns work execution status"
+    method: "workStatus()"
+    returns: "WorkStatus"
+  - description: "Returns output directory parent file"
+    method: "outputDirectoriesParent()"
+    returns: "File"
+  - description: "Returns job streams"
+    method: "jobStreams()"
+    returns: "JobStreams"
+implementation_notes:
+  - "Java record (immutable)"
+  - "outputDirectoriesParent is parent directory of work outputs"
+  - "JobStreams contains stdout/stderr from execution"

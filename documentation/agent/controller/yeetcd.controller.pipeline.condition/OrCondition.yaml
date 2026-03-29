@@ -1,0 +1,28 @@
+# Documentation: OrCondition
+# Generated: 2026-03-29T21:36:06.132Z
+
+component_type: "class"
+description: "Composite condition that evaluates to true if either left or right condition is true."
+name: "OrCondition"
+responsibilities:
+  - "Combine two conditions with OR logic"
+  - "Evaluate either condition in work context"
+  - "Deserialize from protobuf format"
+version: 1
+dependencies:
+  - "Condition"
+  - "WorkContext"
+  - "WorkResultTracker"
+  - "PipelineOuterClass"
+  - "Conditions"
+interfaces:
+  - description: "Evaluates either condition with OR logic"
+    method: "evaluate(WorkContext workContext, WorkResultTracker workResultTracker)"
+    returns: "boolean"
+  - description: "Creates OrCondition from protobuf"
+    method: "fromProtobuf(PipelineOuterClass.OrCondition orCondition)"
+    returns: "Condition"
+implementation_notes:
+  - "Java record (immutable)"
+  - "Short-circuit evaluation (left || right)"
+  - "Used for alternative condition paths"

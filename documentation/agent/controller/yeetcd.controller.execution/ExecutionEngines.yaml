@@ -1,0 +1,22 @@
+# Documentation: ExecutionEngines
+# Generated: 2026-03-29T21:36:19.957Z
+
+component_type: "class"
+description: "Factory for creating ExecutionEngine instances. Currently creates DockerExecutionEngine as the default runtime engine."
+name: "ExecutionEngines"
+responsibilities:
+  - "Create execution engine instances"
+  - "Provide runtime-specific engine selection"
+  - "Abstract engine creation logic"
+version: 1
+dependencies:
+  - "ExecutionEngine"
+  - "DockerExecutionEngine"
+interfaces:
+  - description: "Creates execution engine for current runtime"
+    method: "createForRuntime()"
+    returns: "ExecutionEngine"
+implementation_notes:
+  - "Static factory method"
+  - "Currently hardcoded to DockerExecutionEngine"
+  - "May support engine selection in future"

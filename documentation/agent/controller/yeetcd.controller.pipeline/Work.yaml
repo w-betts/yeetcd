@@ -1,0 +1,46 @@
+# Documentation: Work
+# Generated: 2026-03-29T21:34:41.258Z
+
+component_type: "class"
+description: "Runtime work record representing an executable work item with its definition, context, and dependencies."
+name: "Work"
+responsibilities:
+  - "Execute work with dependency resolution"
+  - "Evaluate conditions before execution"
+  - "Handle dynamic work generation"
+  - "Manage previous work stdout as context"
+  - "Track output directories and mounts"
+version: 1
+dependencies:
+  - "WorkContext"
+  - "WorkDefinition"
+  - "Condition"
+  - "PreviousWork"
+  - "WorkOutputPath"
+  - "ExecutionEngine"
+  - "WorkResultTracker"
+  - "PipelineOutputHandler"
+implementation_notes:
+  - "Record type with id, description, context, definition, condition, outputs, previousWork"
+  - "execute() resolves dependencies recursively"
+  - "Supports dynamic work generation for DynamicWorkGeneratingWorkDefinition"
+  - "Equals/hashCode based on id only"
+interfaces:
+  - description: "Executes work with dependency resolution"
+    method: "execute(WorkContext containingContext, ExecutionEngine executionEngine, PipelineMetadata pipelineMetadata, WorkResultTracker workResultTracker, PipelineOutputHandler pipelineOutputHandler)"
+    returns: "CompletableFuture<WorkResult>"
+  - description: "Creates Work from protobuf bytes"
+    method: "fromProtobufBytes(byte[] bytes)"
+    returns: "Work"
+  - description: "Creates Work from protobuf"
+    method: "fromProtobuf(PipelineOuterClass.Work workProtobuf)"
+    returns: "Work"
+  - description: "Returns previous work stdout as context"
+    method: "previousWorkStdOutAsWorkContext(WorkResultTracker workResultTracker)"
+    returns: "WorkContext"
+  - description: "Returns mount inputs from previous work outputs"
+    method: "previousWorkMountInputs(WorkResultTracker workResultTracker)"
+    returns: "Map<String, MountInput>"
+  - description: "Returns output directory paths"
+    method: "outputDirectoryPaths()"
+    returns: "Map<String, String>"

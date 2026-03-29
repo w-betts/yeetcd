@@ -1,0 +1,29 @@
+# Documentation: Config
+# Generated: 2026-03-29T21:36:02.083Z
+
+component_type: "class"
+description: "Configuration loader for controller settings. Supports Kubernetes registry and S3 configuration via YAML files."
+name: "Config"
+responsibilities:
+  - "Load controller configuration from YAML files"
+  - "Support file system and classpath config locations"
+  - "Provide Kubernetes-specific configuration (registry, S3)"
+  - "Use environment variable for config file path override"
+version: 1
+dependencies:
+  - "ObjectMapper"
+  - "YAMLFactory"
+  - "Kubernetes"
+interfaces:
+  - description: "Creates Kubernetes config from default location"
+    method: "createKubernetesConfig()"
+    returns: "Kubernetes"
+  - description: "Creates Kubernetes config from specified URL"
+    method: "createKubernetesConfig(URL configUrl)"
+    returns: "Kubernetes"
+implementation_notes:
+  - "Uses Jackson for YAML parsing"
+  - "Config file path from AULOS_CONTROLLER_CONFIG_FILE env var"
+  - "Default path: /etc/yeetcd/yeetcd-controller.yaml"
+  - "Falls back to classpath resource"
+  - "Throws IllegalStateException if no config found"

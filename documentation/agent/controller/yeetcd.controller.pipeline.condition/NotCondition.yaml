@@ -1,0 +1,28 @@
+# Documentation: NotCondition
+# Generated: 2026-03-29T21:36:07.409Z
+
+component_type: "class"
+description: "Negation condition that inverts the result of another condition."
+name: "NotCondition"
+responsibilities:
+  - "Negate the result of another condition"
+  - "Invert boolean evaluation result"
+  - "Deserialize from protobuf format"
+version: 1
+dependencies:
+  - "Condition"
+  - "WorkContext"
+  - "WorkResultTracker"
+  - "PipelineOuterClass"
+  - "Conditions"
+interfaces:
+  - description: "Negates the wrapped condition result"
+    method: "evaluate(WorkContext workContext, WorkResultTracker workResultTracker)"
+    returns: "boolean"
+  - description: "Creates NotCondition from protobuf"
+    method: "fromProtobuf(PipelineOuterClass.NotCondition condition)"
+    returns: "NotCondition"
+implementation_notes:
+  - "Java record (immutable)"
+  - "Simple boolean negation (!condition)"
+  - "Used for excluding conditions"

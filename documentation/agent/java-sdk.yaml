@@ -1,0 +1,18 @@
+# Documentation: java-sdk
+# Generated: 2026-03-29T21:34:06.719Z
+
+component_type: "module"
+description: "Java API for defining pipelines with fluent builder pattern. Includes annotation processor that generates protobuf output for pipeline definitions."
+name: "java-sdk"
+responsibilities:
+  - "Provides fluent API for pipeline definition"
+  - "Defines Work, Pipeline, and WorkDefinition interfaces"
+  - "Implements annotation processor for code generation"
+  - "Supports multiple work definition types (Containerised, Custom, Compound, Dynamic)"
+  - "Provides condition system for controlling work execution"
+version: 1
+dependencies:
+  - "protocol"
+subcomponents:
+  - "yeetcd.sdk"
+  - "yeetcd.sdk.condition"

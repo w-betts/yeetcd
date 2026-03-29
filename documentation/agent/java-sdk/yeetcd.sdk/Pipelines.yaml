@@ -1,0 +1,21 @@
+# Documentation: Pipelines
+# Generated: 2026-03-29T21:36:30.425Z
+
+component_type: "class"
+description: "Container for multiple pipeline definitions. Used for serializing pipeline collections to protobuf."
+name: "Pipelines"
+responsibilities:
+  - "Store array of Pipeline objects"
+  - "Serialize pipeline collection to protobuf"
+version: 1
+dependencies:
+  - "Pipeline"
+  - "PipelineOuterClass"
+interfaces:
+  - description: "Converts pipelines to protobuf format"
+    method: "toProtobuf()"
+    returns: "PipelineOuterClass.Pipelines"
+implementation_notes:
+  - "Package-private class"
+  - "Immutable with Lombok"
+  - "Used internally by annotation processor"

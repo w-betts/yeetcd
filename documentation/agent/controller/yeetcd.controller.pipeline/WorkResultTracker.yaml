@@ -1,0 +1,36 @@
+# Documentation: WorkResultTracker
+# Generated: 2026-03-29T21:34:43.030Z
+
+component_type: "class"
+description: "Tracks work execution results and provides deduplication for work execution."
+name: "WorkResultTracker"
+responsibilities:
+  - "Track work execution results"
+  - "Provide execution deduplication"
+  - "Retrieve output directories from previous work"
+  - "Retrieve stdout from previous work"
+version: 1
+dependencies:
+  - "Work"
+  - "WorkResult"
+  - "PreviousWork"
+  - "MountInput"
+  - "OnDiskMountInput"
+implementation_notes:
+  - "Uses synchronized methods to avoid recursive update issues with ConcurrentHashMap"
+  - "getOrExecute() provides execution deduplication"
+  - "Stores CompletableFuture<WorkResult> for async tracking"
+  - "Thread-safe for concurrent work execution"
+interfaces:
+  - description: "Gets existing result or executes work"
+    method: "getOrExecute(Work key, Supplier<CompletableFuture<WorkResult>> execute)"
+    returns: "CompletableFuture<WorkResult>"
+  - description: "Returns unmodifiable map of work results"
+    method: "getWorkResultMap()"
+    returns: "Map<Work, CompletableFuture<WorkResult>>"
+  - description: "Returns mount input for previous work outputs"
+    method: "outputDirectoriesMountInput(PreviousWork previousWork)"
+    returns: "MountInput"
+  - description: "Returns stdout bytes from previous work"
+    method: "stdOut(PreviousWork previousWork)"
+    returns: "byte[]"

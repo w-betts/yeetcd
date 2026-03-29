@@ -1,0 +1,33 @@
+# Documentation: CompoundWorkDefinition
+# Generated: 2026-03-29T21:35:31.317Z
+
+component_type: "class"
+description: "Work definition that groups multiple work items into a single compound unit. Allows nesting and composition of work items."
+name: "CompoundWorkDefinition"
+responsibilities:
+  - "Group multiple work items as a single unit"
+  - "Serialize compound work structure to protobuf"
+  - "Flatten nested work definitions for execution"
+version: 1
+dependencies:
+  - "WorkDefinition"
+  - "Work"
+  - "WorkContext"
+  - "PipelineOuterClass"
+interfaces:
+  - description: "Creates a builder for CompoundWorkDefinition"
+    method: "builder(Work... finalWork)"
+    returns: "Builder"
+  - description: "Returns the array of final work items"
+    method: "getFinalWork()"
+    returns: "Work[]"
+  - description: "Applies compound work configuration to protobuf builder"
+    method: "applyTo(WorkContext context, PipelineOuterClass.Work.Builder workBuilder)"
+    returns: "void"
+  - description: "Returns flattened stream of all native work definitions"
+    method: "nativeWorkDefinitions()"
+    returns: "Stream<NativeWorkDefinition>"
+implementation_notes:
+  - "Immutable class with builder pattern"
+  - "Recursively flattens nested work definitions"
+  - "Uses Java streams for collecting work items"

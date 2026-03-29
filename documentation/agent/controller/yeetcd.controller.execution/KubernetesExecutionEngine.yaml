@@ -1,0 +1,36 @@
+# Documentation: KubernetesExecutionEngine
+# Generated: 2026-03-29T21:34:50.029Z
+
+component_type: "class"
+description: "Kubernetes-based execution engine implementation using Kubernetes Java client and Jib for image building."
+name: "KubernetesExecutionEngine"
+responsibilities:
+  - "Build container images using Jib and push to registry"
+  - "Run jobs as Kubernetes Jobs"
+  - "Manage PVC mounts for file sharing"
+  - "Stream pod logs"
+  - "Remove images from registry"
+version: 1
+dependencies:
+  - "AbstractExecutionEngine"
+  - "BatchV1Api"
+  - "Jib"
+  - "BuildImageDefinition"
+  - "JobDefinition"
+  - "PipelinePvcManager"
+implementation_notes:
+  - "Uses Jib for building and pushing images without Docker daemon"
+  - "Creates Kubernetes Jobs for work execution"
+  - "Supports PVC-based volume mounts for input/output"
+  - "Uses PodLogs for streaming container output"
+  - "Deletes images from registry using HTTP API"
+interfaces:
+  - description: "Builds image using Jib and pushes to registry"
+    method: "buildImage(BuildImageDefinition buildImageDefinition)"
+    returns: "CompletableFuture<BuildImageResult>"
+  - description: "Removes image from registry"
+    method: "removeImage(String image)"
+    returns: "CompletableFuture<Void>"
+  - description: "Runs job as Kubernetes Job"
+    method: "runJob(JobDefinition jobDefinition)"
+    returns: "CompletableFuture<JobResult>"

@@ -1,0 +1,16 @@
+# Documentation: java-test
+# Generated: 2026-03-29T21:34:08.328Z
+
+component_type: "module"
+description: "Testing utilities for unit testing pipeline logic without containers. Provides FakePipelineRunner for in-memory pipeline execution."
+name: "java-test"
+responsibilities:
+  - "Provides FakePipelineRunner for testing pipelines in-memory"
+  - "Simulates work execution with configurable results"
+  - "Supports work matching for targeted test scenarios"
+  - "Tracks fake work execution stages and status"
+version: 1
+dependencies:
+  - "java-sdk"
+subcomponents:
+  - "yeetcd.test"

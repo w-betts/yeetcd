@@ -1,0 +1,28 @@
+# Documentation: DynamicWorkGeneratingWorkDefinition
+# Generated: 2026-03-29T21:44:44.384Z
+
+component_type: "class"
+description: "Abstract base class for work definitions that generate work dynamically at runtime based on parameters and context."
+name: "DynamicWorkGeneratingWorkDefinition"
+responsibilities:
+  - "Generate work items dynamically at runtime"
+  - "Serialize generated work to stdout as protobuf"
+  - "Provide custom work definitions from dynamic generation"
+  - "Extend NativeWorkDefinition for container execution"
+version: 1
+dependencies:
+  - "NativeWorkDefinition"
+  - "Work"
+  - "CustomWorkDefinition"
+implementation_notes:
+  - "run() method outputs serialized Work to stdout"
+  - "createWork() abstract method implemented by subclasses"
+  - "dynamicCustomWorkDefinitions() provides additional custom work"
+  - "Used for conditional or parameterized work generation"
+interfaces:
+  - description: "Creates work dynamically based on context"
+    method: "createWork()"
+    returns: "Work"
+  - description: "Returns stream of custom work definitions from dynamic generation"
+    method: "dynamicCustomWorkDefinitions()"
+    returns: "Stream<CustomWorkDefinition>"

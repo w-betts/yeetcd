@@ -1,0 +1,23 @@
+# Documentation: yeetcd.sdk.condition
+# Generated: 2026-03-29T21:34:15.110Z
+
+component_type: "package"
+description: "Condition system for controlling work execution based on work context and previous work status."
+name: "yeetcd.sdk.condition"
+responsibilities:
+  - "Define Condition base class for work execution control"
+  - "Implement logical conditions (And, Or, Not)"
+  - "Implement work context conditions for key-value matching"
+  - "Implement previous work status conditions"
+  - "Provide factory methods via Conditions utility class"
+version: 1
+dependencies:
+  - "yeetcd.sdk"
+subcomponents:
+  - "Condition"
+  - "Conditions"
+  - "AndCondition"
+  - "OrCondition"
+  - "NotCondition"
+  - "WorkContextCondition"
+  - "PreviousWorkStatusCondition"

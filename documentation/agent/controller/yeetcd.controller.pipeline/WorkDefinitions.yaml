@@ -1,0 +1,27 @@
+# Documentation: WorkDefinitions
+# Generated: 2026-03-29T21:35:44.392Z
+
+component_type: "class"
+description: "Factory class for deserializing WorkDefinition instances from protobuf format. Handles all work definition types."
+name: "WorkDefinitions"
+responsibilities:
+  - "Deserialize work definitions from protobuf"
+  - "Handle all work definition types (Containerised, Custom, Compound, Dynamic)"
+  - "Convert protobuf work to runtime WorkDefinition objects"
+version: 1
+dependencies:
+  - "PipelineOuterClass"
+  - "WorkDefinition"
+  - "ContainerisedWorkDefinition"
+  - "CustomWorkDefinition"
+  - "CompoundWorkDefinition"
+  - "DynamicWorkGeneratingWorkDefinition"
+  - "Work"
+interfaces:
+  - description: "Creates WorkDefinition from protobuf Work object"
+    method: "fromWorkProtobuf(PipelineOuterClass.Work work)"
+    returns: "WorkDefinition"
+implementation_notes:
+  - "Static factory methods"
+  - "Uses instanceof checks on protobuf oneof fields"
+  - "Throws IllegalArgumentException for unsupported types"

@@ -1,0 +1,35 @@
+# Documentation: PipelineController
+# Generated: 2026-03-29T21:34:38.902Z
+
+component_type: "class"
+description: "Main controller class that orchestrates pipeline assembly and execution. Coordinates source extraction, building, and execution."
+name: "PipelineController"
+responsibilities:
+  - "Assemble pipelines from source code"
+  - "Execute pipelines with work dependency resolution"
+  - "Coordinate source extraction and building"
+  - "Manage execution engine lifecycle"
+  - "Handle pipeline events"
+version: 1
+dependencies:
+  - "SourceExtractor"
+  - "SourceBuilder"
+  - "ExecutionEngine"
+  - "Pipeline"
+  - "WorkResultTracker"
+  - "PipelineOutputHandler"
+implementation_notes:
+  - "Uses CompletableFuture for async operations"
+  - "Assembles pipelines by building images and running generators"
+  - "Executes final work items in parallel"
+  - "Tracks work results for dependency resolution"
+interfaces:
+  - description: "Returns the execution engine"
+    method: "getExecutionEngine()"
+    returns: "ExecutionEngine"
+  - description: "Assembles pipelines from source"
+    method: "assemble(Source source)"
+    returns: "CompletableFuture<List<Pipeline>>"
+  - description: "Executes a pipeline"
+    method: "execute(Pipeline pipeline, PipelineOutputHandler pipelineOutputHandler)"
+    returns: "CompletableFuture<PipelineResult>"

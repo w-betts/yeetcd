@@ -1,0 +1,48 @@
+# Documentation: PipelinePvcManager
+# Generated: 2026-03-29T21:36:18.812Z
+
+component_type: "class"
+description: "Manages Kubernetes PVC lifecycle for pipeline runs. Creates, monitors, and deletes PVCs backed by S3 storage via k8s-csi-s3."
+name: "PipelinePvcManager"
+responsibilities:
+  - "Create PVCs for pipeline runs with S3 backing"
+  - "Delete PVCs and associated pods"
+  - "Monitor PVC status (Bound, Pending, etc.)"
+  - "Wait for PVC operations to complete"
+  - "Handle PVC protection finalizer by deleting using pods first"
+version: 1
+dependencies:
+  - "ApiClient"
+  - "CoreV1Api"
+  - "V1PersistentVolumeClaim"
+  - "V1Pod"
+  - "V1PodList"
+  - "V1Volume"
+  - "ClientBuilder"
+interfaces:
+  - description: "Creates a PVC for a pipeline run"
+    method: "createPvc(String pipelineRunId, String storageClassName)"
+    returns: "String"
+  - description: "Deletes a PVC and waits for removal"
+    method: "deletePvc(String pvcName)"
+    returns: "void"
+  - description: "Waits for PVC to become Bound"
+    method: "waitForPvcBound(String pvcName, int timeoutSeconds)"
+    returns: "void"
+  - description: "Waits for PVC to be deleted"
+    method: "waitForPvcDeleted(String pvcName, int timeoutSeconds)"
+    returns: "void"
+  - description: "Gets PVC status"
+    method: "getPvcStatus(String pvcName)"
+    returns: "String"
+  - description: "Gets PVC UID (used as S3 bucket name)"
+    method: "getPvcUid(String pvcName)"
+    returns: "String"
+implementation_notes:
+  - "Uses Kubernetes Java client"
+  - "Namespace: yeetcd"
+  - "PVC prefix: yeetcd-pvc-"
+  - "Storage class: yeetcd-s3 (S3-backed)"
+  - "Access mode: ReadWriteMany"
+  - "Deletes pods using PVC before deleting PVC (handles protection finalizer)"
+  - "Implements timeouts and retry logic"

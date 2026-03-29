@@ -1,0 +1,32 @@
+# Documentation: Pipeline
+# Generated: 2026-03-29T21:36:33.610Z
+
+component_type: "class"
+description: "Runtime representation of a pipeline in the controller. Deserialized from protobuf with metadata for execution."
+name: "Pipeline"
+responsibilities:
+  - "Store pipeline configuration (name, parameters, context, work)"
+  - "Maintain pipeline metadata (source image, language)"
+  - "Deserialize from protobuf format"
+  - "Merge runtime arguments into pipeline context"
+version: 1
+dependencies:
+  - "Parameters"
+  - "WorkContext"
+  - "Work"
+  - "PipelineMetadata"
+  - "Arguments"
+  - "SourceLanguage"
+  - "PipelineOuterClass"
+interfaces:
+  - description: "Creates pipeline with arguments merged into context"
+    method: "withArguments(Arguments arguments)"
+    returns: "Pipeline"
+  - description: "Deserializes pipeline from protobuf"
+    method: "fromProtobuf(PipelineOuterClass.Pipeline pipelineProtobuf, String builtSourceImage, SourceLanguage sourceLanguage)"
+    returns: "Pipeline"
+implementation_notes:
+  - "Java record (immutable)"
+  - "Secondary constructor provides defaults for optional fields"
+  - "withArguments validates and merges arguments into work context"
+  - "PipelineMetadata tracks source image and language for custom work execution"

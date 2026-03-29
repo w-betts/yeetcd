@@ -1,0 +1,48 @@
+# Documentation: Work
+# Generated: 2026-03-29T21:34:26.678Z
+
+component_type: "class"
+description: "Immutable work item representing a unit of execution with dependencies, context, output paths, and execution conditions."
+name: "Work"
+responsibilities:
+  - "Hold work configuration (description, definition, context, outputs, dependencies, condition)"
+  - "Serialize work to protobuf format"
+  - "Generate unique work IDs based on content hash"
+  - "Collect native work definitions from work tree"
+version: 1
+dependencies:
+  - "WorkDefinition"
+  - "WorkContext"
+  - "PreviousWork"
+  - "WorkOutputPath"
+  - "Condition"
+implementation_notes:
+  - "Immutable: all fields are final"
+  - "Uses static ConcurrentHashMap for work ID deduplication"
+  - "Work ID is SHA256 hash of UUID to ensure uniqueness"
+  - "Merges work context with containing context for serialization"
+interfaces:
+  - description: "Returns work description"
+    method: "getDescription()"
+    returns: "String"
+  - description: "Returns work definition"
+    method: "getWorkDefinition()"
+    returns: "WorkDefinition"
+  - description: "Returns work context"
+    method: "getWorkContext()"
+    returns: "WorkContext"
+  - description: "Returns output paths"
+    method: "getWorkOutputPaths()"
+    returns: "WorkOutputPath[]"
+  - description: "Returns previous work dependencies"
+    method: "getPreviousWork()"
+    returns: "PreviousWork[]"
+  - description: "Returns execution condition"
+    method: "getCondition()"
+    returns: "Condition"
+  - description: "Serializes work to protobuf with merged context"
+    method: "toProtobuf(WorkContext containingContext)"
+    returns: "PipelineOuterClass.Work"
+  - description: "Generates unique work ID"
+    method: "id(WorkContext containingContext)"
+    returns: "String"

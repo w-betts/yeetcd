@@ -1,0 +1,27 @@
+# Documentation: SourceBuilder
+# Generated: 2026-03-29T21:34:52.440Z
+
+component_type: "class"
+description: "Builds source code in containers using the configured build image and command from yeetcd.yaml."
+name: "SourceBuilder"
+responsibilities:
+  - "Build source code in containers"
+  - "Cache build results by source SHA256"
+  - "Mount source and Maven cache directories"
+  - "Collect built artifacts"
+version: 1
+dependencies:
+  - "SourceExtractionResult"
+  - "SourceBuildResult"
+  - "ExecutionEngine"
+  - "JobDefinition"
+  - "OnDiskMountInput"
+implementation_notes:
+  - "Uses ConcurrentHashMap for build result caching"
+  - "Mounts ~/.m2 for Maven dependency caching"
+  - "Runs build command in specified build image"
+  - "Returns output directories for artifact collection"
+interfaces:
+  - description: "Builds source and returns results"
+    method: "build(SourceExtractionResult sourceExtractionResult)"
+    returns: "CompletableFuture<List<SourceBuildResult>>"

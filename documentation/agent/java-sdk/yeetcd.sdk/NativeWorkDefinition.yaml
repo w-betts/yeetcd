@@ -1,0 +1,30 @@
+# Documentation: NativeWorkDefinition
+# Generated: 2026-03-29T21:44:45.562Z
+
+component_type: "class"
+description: "Abstract base class for work definitions that execute native Java code within the pipeline runtime."
+name: "NativeWorkDefinition"
+responsibilities:
+  - "Provide base implementation for custom work definitions"
+  - "Generate unique execution ID based on class name and state"
+  - "Access work context values from environment variables"
+  - "Support JSON serialization for state hashing"
+version: 1
+dependencies:
+  - "WorkDefinition"
+  - "WorkContext"
+implementation_notes:
+  - "Execution ID is SHA256 hash of class name + serialized state"
+  - "Uses Jackson ObjectMapper with field visibility for serialization"
+  - "workContextValue() reads from System.getenv() or System.getProperty()"
+  - "Implements both Runnable and WorkDefinition interfaces"
+interfaces:
+  - description: "Returns unique execution ID for this work definition instance"
+    method: "executionId()"
+    returns: "String"
+  - description: "Gets work context value from environment or system properties"
+    method: "workContextValue(String key)"
+    returns: "String"
+  - description: "Runs the native work implementation"
+    method: "run()"
+    returns: "void"
