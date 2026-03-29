@@ -324,6 +324,17 @@ For each phase (up to the next release boundary, if any):
   - If yes, execute the work completion workflow (see step 5f for details)
 - Report final status to user
 
+### Phase 7: Documentation
+
+After successful implementation and work completion:
+- **Use the question tool** to ask if the user wants to run the documentation agent
+- Explain that documentation keeps code docs in sync with the implementation
+- If the user confirms, invoke the @document subagent to generate/update documentation
+- The document agent will:
+  1. Analyze the codebase and generate YAML documentation (Phase 1)
+  2. Transform YAML docs into human-readable HTML with mermaid.js diagrams (Phase 2)
+- Documentation is stored in `documentation/agent` (YAML) and `documentation/human` (HTML)
+
 ## Key Principles
 
 1. **You Own the High-Level Spec**: You create it, not the planner
