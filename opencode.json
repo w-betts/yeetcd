@@ -131,6 +131,8 @@
     },
     "bash": {
         "*": "ask",
+        "./mvnw *": "allow",
+        "rm /Users/will/projects/yeetcd/*": "allow",
         "bun build *": "ask",
         "cat *": "allow",
         "file *": "allow",
