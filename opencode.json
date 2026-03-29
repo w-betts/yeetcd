@@ -125,6 +125,17 @@
     "edit": {
       "*": "allow"
     },
-    "bash": "ask"
+    "bash": {
+        "*": "ask",
+        "cat *": "allow",
+        "git add *": "allow",
+        "git commit *": "allow",
+        "git diff *": "allow",
+        "git log *": "allow",
+        "git status *": "allow",
+        "head *": "allow",
+        "ls *": "allow",
+        "tail *": "allow",
+    }
   }
 }
