@@ -131,19 +131,25 @@
     },
     "bash": {
         "*": "ask",
+        "bun build *": "ask",
         "cat *": "allow",
         "file *": "allow",
+        "find *": "allow",
         "git add *": "allow",
         "git branch *": "allow",
         "git commit *": "allow",
         "git diff *": "allow",
         "git log *": "allow",
+        "git push *": "allow",
         "git status *": "allow",
         "git worktree *": "allow",
+        "grep *": "allow",
         "head *": "allow",
         "ls *": "allow",
         "pwd *": "allow",
         "tail *": "allow",
+        "true *": "allow",
+        "wc *": "allow",
         "which *": "allow"
     }
   }
