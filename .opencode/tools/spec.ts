@@ -47,6 +47,13 @@ const PhaseSchema = z.object({
   test_cases: z.array(TestCaseSchema).describe("Test cases for this phase (filled by planner)"),
 })
 
+const AddressedIssueSchema = z.object({
+  issue: z.string().describe("Description of the issue that was raised"),
+  resolution: z.enum(["fixed", "ignored", "deferred", "clarified"]).describe("How the issue was resolved"),
+  resolution_note: z.string().optional().describe("Optional note about how it was resolved or why it was ignored"),
+  timestamp: z.string().describe("When this issue was addressed"),
+})
+
 const ReviewSchema = z.object({
   status: z.enum(["pending", "passed", "failed"]).describe("Review status"),
   reviewer: z.string().describe("Reviewer agent identifier"),
@@ -70,6 +77,7 @@ const SpecSchema = z.object({
   }),
   phases: z.array(PhaseSchema).min(1).describe("Implementation phases"),
   review: ReviewSchema.optional().describe("Adversarial review of the spec"),
+  addressed_issues: z.array(AddressedIssueSchema).optional().describe("Issues raised in reviews and how they were resolved"),
   status: z.enum(["draft", "planned", "reviewed", "approved", "in_progress", "completed"]).describe("Spec status"),
 })
 
@@ -242,6 +250,17 @@ export const spec_write = tool({
         })
         .optional()
         .describe("Adversarial review of the spec"),
+      addressed_issues: tool.schema
+        .array(
+          tool.schema.object({
+            issue: tool.schema.string(),
+            resolution: tool.schema.enum(["fixed", "ignored", "deferred", "clarified"]),
+            resolution_note: tool.schema.string().optional(),
+            timestamp: tool.schema.string(),
+          })
+        )
+        .optional()
+        .describe("Issues raised in reviews and how they were resolved"),
       status: tool.schema
         .enum(["draft", "planned", "reviewed", "approved", "in_progress", "completed"])
         .describe("Spec status"),
@@ -373,6 +392,17 @@ export const spec_read = tool({
         output += `Feedback: ${spec.review.feedback}\n`
       }
     }
+    if (spec.addressed_issues && spec.addressed_issues.length > 0) {
+      output += `\n--- ADDRESSED ISSUES ---\n`
+      output += `Issues that were raised in reviews and resolved:\n`
+      spec.addressed_issues.forEach((ai, i) => {
+        output += `\n${i + 1}. [${ai.resolution.toUpperCase()}] ${ai.issue}\n`
+        if (ai.resolution_note) {
+          output += `   Note: ${ai.resolution_note}\n`
+        }
+        output += `   Resolved: ${ai.timestamp}\n`
+      })
+    }
 
     return output
   },
@@ -436,6 +466,14 @@ export const spec_update = tool({
       .string()
       .optional()
       .describe("Reviewer agent identifier"),
+    add_addressed_issue: tool.schema
+      .object({
+        issue: tool.schema.string().describe("Description of the issue that was raised"),
+        resolution: tool.schema.enum(["fixed", "ignored", "deferred", "clarified"]).describe("How the issue was resolved"),
+        resolution_note: tool.schema.string().optional().describe("Optional note about how it was resolved or why it was ignored"),
+      })
+      .optional()
+      .describe("Add an issue that was addressed (used by spec agent when user decides how to handle a review issue)"),
   },
   async execute(args, context) {
     const dir = specsDir(context.worktree)
@@ -525,6 +563,20 @@ export const spec_update = tool({
         feedback: args.review_feedback,
       }
       updates.push(`Review status → ${args.review_status} (by ${args.review_reviewer})`)
+    }
+
+    // Handle addressed issue additions
+    if (args.add_addressed_issue !== undefined) {
+      if (!spec.addressed_issues) {
+        spec.addressed_issues = []
+      }
+      spec.addressed_issues.push({
+        issue: args.add_addressed_issue.issue,
+        resolution: args.add_addressed_issue.resolution,
+        resolution_note: args.add_addressed_issue.resolution_note,
+        timestamp: new Date().toISOString(),
+      })
+      updates.push(`Addressed issue added: "${args.add_addressed_issue.issue.substring(0, 50)}..." → ${args.add_addressed_issue.resolution}`)
     }
 
     if (updates.length === 0) {

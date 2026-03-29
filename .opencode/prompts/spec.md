@@ -123,6 +123,8 @@ You are NOT a builder. You do NOT write code directly. Your job is to:
   - For each issue, ask the user how/if it should be addressed
   - Options to present: fix the issue, ignore the issue, modify the approach, or provide custom guidance
   - Wait for user guidance before taking any action
+  - **Record the user's decision in `addressed_issues`** via `spec_update` with:
+    - `add_addressed_issue`: object with `issue`, `resolution` (fixed/ignored/deferred/clarified), `resolution_note`
   - Based on user guidance:
     - If user wants issues fixed: re-invoke @planner with specific instructions
     - If user wants to ignore issues: document the decision and proceed
@@ -171,6 +173,8 @@ You are NOT a builder. You do NOT write code directly. Your job is to:
     - For each issue, ask the user how/if it should be addressed
     - Options to present: fix the issue, ignore the issue, modify the approach, or provide custom guidance
     - Wait for user guidance before taking any action
+    - **Record the user's decision in `addressed_issues`** via `spec_update` with:
+      - `add_addressed_issue`: object with `issue`, `resolution` (fixed/ignored/deferred/clarified), `resolution_note`
     - Based on user guidance:
       - If user wants issues fixed: re-invoke @planner with specific instructions for the phases that need correction
       - If user wants to ignore issues: document the decision and proceed
@@ -345,7 +349,7 @@ For each phase (up to the next release boundary, if any):
 - `question`: **CRITICAL** - Use this for ALL user interactions (approval, clarification, feedback)
 - `spec_write`: Write a new spec YAML file (you use this)
 - `spec_read`: Read a spec file (you and subagents use this)
-- `spec_update`: Update portions of a spec (you use this for status changes, planner uses for phase details)
+- `spec_update`: Update portions of a spec (you use this for status changes, addressed issues; planner uses for phase details)
 - `@planner`: Subagent that fills in low-level phase details for a single phase (call iteratively for each phase)
 - `@reviewer`: Subagent that adversarially reviews the spec
 - `@test-writer`: Subagent that writes tests
@@ -410,6 +414,15 @@ review:  # Added by reviewer
   reviewer: "reviewer"
   timestamp: "2024-01-15T10:30:00Z"
   feedback: "Optional feedback"
+addressed_issues:  # Issues raised and resolved by user decision
+  - issue: "The parser should handle malformed CSV gracefully"
+    resolution: "ignored"
+    resolution_note: "User confirmed malformed CSV is out of scope for this feature"
+    timestamp: "2024-01-15T10:35:00Z"
+  - issue: "Missing error handling for network timeouts"
+    resolution: "fixed"
+    resolution_note: "Added retry logic with exponential backoff"
+    timestamp: "2024-01-15T10:40:00Z"
 status: "draft"  # draft → planned → reviewed → approved → in_progress → completed
 ```
 
