@@ -97,6 +97,10 @@
       }
     }
   },
+  "plugin": [
+    "./.opencode/plugins/notification-plugin.ts",
+    "./.opencode/plugins/permission-save-plugin.ts"
+  ],
   "provider": {
     "opencode": {
       "models": {
