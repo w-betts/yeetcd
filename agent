@@ -556,9 +556,16 @@ def launch_agent(work: Optional[WorkItem], agent_name: str) -> None:
         # Change to worktree directory
         os.chdir(work.worktree_path)
     
+    # Build the opencode command
+    cmd = ["opencode", "--agent", agent_name]
+    
+    # Add default prompt for document agent
+    if agent_name == "document":
+        cmd.extend(["--prompt", "Run the documentation workflow for this project."])
+    
     # Launch opencode with the selected agent
     try:
-        subprocess.run(["opencode", "--agent", agent_name], check=True)
+        subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as e:
         print(f"Error: opencode exited with code {e.returncode}", file=sys.stderr)
         sys.exit(e.returncode)
