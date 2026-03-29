@@ -48,8 +48,14 @@ After committing work, agents should offer to merge the work to main. This workf
 1. **Fetch remote**: Run `git fetch origin main` to update the remote tracking branch
 2. **Rebase onto LOCAL main**: Run `git rebase main` to rebase the worktree commits onto the LOCAL main branch (NOT origin/main - this preserves any local main commits that haven't been pushed yet)
 3. **Conflict resolution**: Try to auto-resolve simple conflicts, ask user for complex ones
-4. **Fast-forwarding main**: Use `git push . HEAD:main` to update main in-place (works even when main worktree has main checked out)
-5. **Pushing to remote**: Push the updated main branch to origin
+4. **Fetch from worktree in main worktree**: Run `git -C <main-worktree-path> fetch <worktree-path>` to fetch the worktree's commits into the main worktree (use `git worktree list` to find paths)
+5. **Merge in main worktree**: Run `git -C <main-worktree-path> merge FETCH_HEAD` to fast-forward main
+6. **Pushing to remote**: Push the updated main branch to origin
+
+**Why this approach?**
+- `git push . HEAD:main` fails when main is checked out in another worktree (Git refuses to update a checked-out branch)
+- Fetching from the worktree path is local-only (no network required)
+- No need to push work to origin before it's on main
 
 **When to offer:**
 - **Spec agent**: After each release boundary phase AND when the entire spec is complete
