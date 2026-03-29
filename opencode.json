@@ -193,6 +193,7 @@
         "*": "ask",
         "./mvnw *": "allow",
         "rm /Users/will/projects/yeetcd/*": "allow",
+        "bun *": "allow",
         "bun build *": "ask",
         "cat *": "allow",
         "file *": "allow",
