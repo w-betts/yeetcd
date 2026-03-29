@@ -6,8 +6,9 @@ Manages isolated worktrees for parallel OpenCode sessions.
 Maps subcommands to agent names and launches opencode with the appropriate agent.
 
 Usage:
-    agent spec    - Launch spec agent (4-phase structured workflow)
-    agent vibe    - Launch vibe agent (direct implementation workflow)
+    agent spec      - Launch spec agent (4-phase structured workflow)
+    agent vibe      - Launch vibe agent (direct implementation workflow)
+    agent document  - Launch document agent (two-phase documentation workflow)
 """
 
 import os
@@ -24,6 +25,7 @@ import yaml
 AGENT_MAP = {
     "spec": "spec",
     "vibe": "vibe",
+    "document": "document",
 }
 
 # Constants
@@ -570,12 +572,14 @@ def print_usage():
     print("Usage: agent <subcommand>", file=sys.stderr)
     print("", file=sys.stderr)
     print("Subcommands:", file=sys.stderr)
-    print("  spec   - Launch spec agent (4-phase structured workflow)", file=sys.stderr)
-    print("  vibe   - Launch vibe agent (direct implementation workflow)", file=sys.stderr)
+    print("  spec      - Launch spec agent (4-phase structured workflow)", file=sys.stderr)
+    print("  vibe      - Launch vibe agent (direct implementation workflow)", file=sys.stderr)
+    print("  document  - Launch document agent (two-phase documentation workflow)", file=sys.stderr)
     print("", file=sys.stderr)
     print("Examples:", file=sys.stderr)
-    print("  agent spec    # Start structured workflow for complex features", file=sys.stderr)
-    print("  agent vibe    # Start direct workflow for rapid iteration", file=sys.stderr)
+    print("  agent spec      # Start structured workflow for complex features", file=sys.stderr)
+    print("  agent vibe      # Start direct workflow for rapid iteration", file=sys.stderr)
+    print("  agent document  # Generate documentation for the codebase", file=sys.stderr)
 
 
 def main():

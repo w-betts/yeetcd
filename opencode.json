@@ -38,6 +38,24 @@
         }
       }
     },
+    "document": {
+      "mode": "primary",
+      "model": "opencode/glm-5",
+      "description": "Document agent - orchestrates two-phase documentation workflow for keeping code docs in sync",
+      "prompt": "{file:./.opencode/prompts/document.md}",
+      "temperature": 0.3,
+      "permission": {
+        "question": "allow",
+        "doc_read": "allow",
+        "doc_write": "allow",
+        "doc_update": "allow",
+        "task": {
+          "*": "deny",
+          "agent-doc-writer": "allow",
+          "human-doc-writer": "allow"
+        }
+      }
+    },
     "planner": {
       "mode": "subagent",
       "model": "opencode/glm-5",
