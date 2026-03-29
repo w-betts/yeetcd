@@ -45,10 +45,11 @@ When committing:
 
 After committing work, agents should offer to merge the work to main. This workflow handles:
 
-1. **Rebasing onto main**: Fetch and rebase the current branch onto origin/main
-2. **Conflict resolution**: Try to auto-resolve simple conflicts, ask user for complex ones
-3. **Fast-forwarding main**: Use `git push . HEAD:main` to update main in-place (works even when main worktree has main checked out)
-4. **Pushing to remote**: Push the updated main branch to origin
+1. **Fetch remote**: Run `git fetch origin main` to update the remote tracking branch
+2. **Rebase onto LOCAL main**: Run `git rebase main` to rebase the worktree commits onto the LOCAL main branch (NOT origin/main - this preserves any local main commits that haven't been pushed yet)
+3. **Conflict resolution**: Try to auto-resolve simple conflicts, ask user for complex ones
+4. **Fast-forwarding main**: Use `git push . HEAD:main` to update main in-place (works even when main worktree has main checked out)
+5. **Pushing to remote**: Push the updated main branch to origin
 
 **When to offer:**
 - **Spec agent**: After each release boundary phase AND when the entire spec is complete

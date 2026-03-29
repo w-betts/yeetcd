@@ -299,8 +299,8 @@ For each phase (up to the next release boundary, if any):
   - **Use the question tool** to ask if the user wants to merge the work to main
   - If yes, execute the work completion workflow:
     1. **Check if in worktree**: Run `git worktree list` to verify we're in a worktree (not the main worktree)
-    2. **Fetch latest main**: Run `git fetch origin main`
-    3. **Rebase onto main**: Run `git rebase origin/main`
+    2. **Fetch remote**: Run `git fetch origin main` to update the remote tracking branch
+    3. **Rebase onto LOCAL main**: Run `git rebase main` to rebase the worktree commits onto the LOCAL main branch (NOT origin/main - this preserves any local main commits that haven't been pushed yet)
     4. **Handle conflicts** (if any):
        - Try to auto-resolve simple conflicts (e.g., both sides added different lines)
        - For complex conflicts, **use the question tool** to present the conflict and ask how to resolve
