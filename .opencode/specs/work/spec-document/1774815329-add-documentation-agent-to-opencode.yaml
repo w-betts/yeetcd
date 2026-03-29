@@ -1,5 +1,5 @@
 # Spec (updated)
-# Updated: 2026-03-29T21:08:23.414Z
+# Updated: 2026-03-29T21:08:30.596Z
 
 version: 2
 problem_statement: "Add a new OpenCode agent for documenting code that can be run via the 'agent document' subcommand. The documentation process has two phases: (1) create/update agent-consumable documentation in YAML format with a structured schema, and (2) generate human-readable HTML documentation with mermaid.js diagrams. The agent should be triggered after implementation completes (with user confirmation) to keep documentation in sync with code."
@@ -371,7 +371,7 @@ phases:
     test_cases: []
   - name: "Phase 4: Integration with Spec and Vibe Agents"
     description: "Modify spec and vibe agents to prompt user to run documentation agent after successful implementation. Add documentation agent as an allowed subagent for spec and vibe."
-    status: "in_progress"
+    status: "completed"
     is_release_boundary: false
     file_changes:
       - action: "modify"
@@ -387,7 +387,7 @@ phases:
         is_test: false
         path: "opencode.json"
     test_cases: []
-status: "approved"
+status: "completed"
 review:
   status: "pending"
   reviewer: "spec"
