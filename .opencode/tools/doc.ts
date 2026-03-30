@@ -10,6 +10,9 @@ const InterfaceSchema = z.object({
   method: z.string().describe("Method signature"),
   returns: z.string().describe("Return type"),
   description: z.string().describe("What this method does"),
+  preconditions: z.array(z.string()).optional().describe("Preconditions that must be true before calling"),
+  postconditions: z.array(z.string()).optional().describe("Postconditions guaranteed to be true after calling"),
+  invariants: z.array(z.string()).optional().describe("Invariants maintained by this method"),
 })
 
 const ModuleDocSchema = z.object({
@@ -20,6 +23,8 @@ const ModuleDocSchema = z.object({
   responsibilities: z.array(z.string().min(1)).min(1).describe("List of responsibilities"),
   dependencies: z.array(z.string()).optional().describe("Dependencies on other modules/packages"),
   subcomponents: z.array(z.string()).optional().describe("Sub-packages or classes within this module"),
+  contracts: z.array(z.string()).optional().describe("Behavioral contracts this module must satisfy"),
+  invariants: z.array(z.string()).optional().describe("Invariants that must always hold for this module"),
 })
 
 const PackageDocSchema = z.object({
@@ -30,6 +35,8 @@ const PackageDocSchema = z.object({
   responsibilities: z.array(z.string().min(1)).min(1).describe("List of responsibilities"),
   dependencies: z.array(z.string()).optional().describe("Dependencies on other packages/modules"),
   subcomponents: z.array(z.string()).optional().describe("Classes or sub-packages within this package"),
+  contracts: z.array(z.string()).optional().describe("Behavioral contracts this package must satisfy"),
+  invariants: z.array(z.string()).optional().describe("Invariants that must always hold for this package"),
 })
 
 const ClassDocSchema = z.object({
@@ -41,6 +48,8 @@ const ClassDocSchema = z.object({
   interfaces: z.array(InterfaceSchema).optional().describe("Public methods and their signatures"),
   dependencies: z.array(z.string()).optional().describe("Dependencies on other classes/packages"),
   implementation_notes: z.array(z.string()).optional().describe("Implementation details and notes"),
+  contracts: z.array(z.string()).optional().describe("Behavioral contracts this class must satisfy"),
+  invariants: z.array(z.string()).optional().describe("Invariants that must always hold for this class"),
 })
 
 const DocSchema = z.union([ModuleDocSchema, PackageDocSchema, ClassDocSchema])
@@ -100,11 +109,16 @@ export const doc_write = tool({
             method: tool.schema.string(),
             returns: tool.schema.string(),
             description: tool.schema.string(),
+            preconditions: tool.schema.array(tool.schema.string()).optional().describe("Preconditions that must be true before calling"),
+            postconditions: tool.schema.array(tool.schema.string()).optional().describe("Postconditions guaranteed to be true after calling"),
+            invariants: tool.schema.array(tool.schema.string()).optional().describe("Invariants maintained by this method"),
           })
         )
         .optional()
         .describe("Interfaces (for class only)"),
       implementation_notes: tool.schema.array(tool.schema.string()).optional().describe("Implementation notes (for class only)"),
+      contracts: tool.schema.array(tool.schema.string()).optional().describe("Behavioral contracts this component must satisfy"),
+      invariants: tool.schema.array(tool.schema.string()).optional().describe("Invariants that must always hold for this component"),
     }),
   },
   async execute(args, context) {
@@ -186,11 +200,31 @@ export const doc_read = tool({
     }
     
     if (doc.interfaces && doc.interfaces.length > 0) {
-      output += `\n--- INTERFACES ---\n${doc.interfaces.map((iface) => `- ${iface.method} → ${iface.returns}\n  ${iface.description}`).join("\n")}\n`
+      output += `\n--- INTERFACES ---\n${doc.interfaces.map((iface) => {
+        let ifaceStr = `- ${iface.method} → ${iface.returns}\n  ${iface.description}`
+        if (iface.preconditions && iface.preconditions.length > 0) {
+          ifaceStr += `\n  Preconditions: ${iface.preconditions.join(", ")}`
+        }
+        if (iface.postconditions && iface.postconditions.length > 0) {
+          ifaceStr += `\n  Postconditions: ${iface.postconditions.join(", ")}`
+        }
+        if (iface.invariants && iface.invariants.length > 0) {
+          ifaceStr += `\n  Invariants: ${iface.invariants.join(", ")}`
+        }
+        return ifaceStr
+      }).join("\n")}\n`
     }
     
     if (doc.implementation_notes && doc.implementation_notes.length > 0) {
       output += `\n--- IMPLEMENTATION NOTES ---\n${doc.implementation_notes.map((n) => `- ${n}`).join("\n")}\n`
+    }
+    
+    if (doc.contracts && doc.contracts.length > 0) {
+      output += `\n--- CONTRACTS ---\n${doc.contracts.map((c) => `- ${c}`).join("\n")}\n`
+    }
+    
+    if (doc.invariants && doc.invariants.length > 0) {
+      output += `\n--- INVARIANTS ---\n${doc.invariants.map((i) => `- ${i}`).join("\n")}\n`
     }
 
     return output
@@ -218,11 +252,16 @@ export const doc_update = tool({
             method: tool.schema.string(),
             returns: tool.schema.string(),
             description: tool.schema.string(),
+            preconditions: tool.schema.array(tool.schema.string()).optional(),
+            postconditions: tool.schema.array(tool.schema.string()).optional(),
+            invariants: tool.schema.array(tool.schema.string()).optional(),
           })
         )
         .optional()
         .describe("New interfaces (replaces existing, for class only)"),
       implementation_notes: tool.schema.array(tool.schema.string()).optional().describe("New implementation notes (replaces existing, for class only)"),
+      contracts: tool.schema.array(tool.schema.string()).optional().describe("New contracts (replaces existing)"),
+      invariants: tool.schema.array(tool.schema.string()).optional().describe("New invariants (replaces existing)"),
     }),
   },
   async execute(args, context) {
@@ -282,6 +321,16 @@ export const doc_update = tool({
     if (args.updates.implementation_notes !== undefined) {
       doc.implementation_notes = args.updates.implementation_notes
       appliedUpdates.push(`implementation_notes (${args.updates.implementation_notes.length} items)`)
+    }
+
+    if (args.updates.contracts !== undefined) {
+      doc.contracts = args.updates.contracts
+      appliedUpdates.push(`contracts (${args.updates.contracts.length} items)`)
+    }
+
+    if (args.updates.invariants !== undefined) {
+      doc.invariants = args.updates.invariants
+      appliedUpdates.push(`invariants (${args.updates.invariants.length} items)`)
     }
 
     if (appliedUpdates.length === 0) {

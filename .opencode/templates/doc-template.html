@@ -173,6 +173,30 @@
             font-size: 0.95em;
         }
 
+        .interface-card .interface-preconditions {
+            background: #fce4ec;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .interface-card .interface-postconditions {
+            background: #e3f2fd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .interface-card .interface-invariants {
+            background: #fff3e0;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
         .implementation-note {
             background: #fff3e0;
             border-left: 4px solid #ff9800;
@@ -338,6 +362,99 @@
             align-items: center;
             gap: 5px;
         }
+
+        .contracts-section {
+            background: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .contracts-section h3 {
+            color: #388e3c;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .contract-item {
+            background: white;
+            border-left: 4px solid #388e3c;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .contract-item strong {
+            color: #2e7d32;
+        }
+
+        .invariants-section {
+            background: #fff3e0;
+            border: 1px solid #ffe0b2;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .invariants-section h3 {
+            color: #f57c00;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .invariant-item {
+            background: white;
+            border-left: 4px solid #ff9800;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .preconditions-section {
+            background: #fce4ec;
+            border: 1px solid #f8bbd9;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .preconditions-section h4 {
+            color: #c2185b;
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 0.95em;
+        }
+
+        .postconditions-section {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .postconditions-section h4 {
+            color: #1565c0;
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 0.95em;
+        }
+
+        .spec-list {
+            list-style: none;
+            margin-left: 0;
+            padding: 0;
+        }
+
+        .spec-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .spec-list li:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body>
@@ -361,6 +478,10 @@
                 <p>{{DESCRIPTION}}</p>
 
                 {{DIAGRAM_SECTION}}
+
+                {{CONTRACTS_SECTION}}
+
+                {{INVARIANTS_SECTION}}
 
                 <h2>Responsibilities</h2>
                 <ul class="responsibility-list">
