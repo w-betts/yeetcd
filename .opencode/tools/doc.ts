@@ -95,31 +95,35 @@ export const doc_write = tool({
     path: tool.schema
       .string()
       .describe("Path relative to documentation/agent/ (e.g., 'java-sdk' or 'java-sdk/yeetcd.sdk/Pipeline')"),
-    documentation: tool.schema.object({
-      version: tool.schema.literal(1).describe("Schema version (must be 1)"),
-      component_type: tool.schema.enum(["module", "package", "class"]).describe("Type of component"),
-      name: tool.schema.string().describe("Component name"),
-      description: tool.schema.string().describe("Component description"),
-      responsibilities: tool.schema.array(tool.schema.string()).describe("List of responsibilities"),
-      dependencies: tool.schema.array(tool.schema.string()).optional().describe("Dependencies"),
-      subcomponents: tool.schema.array(tool.schema.string()).optional().describe("Subcomponents (for module/package)"),
-      interfaces: tool.schema
-        .array(
-          tool.schema.object({
-            method: tool.schema.string(),
-            returns: tool.schema.string(),
-            description: tool.schema.string(),
-            preconditions: tool.schema.array(tool.schema.string()).optional().describe("Preconditions that must be true before calling"),
-            postconditions: tool.schema.array(tool.schema.string()).optional().describe("Postconditions guaranteed to be true after calling"),
-            invariants: tool.schema.array(tool.schema.string()).optional().describe("Invariants maintained by this method"),
-          })
-        )
-        .optional()
-        .describe("Interfaces (for class only)"),
-      implementation_notes: tool.schema.array(tool.schema.string()).optional().describe("Implementation notes (for class only)"),
-      contracts: tool.schema.array(tool.schema.string()).optional().describe("Behavioral contracts this component must satisfy"),
-      invariants: tool.schema.array(tool.schema.string()).optional().describe("Invariants that must always hold for this component"),
-    }),
+    documentation: tool.schema
+      .object({
+        version: tool.schema.literal(1).describe("Schema version (must be 1)"),
+        component_type: tool.schema.enum(["module", "package", "class"]).describe("Type of component"),
+        name: tool.schema.string().describe("Component name"),
+        description: tool.schema.string().describe("Component description"),
+        responsibilities: tool.schema.array(tool.schema.string()).describe("List of responsibilities"),
+        dependencies: tool.schema.array(tool.schema.string()).optional().describe("Dependencies"),
+        subcomponents: tool.schema.array(tool.schema.string()).optional().describe("Subcomponents (for module/package)"),
+        interfaces: tool.schema
+          .array(
+            tool.schema
+              .object({
+                method: tool.schema.string(),
+                returns: tool.schema.string(),
+                description: tool.schema.string(),
+                preconditions: tool.schema.array(tool.schema.string()).optional().describe("Preconditions that must be true before calling"),
+                postconditions: tool.schema.array(tool.schema.string()).optional().describe("Postconditions guaranteed to be true after calling"),
+                invariants: tool.schema.array(tool.schema.string()).optional().describe("Invariants maintained by this method"),
+              })
+              .passthrough()
+          )
+          .optional()
+          .describe("Interfaces (for class only)"),
+        implementation_notes: tool.schema.array(tool.schema.string()).optional().describe("Implementation notes (for class only)"),
+        contracts: tool.schema.array(tool.schema.string()).optional().describe("Behavioral contracts this component must satisfy"),
+        invariants: tool.schema.array(tool.schema.string()).optional().describe("Invariants that must always hold for this component"),
+      })
+      .passthrough(),
   },
   async execute(args, context) {
     // Validate against schema
@@ -240,29 +244,33 @@ export const doc_update = tool({
     path: tool.schema
       .string()
       .describe("Path relative to documentation/agent/ (e.g., 'java-sdk' or 'java-sdk/yeetcd.sdk/Pipeline')"),
-    updates: tool.schema.object({
-      description: tool.schema.string().optional().describe("New description"),
-      responsibilities: tool.schema.array(tool.schema.string()).optional().describe("New responsibilities (replaces existing unless append=true)"),
-      append_responsibilities: tool.schema.boolean().optional().describe("If true, append to existing responsibilities instead of replacing"),
-      dependencies: tool.schema.array(tool.schema.string()).optional().describe("New dependencies (replaces existing)"),
-      subcomponents: tool.schema.array(tool.schema.string()).optional().describe("New subcomponents (replaces existing)"),
-      interfaces: tool.schema
-        .array(
-          tool.schema.object({
-            method: tool.schema.string(),
-            returns: tool.schema.string(),
-            description: tool.schema.string(),
-            preconditions: tool.schema.array(tool.schema.string()).optional(),
-            postconditions: tool.schema.array(tool.schema.string()).optional(),
-            invariants: tool.schema.array(tool.schema.string()).optional(),
-          })
-        )
-        .optional()
-        .describe("New interfaces (replaces existing, for class only)"),
-      implementation_notes: tool.schema.array(tool.schema.string()).optional().describe("New implementation notes (replaces existing, for class only)"),
-      contracts: tool.schema.array(tool.schema.string()).optional().describe("New contracts (replaces existing)"),
-      invariants: tool.schema.array(tool.schema.string()).optional().describe("New invariants (replaces existing)"),
-    }),
+    updates: tool.schema
+      .object({
+        description: tool.schema.string().optional().describe("New description"),
+        responsibilities: tool.schema.array(tool.schema.string()).optional().describe("New responsibilities (replaces existing unless append=true)"),
+        append_responsibilities: tool.schema.boolean().optional().describe("If true, append to existing responsibilities instead of replacing"),
+        dependencies: tool.schema.array(tool.schema.string()).optional().describe("New dependencies (replaces existing)"),
+        subcomponents: tool.schema.array(tool.schema.string()).optional().describe("New subcomponents (replaces existing)"),
+        interfaces: tool.schema
+          .array(
+            tool.schema
+              .object({
+                method: tool.schema.string(),
+                returns: tool.schema.string(),
+                description: tool.schema.string(),
+                preconditions: tool.schema.array(tool.schema.string()).optional(),
+                postconditions: tool.schema.array(tool.schema.string()).optional(),
+                invariants: tool.schema.array(tool.schema.string()).optional(),
+              })
+              .passthrough()
+          )
+          .optional()
+          .describe("New interfaces (replaces existing, for class only)"),
+        implementation_notes: tool.schema.array(tool.schema.string()).optional().describe("New implementation notes (replaces existing, for class only)"),
+        contracts: tool.schema.array(tool.schema.string()).optional().describe("New contracts (replaces existing)"),
+        invariants: tool.schema.array(tool.schema.string()).optional().describe("New invariants (replaces existing)"),
+      })
+      .passthrough(),
   },
   async execute(args, context) {
     const dir = docsDir(context.worktree)
