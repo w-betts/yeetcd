@@ -158,8 +158,7 @@
     }
   },
   "plugin": [
-    "./.opencode/plugins/notification-plugin.ts",
-    "./.opencode/plugins/permission-save-plugin.ts"
+    "./.opencode/plugins/notification-plugin.ts"
   ],
   "provider": {
     "opencode": {
