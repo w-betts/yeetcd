@@ -1,0 +1,45 @@
+# Documentation: WorkDefinitions
+# Generated: 2026-03-31T20:41:27.673Z
+
+component_type: "class"
+description: "Factory class for deserializing work definitions from protobuf. Maps protobuf work definition types to their corresponding Java implementations. Supports all work definition types: containerized, custom, compound, and dynamic."
+name: "WorkDefinitions"
+responsibilities:
+  - "Deserialize work definitions from protobuf"
+  - "Map protobuf types to Java implementations"
+  - "Support all work definition variants"
+  - "Throw descriptive errors for unsupported types"
+version: 1
+dependencies:
+  - "PipelineOuterClass"
+  - "ContainerisedWorkDefinition"
+  - "CustomWorkDefinition"
+  - "CompoundWorkDefinition"
+  - "DynamicWorkGeneratingWorkDefinition"
+  - "Work"
+interfaces:
+  - description: "Creates work definition from protobuf work"
+    method: "fromWorkProtobuf(PipelineOuterClass.Work work)"
+    returns: "WorkDefinition"
+    preconditions:
+      - "Work must have exactly one work definition type set"
+    postconditions:
+      - "Returns appropriate WorkDefinition subtype"
+      - "ContainerisedWorkDefinition for hasContainerisedWorkDefinition"
+      - "CustomWorkDefinition for hasCustomWorkDefinition"
+      - "CompoundWorkDefinition for hasCompoundWorkDefinition"
+      - "DynamicWorkGeneratingWorkDefinition for hasDynamicWorkGeneratingWorkDefinition"
+    invariants:
+      - "Result is non-null for valid input"
+contracts:
+  - "Exactly one work definition type must be set in protobuf"
+  - "All supported types return appropriate Java implementation"
+  - "Unsupported types throw IllegalArgumentException with descriptive message"
+invariants:
+  - "Method is static (pure function)"
+  - "No side effects"
+  - "Thread-safe (no mutable state)"
+implementation_notes:
+  - "Uses if-else chain to check hasXxxWorkDefinition() methods"
+  - "Compound work recursively deserializes nested work items"
+  - "Containerised work extracts image and command list from protobuf"

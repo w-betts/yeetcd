@@ -1,0 +1,33 @@
+# Documentation: yeetcd.sdk.condition
+# Generated: 2026-03-31T20:40:44.844Z
+
+component_type: "package"
+description: "Condition classes for controlling work execution flow. Conditions determine whether a work item should execute based on work context values or previous work execution status. Supports logical composition (AND, OR, NOT) of conditions."
+name: "yeetcd.sdk.condition"
+responsibilities:
+  - "Define Condition base class for all conditions"
+  - "Implement logical composition conditions (And, Or, Not)"
+  - "Implement work context conditions for key-value matching"
+  - "Implement previous work status conditions"
+  - "Serialize conditions to protobuf format"
+version: 1
+dependencies:
+  - "yeetcd.sdk"
+  - "yeetcd.protocol.pipeline"
+subcomponents:
+  - "Condition"
+  - "AndCondition"
+  - "OrCondition"
+  - "NotCondition"
+  - "WorkContextCondition"
+  - "PreviousWorkStatusCondition"
+  - "Conditions"
+contracts:
+  - "Conditions are immutable after construction"
+  - "Logical conditions short-circuit evaluation where possible"
+  - "All conditions must be serializable to protobuf"
+  - "Work context conditions support equality matching only"
+invariants:
+  - "Condition evaluation is deterministic for same inputs"
+  - "Logical conditions maintain left/right associativity"
+  - "No circular references in composed conditions"

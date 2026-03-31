@@ -1,0 +1,37 @@
+# Documentation: controller
+# Generated: 2026-03-31T20:40:34.785Z
+
+component_type: "module"
+description: "Runtime controller that builds and executes pipelines. Orchestrates source extraction, image building, pipeline assembly from protobuf definitions, and work execution using Docker or Kubernetes execution engines."
+name: "controller"
+responsibilities:
+  - "Extract and build source code from zip archives"
+  - "Build container images containing pipeline definitions"
+  - "Assemble executable pipelines from protobuf output"
+  - "Execute pipeline work items in containers"
+  - "Manage work dependencies and execution order"
+  - "Track work results and handle dynamic work generation"
+  - "Support multiple execution engines (Docker, Kubernetes)"
+version: 1
+dependencies:
+  - "protocol"
+  - "java-sdk (for protobuf deserialization)"
+subcomponents:
+  - "yeetcd.controller.pipeline"
+  - "yeetcd.controller.execution"
+  - "yeetcd.controller.source"
+  - "yeetcd.controller.config"
+  - "yeetcd.controller.utils"
+contracts:
+  - "Source extraction produces valid buildable source directories"
+  - "Image building produces runnable images containing all artifacts"
+  - "Pipeline assembly deserializes protobuf into executable pipeline objects"
+  - "Work execution respects dependencies and conditions"
+  - "Work results are tracked and shared with dependent work items"
+  - "Failed work causes dependent work to be skipped (unless condition specifies otherwise)"
+invariants:
+  - "Work is executed at most once per pipeline run (idempotent execution via WorkResultTracker)"
+  - "Work dependencies form a directed acyclic graph"
+  - "Container images are built with unique tags based on source SHA"
+  - "All work results are captured including stdout, output files, and status"
+  - "Pipeline execution is complete when all final work items complete"

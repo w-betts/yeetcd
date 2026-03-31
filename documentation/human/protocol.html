@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>protocol Module - yeetcd Documentation</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .breadcrumb {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb .separator {
+            margin: 0 10px;
+            color: #999;
+        }
+
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #667eea;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+
+        h3 {
+            color: #555;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            margin-bottom: 15px;
+        }
+
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .responsibility-list {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .responsibility-list li {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-left: 4px solid #667eea;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .diagram-container {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .component-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .badge-module {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .contracts-section {
+            background: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .contracts-section h3 {
+            color: #388e3c;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .contract-item {
+            background: white;
+            border-left: 4px solid #388e3c;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .invariants-section {
+            background: #fff3e0;
+            border: 1px solid #ffe0b2;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .invariants-section h3 {
+            color: #f57c00;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .invariant-item {
+            background: white;
+            border-left: 4px solid #ff9800;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 40px;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>protocol</h1>
+            <div class="subtitle">Protocol Buffer Definitions for Pipeline Serialization</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="index.html">Home</a>
+            <span class="separator">/</span>
+            <span>protocol</span>
+        </div>
+
+        <div class="main-content">
+            <span class="component-badge badge-module">Module</span>
+
+            <h2>Description</h2>
+            <p>The protocol module defines the protobuf schema for language-agnostic pipeline serialization. It serves as the foundation for cross-language communication between the Java SDK (which generates pipeline definitions) and the controller (which executes them).</p>
+            
+            <p>By using Protocol Buffers as the wire format, yeetcd enables:</p>
+            <ul>
+                <li><strong>Language independence</strong>: Pipeline definitions can be generated by any language that supports protobuf</li>
+                <li><strong>Backward compatibility</strong>: Schema evolution is managed through protobuf's versioning capabilities</li>
+                <li><strong>Efficient serialization</strong>: Compact binary format for transmission and storage</li>
+                <li><strong>Type safety</strong>: Generated code ensures compile-time correctness</li>
+            </ul>
+
+            <h2>Architecture</h2>
+            <div class="diagram-container">
+                <div class="mermaid">
+graph TD
+    subgraph protocol["Module: protocol"]
+        schema["Protobuf Schema<br/>pipeline.proto"]
+        
+        subgraph messages["Core Messages"]
+            pipeline["Pipeline<br/>- name<br/>- parameters<br/>- workContext<br/>- finalWork"]
+            work["Work<br/>- id<br/>- description<br/>- definition<br/>- dependencies<br/>- condition"]
+            condition["Condition<br/>- logical operators<br/>- context checks<br/>- status checks"]
+        end
+        
+        subgraph definitions["Work Definitions"]
+            container["ContainerisedWork<br/>- image<br/>- command"]
+            custom["CustomWork<br/>- executionId"]
+            compound["CompoundWork<br/>- nested work items"]
+            dynamic["DynamicWork<br/>- generator executionId"]
+        end
+    end
+    
+    java["Java SDK"] -->|generates| schema
+    schema -->|deserializes| controller["Controller"]
+    
+    style protocol fill:#fff3e0,stroke:#f57c00
+    style schema fill:#e3f2fd,stroke:#1976d2
+    style messages fill:#f3e5f5,stroke:#7b1fa2
+    style definitions fill:#e8f5e9,stroke:#388e3c
+                </div>
+            </div>
+
+            <h2>Responsibilities</h2>
+            <ul class="responsibility-list">
+                <li>Define protobuf schema for pipeline serialization</li>
+                <li>Enable language-agnostic pipeline representation</li>
+                <li>Support evolution of pipeline format via protobuf versioning</li>
+            </ul>
+
+            <div class="contracts-section">
+                <h3>Contracts</h3>
+                <div class="contract-item">
+                    <strong>Backward Compatibility:</strong> Protobuf definitions maintain backward compatibility. New fields can be added without breaking existing code.
+                </div>
+                <div class="contract-item">
+                    <strong>Version Consistency:</strong> All SDK modules use the same protobuf version to ensure compatibility between generated and consumed messages.
+                </div>
+            </div>
+
+            <div class="invariants-section">
+                <h3>Invariants</h3>
+                <div class="invariant-item">
+                    <strong>Source of Truth:</strong> The protobuf schema is the source of truth for the pipeline wire format. All language implementations must conform to this schema.
+                </div>
+            </div>
+
+            <h2>Key Concepts</h2>
+            <h3>Pipeline Message</h3>
+            <p>The root message that represents a complete pipeline definition. It contains:</p>
+            <ul>
+                <li><strong>name</strong>: Unique identifier for the pipeline</li>
+                <li><strong>parameters</strong>: Input parameters that can be passed at execution time</li>
+                <li><strong>workContext</strong>: Key-value pairs passed as environment variables to all work items</li>
+                <li><strong>finalWork</strong>: The work items that constitute the pipeline execution</li>
+            </ul>
+
+            <h3>Work Message</h3>
+            <p>Represents a single unit of execution within a pipeline. Each work item has:</p>
+            <ul>
+                <li><strong>id</strong>: Unique identifier generated from content hash</li>
+                <li><strong>description</strong>: Human-readable description of the work</li>
+                <li><strong>definition</strong>: The actual work to execute (container, custom, compound, or dynamic)</li>
+                <li><strong>dependencies</strong>: Previous work items that must complete before this work can run</li>
+                <li><strong>condition</strong>: Optional condition that determines if work should execute</li>
+            </ul>
+
+            <h3>Work Definition Types</h3>
+            <p>The protocol supports four types of work definitions:</p>
+            <ul>
+                <li><strong>ContainerisedWork</strong>: Execute a command in an existing container image</li>
+                <li><strong>CustomWork</strong>: Execute user-defined Java code identified by executionId</li>
+                <li><strong>CompoundWork</strong>: Group multiple work items as a single unit</li>
+                <li><strong>DynamicWork</strong>: Generate work at runtime based on parameters and context</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            Generated by OpenCode Documentation Agent
+        </div>
+    </footer>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+</body>
+</html>

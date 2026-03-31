@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>java-sdk Module - yeetcd Documentation</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .breadcrumb {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb .separator {
+            margin: 0 10px;
+            color: #999;
+        }
+
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #667eea;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+
+        h3 {
+            color: #555;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        h4 {
+            color: #666;
+            margin-top: 20px;
+            margin-bottom: 8px;
+        }
+
+        p {
+            margin-bottom: 15px;
+        }
+
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .responsibility-list {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .responsibility-list li {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-left: 4px solid #667eea;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .dependency-list, .subcomponent-list {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .dependency-list li, .subcomponent-list li {
+            display: inline-block;
+            background: #e3f2fd;
+            padding: 5px 12px;
+            margin: 5px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .dependency-list li a, .subcomponent-list li a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+
+        .diagram-container {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .component-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .badge-module {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .contracts-section {
+            background: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .contracts-section h3 {
+            color: #388e3c;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .contract-item {
+            background: white;
+            border-left: 4px solid #388e3c;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .invariants-section {
+            background: #fff3e0;
+            border: 1px solid #ffe0b2;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .invariants-section h3 {
+            color: #f57c00;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .invariant-item {
+            background: white;
+            border-left: 4px solid #ff9800;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .package-card {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .package-card h4 {
+            margin-top: 0;
+            color: #667eea;
+        }
+
+        .package-card a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .package-card a:hover {
+            text-decoration: underline;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 40px;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>java-sdk</h1>
+            <div class="subtitle">Java API for Pipeline Definition</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="index.html">Home</a>
+            <span class="separator">/</span>
+            <span>java-sdk</span>
+        </div>
+
+        <div class="main-content">
+            <span class="component-badge badge-module">Module</span>
+
+            <h2>Description</h2>
+            <p>The java-sdk module provides a Java API for defining continuous deployment pipelines with container-based execution. It offers a fluent builder API that enables developers to construct pipeline definitions programmatically, which are then serialized to protobuf format for language-agnostic execution by the controller.</p>
+            
+            <p>This module is the primary interface for pipeline authors. Rather than writing complex YAML configurations, developers use type-safe Java code to define their deployment pipelines. The module includes an annotation processor that generates the necessary boilerplate code for pipeline serialization and execution.</p>
+
+            <h2>Why Java SDK?</h2>
+            <p>Traditional CI/CD systems often rely on YAML configuration files that can become unwieldy for complex pipelines. The Java SDK addresses this by providing:</p>
+            <ul>
+                <li><strong>Type Safety</strong>: Compile-time checking of pipeline definitions prevents many common errors</li>
+                <li><strong>IDE Support</strong>: Auto-completion, refactoring, and navigation work seamlessly</li>
+                <li><strong>Code Reuse</strong>: Common pipeline patterns can be extracted into reusable functions and classes</li>
+                <li><strong>Testing</strong>: Pipeline logic can be unit tested using the java-test module</li>
+                <li><strong>Dynamic Generation</strong>: Pipelines can be generated at runtime based on context and parameters</li>
+            </ul>
+
+            <h2>Architecture</h2>
+            <div class="diagram-container">
+                <div class="mermaid">
+graph TD
+    subgraph java-sdk["Module: java-sdk"]
+        subgraph sdk["Package: yeetcd.sdk"]
+            pipeline["Pipeline<br/>Root container"]
+            work["Work<br/>Execution unit"]
+            definitions["Work Definitions<br/>- Containerised<br/>- Custom<br/>- Compound<br/>- Dynamic"]
+            context["WorkContext<br/>Parameter passing"]
+            processor["Annotation Processor<br/>Code generation"]
+        end
+        
+        subgraph condition["Package: yeetcd.sdk.condition"]
+            cond["Condition<br/>Base class"]
+            logical["Logical Conditions<br/>AND, OR, NOT"]
+            contextCond["Context Conditions<br/>Key-value matching"]
+            statusCond["Status Conditions<br/>Previous work status"]
+        end
+    end
+    
+    user["Pipeline Author"] -->|writes| pipeline
+    processor -->|generates| runner["GeneratedPipelineDefinitions"]
+    runner -->|outputs| proto["Protobuf"]
+    proto -->|consumed by| controller["Controller"]
+    
+    style java-sdk fill:#f3e5f5,stroke:#7b1fa2
+    style sdk fill:#e3f2fd,stroke:#1976d2
+    style condition fill:#e8f5e9,stroke:#388e3c
+    style processor fill:#fff3e0,stroke:#f57c00
+                </div>
+            </div>
+
+            <h2>Responsibilities</h2>
+            <ul class="responsibility-list">
+                <li>Provide fluent API for pipeline definition</li>
+                <li>Define work items and their dependencies</li>
+                <li>Support multiple work definition types (containerized, custom, compound, dynamic)</li>
+                <li>Serialize pipeline definitions to protobuf format</li>
+                <li>Annotation processor generates pipeline definition runner code</li>
+                <li>Manage work context and parameter passing between work items</li>
+            </ul>
+
+            <h2>Dependencies</h2>
+            <ul class="dependency-list">
+                <li>protocol (protobuf definitions)</li>
+            </ul>
+
+            <h2>Packages</h2>
+            
+            <div class="package-card">
+                <h4><a href="java-sdk/yeetcd.sdk.html">yeetcd.sdk</a></h4>
+                <p>Core SDK classes for pipeline definition. Provides the main API for constructing pipelines, defining work items, and configuring work dependencies. Contains the essential classes: Pipeline, Work, WorkDefinition, and the annotation processor.</p>
+            </div>
+
+            <div class="package-card">
+                <h4><a href="java-sdk/yeetcd.sdk.condition.html">yeetcd.sdk.condition</a></h4>
+                <p>Condition classes for controlling work execution flow. Conditions determine whether a work item should execute based on work context values or previous work execution status. Supports logical composition (AND, OR, NOT) of conditions.</p>
+            </div>
+
+            <div class="contracts-section">
+                <h3>Contracts</h3>
+                <div class="contract-item">
+                    <strong>Unique Pipeline Names:</strong> All pipelines must have a unique name within a project scope to prevent conflicts in the native work registry.
+                </div>
+                <div class="contract-item">
+                    <strong>Immutable Definitions:</strong> Pipeline definitions are immutable once created via the builder pattern, ensuring thread safety and preventing accidental modifications.
+                </div>
+                <div class="contract-item">
+                    <strong>Deterministic Work IDs:</strong> Work IDs are deterministically generated based on work content and context, enabling consistent identification across executions.
+                </div>
+                <div class="contract-item">
+                    <strong>Native Work Registration:</strong> Native work definitions are automatically registered in a static map keyed by pipeline name for runtime execution.
+                </div>
+                <div class="contract-item">
+                    <strong>Deterministic Serialization:</strong> All protobuf serialization is deterministic for equivalent pipeline definitions, ensuring consistent output.
+                </div>
+            </div>
+
+            <div class="invariants-section">
+                <h3>Invariants</h3>
+                <div class="invariant-item">
+                    <strong>Valid Pipeline Names:</strong> Pipeline names are never null or empty.
+                </div>
+                <div class="invariant-item">
+                    <strong>Unique Work IDs:</strong> Work IDs are unique within a pipeline context.
+                </div>
+                <div class="invariant-item">
+                    <strong>Valid Execution Identifiers:</strong> All work definitions have valid execution identifiers.
+                </div>
+                <div class="invariant-item">
+                    <strong>Non-null Context:</strong> Work context maps are never null (empty context is represented as empty map).
+                </div>
+                <div class="invariant-item">
+                    <strong>Acyclic Dependencies:</strong> Previous work references form a directed acyclic graph (no circular dependencies).
+                </div>
+            </div>
+
+            <h2>Usage Example</h2>
+            <p>Here's a simple example of defining a pipeline using the Java SDK:</p>
+            <pre style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 0.9em;"><code>@PipelineGenerator
+public static Pipeline myPipeline() {
+    // Define a containerized work item
+    Work build = Work.builder("Build application",
+        ContainerisedWorkDefinition.builder()
+            .image("maven:3.9")
+            .command(List.of("mvn", "clean", "package"))
+            .build())
+        .build();
+    
+    // Define a work item that depends on the build
+    Work test = Work.builder("Run tests",
+        ContainerisedWorkDefinition.builder()
+            .image("maven:3.9")
+            .command(List.of("mvn", "test"))
+            .build())
+        .previousWork(PreviousWork.builder(build).build())
+        .build();
+    
+    // Create the pipeline
+    return Pipeline.builder("ci-pipeline")
+        .finalWork(test)
+        .build();
+}</code></pre>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            Generated by OpenCode Documentation Agent
+        </div>
+    </footer>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+</body>
+</html>

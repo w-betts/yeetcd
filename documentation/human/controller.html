@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>controller Module - yeetcd Documentation</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .breadcrumb {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb .separator {
+            margin: 0 10px;
+            color: #999;
+        }
+
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #667eea;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+
+        h3 {
+            color: #555;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        h4 {
+            color: #666;
+            margin-top: 20px;
+            margin-bottom: 8px;
+        }
+
+        p {
+            margin-bottom: 15px;
+        }
+
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .responsibility-list {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .responsibility-list li {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-left: 4px solid #667eea;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .dependency-list, .subcomponent-list {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .dependency-list li, .subcomponent-list li {
+            display: inline-block;
+            background: #e3f2fd;
+            padding: 5px 12px;
+            margin: 5px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .dependency-list li a, .subcomponent-list li a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+
+        .diagram-container {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .component-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .badge-module {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .contracts-section {
+            background: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .contracts-section h3 {
+            color: #388e3c;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .contract-item {
+            background: white;
+            border-left: 4px solid #388e3c;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .invariants-section {
+            background: #fff3e0;
+            border: 1px solid #ffe0b2;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .invariants-section h3 {
+            color: #f57c00;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .invariant-item {
+            background: white;
+            border-left: 4px solid #ff9800;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .package-card {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .package-card h4 {
+            margin-top: 0;
+            color: #667eea;
+        }
+
+        .package-card a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .package-card a:hover {
+            text-decoration: underline;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 40px;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>controller</h1>
+            <div class="subtitle">Runtime Controller for Pipeline Execution</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="index.html">Home</a>
+            <span class="separator">/</span>
+            <span>controller</span>
+        </div>
+
+        <div class="main-content">
+            <span class="component-badge badge-module">Module</span>
+
+            <h2>Description</h2>
+            <p>The controller module is the runtime engine that builds and executes pipelines. It orchestrates the complete pipeline lifecycle from source extraction through image building, pipeline assembly from protobuf definitions, and work execution using Docker or Kubernetes execution engines.</p>
+            
+            <p>This module bridges the gap between the declarative pipeline definitions created with the Java SDK and the actual execution environment. It handles all the complexity of container management, dependency resolution, and result tracking.</p>
+
+            <h2>Why Controller?</h2>
+            <p>The controller provides a complete runtime environment for pipeline execution:</p>
+            <ul>
+                <li><strong>Source Management</strong>: Extracts source code from zip archives and manages build environments</li>
+                <li><strong>Image Building</strong>: Creates container images containing pipeline definitions and artifacts</li>
+                <li><strong>Dependency Resolution</strong>: Ensures work items execute in the correct order based on dependencies</li>
+                <li><strong>Condition Evaluation</strong>: Determines whether work should execute based on context and previous results</li>
+                <li><strong>Result Tracking</strong>: Captures work outputs and makes them available to dependent work items</li>
+                <li><strong>Multi-Engine Support</strong>: Supports both Docker and Kubernetes execution environments</li>
+            </ul>
+
+            <h2>Architecture</h2>
+            <div class="diagram-container">
+                <div class="mermaid">
+graph TD
+    subgraph controller["Module: controller"]
+        subgraph source["Package: source"]
+            extractor["SourceExtractor<br/>Zip extraction"]
+            builder["SourceBuilder<br/>Containerized builds"]
+        end
+        
+        subgraph pipeline["Package: pipeline"]
+            controller_core["PipelineController<br/>Orchestration"]
+            work_tracker["WorkResultTracker<br/>Idempotency"]
+            definitions["WorkDefinitions<br/>Deserialization"]
+        end
+        
+        subgraph execution["Package: execution"]
+            docker["DockerExecutionEngine"]
+            kubernetes["KubernetesExecutionEngine"]
+            abstract["AbstractExecutionEngine<br/>Async infrastructure"]
+        end
+    end
+    
+    zip["Source Zip"] --> extractor
+    extractor --> builder
+    builder --> image["Container Images"]
+    image --> controller_core
+    proto["Protobuf Pipeline"] --> definitions
+    definitions --> controller_core
+    controller_core --> work_tracker
+    controller_core --> docker
+    controller_core --> kubernetes
+    docker --> containers["Docker Containers"]
+    kubernetes --> k8s_jobs["Kubernetes Jobs"]
+    
+    style controller fill:#e8f5e9,stroke:#388e3c
+    style source fill:#e3f2fd,stroke:#1976d2
+    style pipeline fill:#f3e5f5,stroke:#7b1fa2
+    style execution fill:#fff3e0,stroke:#f57c00
+    style controller_core fill:#fce4ec,stroke:#c2185b
+                </div>
+            </div>
+
+            <h2>Responsibilities</h2>
+            <ul class="responsibility-list">
+                <li>Extract and build source code from zip archives</li>
+                <li>Build container images containing pipeline definitions</li>
+                <li>Assemble executable pipelines from protobuf output</li>
+                <li>Execute pipeline work items in containers</li>
+                <li>Manage work dependencies and execution order</li>
+                <li>Track work results and handle dynamic work generation</li>
+                <li>Support multiple execution engines (Docker, Kubernetes)</li>
+            </ul>
+
+            <h2>Dependencies</h2>
+            <ul class="dependency-list">
+                <li>protocol</li>
+                <li>java-sdk (for protobuf deserialization)</li>
+            </ul>
+
+            <h2>Packages</h2>
+            
+            <div class="package-card">
+                <h4><a href="controller/yeetcd.controller.source.html">yeetcd.controller.source</a></h4>
+                <p>Source code extraction and building. Handles extracting source code from zip archives, parsing yeetcd.yaml configuration files, and building source code using configured build images and commands.</p>
+            </div>
+
+            <div class="package-card">
+                <h4><a href="controller/yeetcd.controller.pipeline.html">yeetcd.controller.pipeline</a></h4>
+                <p>Core pipeline execution and orchestration classes. Manages the runtime representation of pipelines, work execution, result tracking, and condition evaluation. Bridges the gap between deserialized protobuf definitions and actual container execution.</p>
+            </div>
+
+            <div class="package-card">
+                <h4><a href="controller/yeetcd.controller.execution.html">yeetcd.controller.execution</a></h4>
+                <p>Execution engine abstraction for running containerized jobs. Provides interfaces and implementations for building container images and executing jobs using Docker or Kubernetes. Handles image building, job execution, log streaming, and output extraction.</p>
+            </div>
+
+            <div class="contracts-section">
+                <h3>Contracts</h3>
+                <div class="contract-item">
+                    <strong>Valid Source Extraction:</strong> Source extraction produces valid buildable source directories with all necessary files.
+                </div>
+                <div class="contract-item">
+                    <strong>Runnable Images:</strong> Image building produces runnable images containing all artifacts required for execution.
+                </div>
+                <div class="contract-item">
+                    <strong>Correct Deserialization:</strong> Pipeline assembly deserializes protobuf into executable pipeline objects with all work definitions properly mapped.
+                </div>
+                <div class="contract-item">
+                    <strong>Dependency Respect:</strong> Work execution respects dependencies and conditions, ensuring work items run in the correct order.
+                </div>
+                <div class="contract-item">
+                    <strong>Result Sharing:</strong> Work results are tracked and shared with dependent work items, including stdout and output files.
+                </div>
+                <div class="contract-item">
+                    <strong>Failure Propagation:</strong> Failed work causes dependent work to be skipped unless the condition specifies otherwise.
+                </div>
+            </div>
+
+            <div class="invariants-section">
+                <h3>Invariants</h3>
+                <div class="invariant-item">
+                    <strong>Idempotent Execution:</strong> Work is executed at most once per pipeline run via WorkResultTracker.
+                </div>
+                <div class="invariant-item">
+                    <strong>Acyclic Dependencies:</strong> Work dependencies form a directed acyclic graph, preventing circular dependencies.
+                </div>
+                <div class="invariant-item">
+                    <strong>Unique Image Tags:</strong> Container images are built with unique tags based on source SHA for reproducibility.
+                </div>
+                <div class="invariant-item">
+                    <strong>Complete Result Capture:</strong> All work results are captured including stdout, output files, and status.
+                </div>
+                <div class="invariant-item">
+                    <strong>Execution Completion:</strong> Pipeline execution is complete when all final work items complete, regardless of success or failure.
+                </div>
+            </div>
+
+            <h2>Execution Flow</h2>
+            <p>The controller follows a clear execution flow:</p>
+            <ol>
+                <li><strong>Source Extraction</strong>: Extract source code from the provided zip archive to a temporary directory</li>
+                <li><strong>Configuration Parsing</strong>: Parse all yeetcd.yaml files to understand project structure and build requirements</li>
+                <li><strong>Source Building</strong>: Execute build commands in containerized environments to produce artifacts</li>
+                <li><strong>Image Building</strong>: Create container images containing the built artifacts and pipeline definitions</li>
+                <li><strong>Pipeline Assembly</strong>: Run the generated pipeline definitions class to output protobuf, then deserialize it</li>
+                <li><strong>Work Execution</strong>: Execute work items in dependency order, respecting conditions and tracking results</li>
+                <li><strong>Result Aggregation</strong>: Collect all work results and produce the final pipeline result</li>
+            </ol>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            Generated by OpenCode Documentation Agent
+        </div>
+    </footer>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+</body>
+</html>

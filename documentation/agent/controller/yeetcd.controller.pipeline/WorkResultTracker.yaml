@@ -1,0 +1,74 @@
+# Documentation: WorkResultTracker
+# Generated: 2026-03-31T20:41:25.552Z
+
+component_type: "class"
+description: "Tracks work execution results to ensure idempotent execution within a pipeline run. Prevents duplicate execution of the same work item when referenced multiple times through different dependency paths. Provides thread-safe access to work results."
+name: "WorkResultTracker"
+responsibilities:
+  - "Track work execution results by work instance"
+  - "Ensure idempotent work execution (execute once, return cached result)"
+  - "Provide thread-safe access to work results"
+  - "Support retrieval of stdout and output directories from completed work"
+version: 1
+dependencies:
+  - "Work"
+  - "WorkResult"
+  - "PreviousWork"
+  - "MountInput"
+  - "OnDiskMountInput"
+interfaces:
+  - description: "Gets existing result or executes work if not yet run"
+    method: "getOrExecute(Work key, Supplier<CompletableFuture<WorkResult>> execute)"
+    returns: "CompletableFuture<WorkResult>"
+    preconditions:
+      - "Key must not be null"
+      - "Execute supplier must not be null"
+    postconditions:
+      - "If work was previously executed, returns cached result"
+      - "If work not executed, executes and caches result"
+      - "Result is never null"
+    invariants:
+      - "Method is synchronized for thread safety"
+      - "Work is executed at most once"
+  - description: "Returns unmodifiable map of all tracked work results"
+    method: "getWorkResultMap()"
+    returns: "Map<Work, CompletableFuture<WorkResult>>"
+    postconditions:
+      - "Result is unmodifiable view"
+      - "Map contains all tracked work"
+    invariants:
+      - "Method is synchronized for thread safety"
+  - description: "Returns mount input for previous work output directories"
+    method: "outputDirectoriesMountInput(PreviousWork previousWork)"
+    returns: "MountInput"
+    preconditions:
+      - "Previous work must have completed"
+      - "Previous work must have output directories"
+    postconditions:
+      - "Result provides access to output directories"
+    invariants:
+      - "Result is OnDiskMountInput wrapping output directory"
+  - description: "Returns stdout bytes from completed previous work"
+    method: "stdOut(PreviousWork previousWork)"
+    returns: "byte[]"
+    preconditions:
+      - "Previous work must have completed"
+      - "Previous work must have job streams"
+    postconditions:
+      - "Result contains stdout bytes"
+    invariants:
+      - "Result may be empty array if no output"
+contracts:
+  - "Work is executed at most once per tracker instance"
+  - "Results are cached and shared for same work instance"
+  - "Thread-safe for concurrent access"
+  - "Output directories are accessible after work completion"
+invariants:
+  - "Internal map is HashMap (not ConcurrentHashMap to avoid recursive update issues)"
+  - "All public methods are synchronized"
+  - "WorkResult futures are stored, not resolved values"
+  - "Output directories are retrieved from completed futures"
+implementation_notes:
+  - "Uses synchronized methods instead of ConcurrentHashMap to avoid recursive update issues with nested work"
+  - "Stores CompletableFuture to preserve async nature"
+  - "Output directory retrieval blocks on future completion via @SneakyThrows"

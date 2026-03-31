@@ -1,0 +1,57 @@
+# Documentation: NativeWorkDefinition
+# Generated: 2026-03-31T20:41:09.109Z
+
+component_type: "class"
+description: "Abstract base class for work definitions that execute native Java code within the pipeline runtime. Generates unique execution IDs based on class name and serialized state. Provides access to work context values via environment variables or system properties."
+name: "NativeWorkDefinition"
+responsibilities:
+  - "Generate unique execution ID from class name and state"
+  - "Provide work context value access via environment/system properties"
+  - "Implement Runnable interface for execution"
+  - "Support JSON serialization for state hashing"
+version: 1
+dependencies:
+  - "WorkDefinition"
+  - "ObjectMapper"
+  - "DigestUtils"
+  - "JsonAutoDetect"
+interfaces:
+  - description: "Returns the unique execution ID for this work definition"
+    method: "executionId()"
+    returns: "String"
+    postconditions:
+      - "Result is SHA256 hash of class name + serialized state"
+      - "Same object state produces same execution ID"
+      - "Different object states produce different execution IDs"
+    invariants:
+      - "Execution ID is deterministic for same state"
+  - description: "Returns stream containing this native work definition"
+    method: "nativeWorkDefinitions()"
+    returns: "Stream<NativeWorkDefinition>"
+    postconditions:
+      - "Result contains exactly this instance"
+  - description: "Retrieves work context value from environment or system properties"
+    method: "workContextValue(String key)"
+    returns: "String"
+    preconditions:
+      - "Key must not be null"
+    postconditions:
+      - "Returns environment variable value if set"
+      - "Returns system property if environment not set"
+      - "Returns null if neither is set"
+    invariants:
+      - "Environment variables take precedence over system properties"
+contracts:
+  - "Execution ID uniquely identifies work definition instance"
+  - "State serialization uses JSON with field visibility"
+  - "Work context values are read from environment first, then system properties"
+  - "Subclasses must implement run() for execution logic"
+invariants:
+  - "ObjectMapper is configured for field-only serialization"
+  - "Execution ID is cached after first computation"
+  - "Class name is included in execution ID hash"
+implementation_notes:
+  - "Uses Jackson ObjectMapper with custom visibility settings"
+  - "Serialization orders map entries for deterministic hashing"
+  - "SHA256 from apache-commons-codec is used for hashing"
+  - "Environment variable lookup falls back to system property for testing"

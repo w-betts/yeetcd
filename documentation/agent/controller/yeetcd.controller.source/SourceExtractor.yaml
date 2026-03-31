@@ -1,0 +1,46 @@
+# Documentation: SourceExtractor
+# Generated: 2026-03-31T20:41:39.038Z
+
+component_type: "class"
+description: "Extracts source code from zip archives and parses yeetcd.yaml configuration files. Creates temporary directories for extracted source and builds a map of yeetcd definitions by directory path."
+name: "SourceExtractor"
+responsibilities:
+  - "Extract zip archives to temporary directories"
+  - "Parse yeetcd.yaml configuration files"
+  - "Build map of yeetcd definitions by path"
+  - "Manage temporary directory lifecycle"
+version: 1
+dependencies:
+  - "Source"
+  - "SourceExtractionResult"
+  - "YeetcdDefinition"
+  - "ZipExtractor"
+  - "ObjectMapper"
+  - "YAMLFactory"
+interfaces:
+  - description: "Extracts source and parses configurations"
+    method: "extract(Source source)"
+    returns: "SourceExtractionResult"
+    preconditions:
+      - "Source must not be null"
+      - "Source zip must be valid"
+    postconditions:
+      - "Zip is extracted to temp directory"
+      - "All yeetcd.yaml files are parsed"
+      - "Result contains source, directory, and definitions map"
+    invariants:
+      - "Temp directory is marked for deletion on exit"
+contracts:
+  - "Zip extraction preserves directory structure"
+  - "yeetcd.yaml files are parsed using Jackson YAML mapper"
+  - "All found yeetcd.yaml files are included in result"
+  - "Temporary directories are cleaned up on JVM exit"
+invariants:
+  - "ObjectMapper is static and thread-safe"
+  - "YAML parsing uses MINIMIZE_QUOTES feature"
+  - "Null values are excluded from serialization"
+implementation_notes:
+  - "Uses ZipExtractor for streaming zip processing"
+  - "Jackson ObjectMapper configured for YAML with custom settings"
+  - "Temp directory created with Files.createTempDirectory"
+  - "FileHandler callback processes yeetcd.yaml files during extraction"

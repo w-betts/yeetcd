@@ -1,0 +1,46 @@
+# Documentation: yeetcd.sdk
+# Generated: 2026-03-31T20:40:43.316Z
+
+component_type: "package"
+description: "Core SDK classes for pipeline definition. Provides the main API for constructing pipelines, defining work items, and configuring work dependencies. All classes use immutable builder patterns for thread-safe construction."
+name: "yeetcd.sdk"
+responsibilities:
+  - "Define Pipeline, Work, and WorkDefinition interfaces"
+  - "Provide builder patterns for pipeline construction"
+  - "Implement work definition types (Containerised, Custom, Compound, Dynamic)"
+  - "Manage work context and parameter passing"
+  - "Support work dependencies via PreviousWork"
+  - "Serialize pipeline definitions to protobuf format"
+version: 1
+dependencies:
+  - "yeetcd.protocol.pipeline (protobuf)"
+  - "lombok (for boilerplate reduction)"
+  - "apache-commons-codec (for hashing)"
+subcomponents:
+  - "Pipeline"
+  - "Work"
+  - "WorkDefinition"
+  - "ContainerisedWorkDefinition"
+  - "CustomWorkDefinition"
+  - "NativeWorkDefinition"
+  - "DynamicWorkGeneratingWorkDefinition"
+  - "CompoundWorkDefinition"
+  - "PreviousWork"
+  - "WorkContext"
+  - "Parameters"
+  - "Parameter"
+  - "WorkOutputPath"
+  - "PipelineGeneratorAnnotationProcessor"
+  - "Pipelines"
+  - "PipelineGenerator"
+contracts:
+  - "All builder methods return the builder instance for method chaining"
+  - "Immutable objects are created via builders only"
+  - "All public APIs accept non-null values (nulls cause IllegalArgumentException)"
+  - "Work IDs are deterministically generated from content hash"
+  - "Native work definitions are automatically registered when pipeline is built"
+invariants:
+  - "No null values accepted by public APIs"
+  - "All collections are immutable after construction"
+  - "Work dependencies form a directed acyclic graph"
+  - "Pipeline names are unique within the static registry"

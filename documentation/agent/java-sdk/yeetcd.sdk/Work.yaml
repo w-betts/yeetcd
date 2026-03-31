@@ -1,0 +1,93 @@
+# Documentation: Work
+# Generated: 2026-03-31T20:41:03.202Z
+
+component_type: "class"
+description: "Immutable representation of a work item within a pipeline. Work items represent units of execution with associated definitions, dependencies, conditions, and outputs. Each work item has a unique ID generated from its content and context hash."
+name: "Work"
+responsibilities:
+  - "Hold work configuration (description, definition, context, outputs, dependencies, condition)"
+  - "Generate unique work IDs based on content hash"
+  - "Serialize work to protobuf format with merged context"
+  - "Collect native work definitions recursively"
+  - "Support builder pattern for immutable construction"
+version: 1
+dependencies:
+  - "WorkDefinition"
+  - "WorkContext"
+  - "WorkOutputPath"
+  - "PreviousWork"
+  - "Condition"
+  - "PipelineOuterClass"
+  - "DigestUtils"
+interfaces:
+  - description: "Returns the work description"
+    method: "getDescription()"
+    returns: "String"
+    postconditions:
+      - "Result is never null"
+  - description: "Returns the work definition"
+    method: "getWorkDefinition()"
+    returns: "WorkDefinition"
+    postconditions:
+      - "Result is never null"
+  - description: "Returns the work context"
+    method: "getWorkContext()"
+    returns: "WorkContext"
+    postconditions:
+      - "Result is never null"
+  - description: "Returns the work output paths"
+    method: "getWorkOutputPaths()"
+    returns: "WorkOutputPath[]"
+    postconditions:
+      - "Result is never null (may be empty array)"
+  - description: "Returns the previous work dependencies"
+    method: "getPreviousWork()"
+    returns: "PreviousWork[]"
+    postconditions:
+      - "Result is never null (may be empty array)"
+  - description: "Returns the execution condition"
+    method: "getCondition()"
+    returns: "Condition"
+    postconditions:
+      - "Result is never null (defaults to SUCCESS condition)"
+  - description: "Generates unique ID for this work item"
+    method: "id(WorkContext containingContext)"
+    returns: "String"
+    preconditions:
+      - "Containing context must not be null"
+    postconditions:
+      - "Result is unique SHA256 hash"
+      - "Same work with same context produces same ID (within JVM lifetime)"
+    invariants:
+      - "ID generation uses UUID randomness for uniqueness"
+  - description: "Serializes work to protobuf with merged context"
+    method: "toProtobuf(WorkContext containingContext)"
+    returns: "PipelineOuterClass.Work"
+    preconditions:
+      - "Containing context must not be null"
+    postconditions:
+      - "Result contains work ID, description, context, outputs, dependencies"
+      - "Work definition is applied to builder"
+      - "Condition is applied to builder"
+  - description: "Collects all native work definitions from this work and dependencies"
+    method: "nativeWorkDefinitions()"
+    returns: "Stream<NativeWorkDefinition>"
+    postconditions:
+      - "Result contains all native work definitions recursively"
+contracts:
+  - "Work ID is unique within pipeline context"
+  - "Work is immutable after construction"
+  - "Previous work dependencies form directed acyclic graph"
+  - "Condition defaults to previous work SUCCESS if not specified"
+invariants:
+  - "Description is never null or empty"
+  - "WorkDefinition is never null"
+  - "WorkContext is never null"
+  - "WorkOutputPaths array is never null"
+  - "PreviousWork array is never null"
+  - "Condition is never null"
+  - "Work ID is cached after first generation"
+implementation_notes:
+  - "Uses static ConcurrentHashMap for ID lookup (memory-bounded by work instances)"
+  - "WorkIdKey combines work reference and merged context for uniqueness"
+  - "ID generation uses SHA256 of random UUID for uniqueness"

@@ -1,0 +1,18 @@
+# Documentation: protocol
+# Generated: 2026-03-31T20:40:35.490Z
+
+component_type: "module"
+description: "Protocol buffer definitions for language-agnostic pipeline serialization. Defines the protobuf schema for pipelines, work items, conditions, and work definitions that enable cross-language pipeline definition and execution."
+name: "protocol"
+responsibilities:
+  - "Define protobuf schema for pipeline serialization"
+  - "Enable language-agnostic pipeline representation"
+  - "Support evolution of pipeline format via protobuf versioning"
+version: 1
+dependencies: []
+subcomponents: []
+contracts:
+  - "Protobuf definitions maintain backward compatibility"
+  - "All SDK modules use the same protobuf version"
+invariants:
+  - "Protobuf schema is the source of truth for pipeline wire format"

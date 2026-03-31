@@ -1,0 +1,64 @@
+# Documentation: DynamicWorkGeneratingWorkDefinition
+# Generated: 2026-03-31T20:41:12.153Z
+
+component_type: "class"
+description: "Abstract base class for work definitions that generate dynamic work at runtime. Subclasses implement createWork() to produce work items based on runtime context. Outputs serialized Work protobuf to stdout when executed."
+name: "DynamicWorkGeneratingWorkDefinition"
+responsibilities:
+  - "Generate work dynamically at runtime based on context"
+  - "Serialize generated work to protobuf stdout output"
+  - "Provide execution ID for custom work identification"
+  - "Support dynamic custom work definition registration"
+version: 1
+dependencies:
+  - "NativeWorkDefinition"
+  - "Work"
+  - "WorkContext"
+  - "PipelineOuterClass"
+interfaces:
+  - description: "Applies dynamic work definition to protobuf builder"
+    method: "applyTo(WorkContext containingContext, PipelineOuterClass.Work.Builder workBuilder)"
+    returns: "void"
+    preconditions:
+      - "Containing context must not be null"
+      - "Builder must not be null"
+    postconditions:
+      - "Builder is configured with DynamicWorkGeneratingWorkDefinition"
+      - "Execution ID is set in protobuf"
+  - description: "Executes the dynamic work generation by outputting protobuf to stdout"
+    method: "run()"
+    returns: "void"
+    postconditions:
+      - "Generated work is serialized to protobuf"
+      - "Output is written to System.out"
+      - "Stream is flushed"
+    invariants:
+      - "Execution produces valid Work protobuf bytes"
+  - description: "Creates the work to be executed dynamically"
+    method: "createWork()"
+    returns: "Work"
+    postconditions:
+      - "Result is non-null Work instance"
+      - "Work is ready for serialization"
+    invariants:
+      - "Work creation is deterministic for same context"
+  - description: "Returns stream of custom work definitions from dynamic generation"
+    method: "dynamicCustomWorkDefinitions()"
+    returns: "Stream<CustomWorkDefinition>"
+    postconditions:
+      - "Result may be empty if no custom work defined"
+    invariants:
+      - "Stream is lazily evaluated"
+contracts:
+  - "createWork() must return valid Work ready for serialization"
+  - "Generated work is serialized to stdout on execution"
+  - "Dynamic custom work definitions are registered for execution"
+  - "Execution ID identifies the generator instance"
+invariants:
+  - "createWork() is called during run() execution"
+  - "Output is valid Work protobuf format"
+  - "Dynamic work can include any work definition type"
+implementation_notes:
+  - "run() method is final to ensure proper protobuf output"
+  - "createWork() is called during execution, not at construction"
+  - "Dynamic custom work definitions are concatenated with parent native definitions"

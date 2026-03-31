@@ -1,0 +1,78 @@
+# Documentation: KubernetesExecutionEngine
+# Generated: 2026-03-31T20:41:36.784Z
+
+component_type: "class"
+description: "Kubernetes-based execution engine implementation. Builds container images using Jib and executes jobs as Kubernetes Jobs. Supports PVC-based volume mounts for sharing data between jobs. Handles job lifecycle, log streaming, and image registry management."
+name: "KubernetesExecutionEngine"
+responsibilities:
+  - "Build container images using Jib"
+  - "Execute jobs as Kubernetes Jobs"
+  - "Manage job lifecycle (create, monitor, cleanup)"
+  - "Stream pod logs"
+  - "Support PVC-based volume mounts"
+  - "Remove images from registry"
+version: 1
+dependencies:
+  - "AbstractExecutionEngine"
+  - "BatchV1Api"
+  - "CoreV1Api"
+  - "Jib"
+  - "Containerizer"
+  - "BuildImageDefinition"
+  - "JobDefinition"
+  - "JobResult"
+  - "PipelinePvcManager"
+  - "PvcMountInput"
+interfaces:
+  - description: "Builds container image using Jib"
+    method: "buildImage(BuildImageDefinition buildImageDefinition)"
+    returns: "CompletableFuture<BuildImageResult>"
+    preconditions:
+      - "Definition must have valid image base"
+      - "Artifact directory must exist"
+    postconditions:
+      - "Image is built and pushed to registry"
+      - "Result contains image reference"
+    invariants:
+      - "Build is asynchronous"
+  - description: "Removes image from registry"
+    method: "removeImage(String image)"
+    returns: "CompletableFuture<Void>"
+    postconditions:
+      - "Best-effort removal via registry API"
+      - "Future completes even if removal fails"
+    invariants:
+      - "Uses registry DELETE API endpoint"
+  - description: "Runs job as Kubernetes Job"
+    method: "runJob(JobDefinition jobDefinition)"
+    returns: "CompletableFuture<JobResult>"
+    preconditions:
+      - "Image must exist in registry"
+      - "PVC must exist if PVC mounts requested"
+    postconditions:
+      - "Job is created in yeetcd namespace"
+      - "Pod logs are streamed"
+      - "Job status is monitored until completion"
+      - "Job result contains exit code"
+      - "Error logs streamed on failure"
+    invariants:
+      - "Job has backoff limit of 1"
+      - "Pod restart policy is Never"
+contracts:
+  - "Jobs run in 'yeetcd' namespace"
+  - "Image building uses Jib for registry push"
+  - "PVC mounts use subPath for isolation"
+  - "Log streaming starts when containers are running"
+  - "Failed jobs stream logs to stderr"
+invariants:
+  - "Job name is UUID"
+  - "Pod labels use yeetcdJobLabel for identification"
+  - "PVC volumes mounted when PvcMountInput present"
+  - "Output directories use subPath: outputs/{workId}/{name}"
+  - "Registry deletion is best-effort (logs warnings)"
+implementation_notes:
+  - "Uses official kubernetes-client library"
+  - "Jib builds directly to registry without local daemon"
+  - "Job monitoring uses doAsyncUntil with 30s timeout"
+  - "Log streaming uses PodLogs.streamNamespacedPodLog"
+  - "PVC support requires PipelinePvcManager for PVC lifecycle"

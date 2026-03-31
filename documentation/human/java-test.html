@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>java-test Module - yeetcd Documentation</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .breadcrumb {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb .separator {
+            margin: 0 10px;
+            color: #999;
+        }
+
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #667eea;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+
+        h3 {
+            color: #555;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        h4 {
+            color: #666;
+            margin-top: 20px;
+            margin-bottom: 8px;
+        }
+
+        p {
+            margin-bottom: 15px;
+        }
+
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .responsibility-list {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .responsibility-list li {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-left: 4px solid #667eea;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .dependency-list, .subcomponent-list {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .dependency-list li, .subcomponent-list li {
+            display: inline-block;
+            background: #e3f2fd;
+            padding: 5px 12px;
+            margin: 5px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .dependency-list li a, .subcomponent-list li a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+
+        .diagram-container {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .component-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .badge-module {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .contracts-section {
+            background: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .contracts-section h3 {
+            color: #388e3c;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .contract-item {
+            background: white;
+            border-left: 4px solid #388e3c;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .invariants-section {
+            background: #fff3e0;
+            border: 1px solid #ffe0b2;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .invariants-section h3 {
+            color: #f57c00;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .invariant-item {
+            background: white;
+            border-left: 4px solid #ff9800;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .package-card {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .package-card h4 {
+            margin-top: 0;
+            color: #667eea;
+        }
+
+        .package-card a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .package-card a:hover {
+            text-decoration: underline;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 40px;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>java-test</h1>
+            <div class="subtitle">Testing Utilities for Pipeline Definitions</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="index.html">Home</a>
+            <span class="separator">/</span>
+            <span>java-test</span>
+        </div>
+
+        <div class="main-content">
+            <span class="component-badge badge-module">Module</span>
+
+            <h2>Description</h2>
+            <p>The java-test module provides testing utilities for unit testing pipeline definitions without requiring container execution. It offers a fake pipeline runner that simulates work execution in-memory, enabling fast, deterministic tests that can run without Docker or Kubernetes infrastructure.</p>
+            
+            <p>This module is essential for test-driven development of pipelines. Rather than waiting for slow container-based tests, developers can use FakePipelineRunner to verify pipeline logic, dependency resolution, and condition evaluation in milliseconds.</p>
+
+            <h2>Why java-test?</h2>
+            <p>Testing pipelines traditionally requires:</p>
+            <ul>
+                <li>Running Docker or Kubernetes infrastructure</li>
+                <li>Building container images</li>
+                <li>Waiting for actual work execution</li>
+                <li>Dealing with network and resource constraints</li>
+            </ul>
+            
+            <p>The java-test module eliminates these requirements by:</p>
+            <ul>
+                <li><strong>In-Memory Execution</strong>: Simulates work execution without containers</li>
+                <li><strong>Configurable Results</strong>: Specify exactly what results each work item should produce</li>
+                <li><strong>Fast Feedback</strong>: Tests run in milliseconds instead of minutes</li>
+                <li><strong>Deterministic Behavior</strong>: Same inputs always produce same outputs</li>
+                <li><strong>Production Logic</strong>: Uses the same condition evaluation logic as the real controller</li>
+            </ul>
+
+            <h2>Architecture</h2>
+            <div class="diagram-container">
+                <div class="mermaid">
+graph TD
+    subgraph java-test["Module: java-test"]
+        subgraph test["Package: yeetcd.test"]
+            runner["FakePipelineRunner<br/>Test orchestrator"]
+            run["FakePipelineRun<br/>Test configuration"]
+            result["FakePipelineRunResult<br/>Test results"]
+            matcher["FakeWorkMatcher<br/>Result matching"]
+            execution["FakeWorkExecution<br/>Execution stages"]
+        end
+    end
+    
+    test_code["Test Code"] -->|configures| run
+    run -->|passed to| runner
+    runner -->|produces| result
+    runner -->|uses| matcher
+    runner -->|tracks| execution
+    sdk["java-sdk<br/>Pipeline & Work"] --> runner
+    
+    style java-test fill:#e0f2f1,stroke:#00695c
+    style test fill:#e3f2fd,stroke:#1976d2
+    style runner fill:#f3e5f5,stroke:#7b1fa2
+                </div>
+            </div>
+
+            <h2>Responsibilities</h2>
+            <ul class="responsibility-list">
+                <li>Provide FakePipelineRunner for in-memory pipeline testing</li>
+                <li>Simulate work execution without container runtime</li>
+                <li>Support conditional work result specification</li>
+                <li>Track work execution stages and dependencies</li>
+                <li>Evaluate conditions in test context</li>
+            </ul>
+
+            <h2>Dependencies</h2>
+            <ul class="dependency-list">
+                <li>java-sdk</li>
+                <li>protocol</li>
+            </ul>
+
+            <h2>Packages</h2>
+            
+            <div class="package-card">
+                <h4><a href="java-test/yeetcd.test.html">yeetcd.test</a></h4>
+                <p>Core testing utilities including FakePipelineRunner for in-memory pipeline execution. Provides classes for configuring test runs, matching work items to specific results, and tracking execution stages.</p>
+            </div>
+
+            <div class="contracts-section">
+                <h3>Contracts</h3>
+                <div class="contract-item">
+                    <strong>Deterministic Execution:</strong> FakePipelineRunner executes work deterministically based on specified results, ensuring tests are reproducible.
+                </div>
+                <div class="contract-item">
+                    <strong>Production Condition Logic:</strong> Work conditions are evaluated using the same logic as production, ensuring test validity.
+                </div>
+                <div class="contract-item">
+                    <strong>Dependency Respect:</strong> All work dependencies are respected during simulated execution, maintaining execution order.
+                </div>
+                <div class="contract-item">
+                    <strong>Environment Capture:</strong> Test execution captures environment variables and input files as they would be in production.
+                </div>
+            </div>
+
+            <div class="invariants-section">
+                <h3>Invariants</h3>
+                <div class="invariant-item">
+                    <strong>Dependency Order:</strong> Work execution order respects the dependency graph, ensuring prerequisites complete before dependents.
+                </div>
+                <div class="invariant-item">
+                    <strong>Result Caching:</strong> Completed work results are cached and reused, ensuring idempotent execution within a test run.
+                </div>
+                <div class="invariant-item">
+                    <strong>Unique Work Keys:</strong> Work keys are unique based on work and merged context, enabling proper identification.
+                </div>
+            </div>
+
+            <h2>Usage Example</h2>
+            <p>Here's how to use FakePipelineRunner to test a pipeline:</p>
+            <pre style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 0.9em;"><code>@Test
+void testPipeline() {
+    // Create the pipeline under test
+    Pipeline pipeline = createMyPipeline();
+    
+    // Configure the fake runner
+    FakePipelineRunner runner = FakePipelineRunner.builder()
+        .defaultWorkResult(FakeWorkResult.builder()
+            .status(FakeWorkStatus.SUCCESS)
+            .stdOut("Build successful")
+            .build())
+        .build();
+    
+    // Run the pipeline
+    FakePipelineRunResult result = runner.run(
+        FakePipelineRun.builder(pipeline)
+            .arguments(Map.of("VERSION", "1.0.0"))
+            .build()
+    );
+    
+    // Assert results
+    assertEquals(FakePipelineStatus.SUCCESS, result.getStatus());
+    assertTrue(result.getWorkExecutions().size() > 0);
+}</code></pre>
+
+            <h2>Testing Philosophy</h2>
+            <p>The java-test module enables a testing pyramid approach for pipelines:</p>
+            <ul>
+                <li><strong>Unit Tests</strong>: Test individual work definitions and conditions in isolation</li>
+                <li><strong>Integration Tests</strong>: Test complete pipelines with FakePipelineRunner</li>
+                <li><strong>End-to-End Tests</strong>: Run actual pipelines with the controller (slower but necessary)</li>
+            </ul>
+            <p>By using FakePipelineRunner for the majority of tests, you get fast feedback during development while still having confidence that your pipeline logic is correct.</p>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            Generated by OpenCode Documentation Agent
+        </div>
+    </footer>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+</body>
+</html>

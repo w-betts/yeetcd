@@ -1,0 +1,31 @@
+# Documentation: java-sdk
+# Generated: 2026-03-31T20:40:31.763Z
+
+component_type: "module"
+description: "Java API for defining continuous deployment pipelines with container-based execution. Provides a fluent builder API for constructing pipeline definitions that are serialized to protobuf format for language-agnostic execution."
+name: "java-sdk"
+responsibilities:
+  - "Provide fluent API for pipeline definition"
+  - "Define work items and their dependencies"
+  - "Support multiple work definition types (containerized, custom, compound, dynamic)"
+  - "Serialize pipeline definitions to protobuf format"
+  - "Annotation processor generates pipeline definition runner code"
+  - "Manage work context and parameter passing between work items"
+version: 1
+dependencies:
+  - "protocol (protobuf definitions)"
+subcomponents:
+  - "yeetcd.sdk"
+  - "yeetcd.sdk.condition"
+contracts:
+  - "All pipelines must have a unique name within a project scope"
+  - "Pipeline definitions are immutable once created via builder pattern"
+  - "Work IDs are deterministically generated based on work content and context"
+  - "Native work definitions are registered in a static map keyed by pipeline name"
+  - "All protobuf serialization is deterministic for equivalent pipeline definitions"
+invariants:
+  - "Pipeline names are never null or empty"
+  - "Work IDs are unique within a pipeline context"
+  - "All work definitions have valid execution identifiers"
+  - "Work context maps are never null (empty context is represented as empty map)"
+  - "Previous work references form a directed acyclic graph (no circular dependencies)"

@@ -1,0 +1,60 @@
+# Documentation: AbstractExecutionEngine
+# Generated: 2026-03-31T20:41:30.208Z
+
+component_type: "class"
+description: "Abstract base class providing common async execution infrastructure for execution engines. Manages scheduled executor service and provides utility methods for async operations with retry logic and timeouts."
+name: "AbstractExecutionEngine"
+responsibilities:
+  - "Provide scheduled executor service for async operations"
+  - "Execute work asynchronously with CompletableFuture"
+  - "Support retry logic with exponential backoff"
+  - "Implement timeout handling for async operations"
+  - "Manage thread naming for monitoring"
+version: 1
+dependencies:
+  - "ScheduledExecutorService"
+  - "ScheduledThreadPoolExecutor"
+  - "CompletableFuture"
+  - "Duration"
+  - "AtomicInteger"
+interfaces:
+  - description: "Executes work asynchronously"
+    method: "doAsync(Supplier<T> work)"
+    returns: "CompletableFuture<T>"
+    preconditions:
+      - "Work supplier must not be null"
+    postconditions:
+      - "Work is submitted to executor"
+      - "Future completes with work result or exception"
+    invariants:
+      - "Execution is offloaded to separate thread"
+  - description: "Executes work asynchronously with retry until condition met"
+    method: "doAsyncUntil(Supplier<T> work, Predicate<T> workCheck, Duration timeLimit)"
+    returns: "CompletableFuture<T>"
+    preconditions:
+      - "Work supplier must not be null"
+      - "Work check predicate must not be null"
+      - "Time limit must be positive"
+    postconditions:
+      - "Future completes when work check passes"
+      - "Future completes exceptionally if time limit exceeded"
+      - "Retries with exponential backoff"
+    invariants:
+      - "First attempt is immediate"
+      - "Backoff increases exponentially up to max"
+      - "Max backoff is 15 seconds"
+contracts:
+  - "Async execution uses dedicated thread pool"
+  - "Retry logic uses exponential backoff starting at 100ms"
+  - "Maximum backoff is 15 seconds"
+  - "Time limits are enforced"
+invariants:
+  - "Executor service is shared per engine instance"
+  - "Thread names include engine class name and sequence number"
+  - "Thread pool has single core thread (grows as needed)"
+  - "All futures are backed by executor threads"
+implementation_notes:
+  - "Uses ScheduledThreadPoolExecutor with 1 core thread"
+  - "Thread factory names threads with class name and counter"
+  - "doAsyncUntil uses recursive retry scheduling"
+  - "Backoffs: start 100ms, double each retry, max 15000ms"

@@ -1,0 +1,27 @@
+# Documentation: java-test
+# Generated: 2026-03-31T20:40:32.916Z
+
+component_type: "module"
+description: "Testing utilities for unit testing pipeline definitions without requiring container execution. Provides a fake pipeline runner that simulates work execution in-memory for fast, deterministic tests."
+name: "java-test"
+responsibilities:
+  - "Provide FakePipelineRunner for in-memory pipeline testing"
+  - "Simulate work execution without container runtime"
+  - "Support conditional work result specification"
+  - "Track work execution stages and dependencies"
+  - "Evaluate conditions in test context"
+version: 1
+dependencies:
+  - "java-sdk"
+  - "protocol"
+subcomponents:
+  - "yeetcd.test"
+contracts:
+  - "FakePipelineRunner executes work deterministically based on specified results"
+  - "Work conditions are evaluated using the same logic as production"
+  - "All work dependencies are respected during simulated execution"
+  - "Test execution captures environment variables and input files"
+invariants:
+  - "Work execution order respects dependency graph"
+  - "Completed work results are cached and reused"
+  - "Work keys are unique based on work and merged context"

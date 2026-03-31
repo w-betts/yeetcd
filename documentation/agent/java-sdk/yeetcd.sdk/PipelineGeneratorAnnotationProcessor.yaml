@@ -1,0 +1,48 @@
+# Documentation: PipelineGeneratorAnnotationProcessor
+# Generated: 2026-03-31T20:41:06.075Z
+
+component_type: "class"
+description: "Annotation processor that generates pipeline definition runner classes at compile time. Processes @PipelineGenerator annotations to create GeneratedPipelineDefinitions and GeneratedCustomWorkRunner classes that enable runtime pipeline assembly and custom work execution."
+name: "PipelineGeneratorAnnotationProcessor"
+responsibilities:
+  - "Process @PipelineGenerator annotations at compile time"
+  - "Generate GeneratedPipelineDefinitions class for pipeline serialization"
+  - "Generate GeneratedCustomWorkRunner class for custom work execution"
+  - "Collect all annotated pipeline generator methods"
+  - "Create source files using Java annotation processing API"
+version: 1
+dependencies:
+  - "PipelineGenerator"
+  - "AbstractProcessor"
+  - "AutoService"
+  - "ProcessingEnvironment"
+  - "RoundEnvironment"
+interfaces:
+  - description: "Processes annotations during compilation rounds"
+    method: "process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv)"
+    returns: "boolean"
+    preconditions:
+      - "Annotations set contains PipelineGenerator annotation"
+      - "Round environment provides annotated elements"
+    postconditions:
+      - "GeneratedPipelineDefinitions class is created"
+      - "GeneratedCustomWorkRunner class is created"
+      - "Returns true to claim annotation"
+    invariants:
+      - "Processing is idempotent across multiple rounds"
+contracts:
+  - "All @PipelineGenerator annotated methods are discovered"
+  - "Generated classes are in yeetcd.sdk package"
+  - "GeneratedPipelineDefinitions.main() outputs protobuf to stdout"
+  - "GeneratedCustomWorkRunner.main() executes native work by pipeline and task name"
+  - "Method invocations in generated code use fully qualified names"
+invariants:
+  - "Annotation processor is registered via @AutoService"
+  - "Source version is RELEASE_17"
+  - "Generated code compiles without errors"
+  - "All pipeline generator methods are invoked in generated main()"
+implementation_notes:
+  - "Uses JavaPoet-style string templating for code generation"
+  - "Pipeline generator invocation snippets are collected and comma-separated"
+  - "Method names are resolved by traversing enclosing elements to build fully qualified name"
+  - "Source files are created using ProcessingEnvironment.getFiler()"
