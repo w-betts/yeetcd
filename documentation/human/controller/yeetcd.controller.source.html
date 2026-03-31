@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>yeetcd.controller.source Package - yeetcd Documentation</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .breadcrumb {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb .separator {
+            margin: 0 10px;
+            color: #999;
+        }
+
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #667eea;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+
+        h3 {
+            color: #555;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        h4 {
+            color: #666;
+            margin-top: 20px;
+            margin-bottom: 8px;
+        }
+
+        p {
+            margin-bottom: 15px;
+        }
+
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .responsibility-list {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .responsibility-list li {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-left: 4px solid #667eea;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .dependency-list, .subcomponent-list {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .dependency-list li, .subcomponent-list li {
+            display: inline-block;
+            background: #e3f2fd;
+            padding: 5px 12px;
+            margin: 5px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .diagram-container {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .diagram-container .mermaid {
+            display: inline-block;
+        }
+
+        .nav-sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .nav-sidebar h3 {
+            margin-top: 0;
+            color: #667eea;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .nav-sidebar ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .nav-sidebar li {
+            margin-bottom: 5px;
+        }
+
+        .nav-sidebar a {
+            color: #555;
+            text-decoration: none;
+            display: block;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .nav-sidebar a:hover {
+            background: #f5f5f5;
+            color: #667eea;
+        }
+
+        .nav-sidebar .current {
+            background: #e3f2fd;
+            color: #1976d2;
+            font-weight: bold;
+        }
+
+        .component-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .badge-package {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 40px;
+        }
+
+        .contracts-section {
+            background: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .contracts-section h3 {
+            color: #388e3c;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .contract-item {
+            background: white;
+            border-left: 4px solid #388e3c;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .invariants-section {
+            background: #fff3e0;
+            border: 1px solid #ffe0b2;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .invariants-section h3 {
+            color: #f57c00;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .invariant-item {
+            background: white;
+            border-left: 4px solid #ff9800;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .class-summary {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .class-summary h4 {
+            color: #667eea;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>yeetcd.controller.source</h1>
+            <div class="subtitle">Source Code Extraction and Building</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="../index.html">Documentation</a>
+            <span class="separator">&gt;</span>
+            <a href="../controller.html">controller Module</a>
+            <span class="separator">&gt;</span>
+            <span>yeetcd.controller.source Package</span>
+        </div>
+
+        <div class="two-column">
+            <div class="nav-sidebar">
+                <h3>Navigation</h3>
+                <ul>
+                    <li><a href="../index.html">Home</a></li>
+                    <li><a href="../protocol.html">protocol Module</a></li>
+                    <li><a href="../java-sdk.html">java-sdk Module</a></li>
+                    <li><a href="../controller.html">controller Module</a></li>
+                    <li><a href="yeetcd.controller.pipeline.html">yeetcd.controller.pipeline Package</a></li>
+                    <li><a href="yeetcd.controller.execution.html">yeetcd.controller.execution Package</a></li>
+                    <li><a href="yeetcd.controller.source.html" class="current">yeetcd.controller.source Package</a></li>
+                    <li><a href="../java-test.html">java-test Module</a></li>
+                </ul>
+            </div>
+
+            <div class="main-content">
+                <span class="component-badge badge-package">Package</span>
+
+                <h2>What is yeetcd.controller.source?</h2>
+                <p>The <strong>yeetcd.controller.source</strong> package handles the extraction and building of source code submitted to yeetcd. It extracts source code from zip archives, parses the <code>yeetcd.yaml</code> configuration file, and builds the source code using containerized build environments.</p>
+
+                <p>This package is the first step in the pipeline execution process. Before any work can be executed, the source code must be extracted, configured, and built into a runnable state. The build process runs in a container to ensure reproducibility and isolation.</p>
+
+                <h2>Why Does This Package Exist?</h2>
+                <p>Source code handling requires careful management:</p>
+                <ul>
+                    <li><strong>Zip Extraction:</strong> Safely extracting uploaded source archives</li>
+                    <li><strong>Configuration Parsing:</strong> Reading and validating yeetcd.yaml files</li>
+                    <li><strong>Containerized Builds:</strong> Running builds in isolated environments</li>
+                    <li><strong>Build Caching:</strong> Avoiding redundant builds for unchanged source</li>
+                    <li><strong>Artifact Management:</strong> Capturing build outputs for execution</li>
+                </ul>
+
+                <h2>Package Architecture</h2>
+                <div class="diagram-container">
+                    <div class="mermaid">
+classDiagram
+    class SourceExtractor {
+        +extract(byte[]) SourceExtractionResult
+        -parseYeetcdYaml(File) YeetcdDefinition
+    }
+    class SourceBuilder {
+        -ExecutionEngine executionEngine
+        -buildCache Map
+        +build(Source) SourceBuildResult
+        -calculateSHA(Source) String
+    }
+    class Source {
+        +Path directory
+        +YeetcdDefinition config
+        +String sha
+    }
+    class YeetcdDefinition {
+        +String name
+        +SourceLanguage language
+        +String buildImage
+        +String buildCmd
+        +List artifacts
+    }
+    class ArtifactDefinition {
+        +String name
+        +Path path
+    }
+
+    SourceExtractor --> Source : creates
+    SourceExtractor --> YeetcdDefinition : parses
+    SourceBuilder --> Source : builds
+    SourceBuilder --> ExecutionEngine : uses
+    Source --> YeetcdDefinition : contains
+    YeetcdDefinition --> ArtifactDefinition : defines
+                    </div>
+                </div>
+
+                <h2>Core Classes</h2>
+                
+                <div class="class-summary">
+                    <h4>SourceExtractor</h4>
+                    <p>Extracts source code from zip archives and parses the yeetcd.yaml configuration file. Validates that the extracted source contains a valid configuration and calculates a SHA for the source content.</p>
+                </div>
+
+                <div class="class-summary">
+                    <h4>SourceBuilder</h4>
+                    <p>Builds source code using the configured build image and command. Uses the ExecutionEngine to run builds in containers. Implements build caching based on source SHA to avoid redundant builds.</p>
+                </div>
+
+                <div class="class-summary">
+                    <h4>Source</h4>
+                    <p>Represents extracted source code ready for building. Contains the source directory path, the parsed yeetcd.yaml configuration, and a SHA hash for caching.</p>
+                </div>
+
+                <div class="class-summary">
+                    <h4>YeetcdDefinition</h4>
+                    <p>Parsed configuration from yeetcd.yaml. Defines the project name, language, build image, build command, and artifact definitions that should be captured after the build.</p>
+                </div>
+
+                <div class="class-summary">
+                    <h4>ArtifactDefinition</h4>
+                    <p>Defines a build artifact to capture. Specifies the artifact name and the path within the build container where the artifact can be found.</p>
+                </div>
+
+                <h2>Build Flow</h2>
+                <div class="diagram-container">
+                    <div class="mermaid">
+graph TD
+    A[Receive zip archive] --> B[Extract to temp directory]
+    B --> C[Parse yeetcd.yaml]
+    C --> D{Valid config?}
+    D -->|No| E[Return error]
+    D -->|Yes| F[Calculate source SHA]
+    F --> G[Create Source object]
+    G --> H{In cache?}
+    H -->|Yes| I[Return cached result]
+    H -->|No| J[Create build container]
+    J --> K[Run build command]
+    K --> L{Build success?}
+    L -->|No| M[Return build error]
+    L -->|Yes| N[Extract artifacts]
+    N --> O[Cache result by SHA]
+    O --> P[Return SourceBuildResult]
+                    </div>
+                </div>
+
+                <div class="contracts-section">
+                    <h3>Contracts</h3>
+                    <div class="contract-item">Source extraction produces valid directories with yeetcd.yaml files</div>
+                    <div class="contract-item">Build caching uses source SHA as cache key</div>
+                    <div class="contract-item">Build commands are executed in isolated containers</div>
+                    <div class="contract-item">All artifacts defined in yeetcd.yaml are captured after build</div>
+                </div>
+
+                <div class="invariants-section">
+                    <h3>Invariants</h3>
+                    <div class="invariant-item">Extracted source directories are temporary and marked for cleanup</div>
+                    <div class="invariant-item">Build cache is bounded (TODO: implement size limit)</div>
+                    <div class="invariant-item">Source SHA uniquely identifies buildable source state</div>
+                </div>
+
+                <h2>Responsibilities</h2>
+                <ul class="responsibility-list">
+                    <li>Extract source code from zip archives</li>
+                    <li>Parse yeetcd.yaml configuration files</li>
+                    <li>Build source code using containerized build environments</li>
+                    <li>Cache build results based on source SHA</li>
+                    <li>Manage artifact definitions and output directories</li>
+                </ul>
+
+                <h2>Dependencies</h2>
+                <ul class="dependency-list">
+                    <li>yeetcd.controller.execution</li>
+                    <li>jackson (YAML parsing)</li>
+                    <li>apache-commons-compress (zip extraction)</li>
+                </ul>
+
+                <h2>Subcomponents</h2>
+                <ul class="subcomponent-list">
+                    <li>SourceExtractor</li>
+                    <li>SourceBuilder</li>
+                    <li>Source</li>
+                    <li>SourceExtractionResult</li>
+                    <li>SourceBuildResult</li>
+                    <li>YeetcdDefinition</li>
+                    <li>ArtifactDefinition</li>
+                    <li>SourceLanguage</li>
+                    <li>ZipExtractor</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            Generated by OpenCode Documentation Agent
+        </div>
+    </footer>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+</body>
+</html>
