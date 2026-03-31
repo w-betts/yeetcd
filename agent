@@ -73,6 +73,8 @@ class WorkItem:
             return self._get_spec_status()
         elif self.workflow_type == "vibe":
             return self._get_vibe_status()
+        elif self.workflow_type == "document":
+            return self._get_document_status()
         else:
             return "unknown"
     
@@ -121,6 +123,11 @@ class WorkItem:
     def _get_vibe_status(self) -> str:
         """Get status for vibe workflow."""
         # Vibe doesn't have structured status, just check if worktree exists
+        return "active"
+    
+    def _get_document_status(self) -> str:
+        """Get status for document workflow."""
+        # Document doesn't have structured status, just check if worktree exists
         return "active"
     
     def is_merged(self) -> bool:

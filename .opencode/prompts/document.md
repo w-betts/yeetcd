@@ -155,11 +155,37 @@ Before running documentation, determine what needs to be updated:
 ### Completion
 
 - Update `.opencode/last-doc-run.json` with current timestamp
+- **Commit the changes**:
+  1. Run `git status` to see all changes
+  2. Run `git diff` to review the changes
+  3. Run `git log -3 --oneline` to see recent commit message style
+  4. Stage relevant files with `git add`
+  5. Commit with a descriptive message following the existing style (e.g., "docs: update documentation for <component>")
 - Report final status to the user with:
   - Summary of YAML documentation created/updated
   - Location of HTML documentation
   - How to view the documentation
   - Orphaned documentation cleaned up
+  - Commit created
+
+## Work Completion Workflow (Worktree Merge)
+
+After committing documentation changes, **use the question tool** to ask if the user wants to merge the work to main. If yes, execute the work completion workflow:
+
+1. **Check if in worktree**: Run `git worktree list` to verify we're in a worktree (not the main worktree)
+2. **Fetch remote**: Run `git fetch origin main` to update the remote tracking branch
+3. **Rebase onto LOCAL main**: Run `git rebase main` to rebase the worktree commits onto the LOCAL main branch (NOT origin/main - this preserves any local main commits that haven't been pushed yet)
+4. **Handle conflicts** (if any):
+   - Try to auto-resolve simple conflicts (e.g., both sides added different lines)
+   - For complex conflicts, **use the question tool** to present the conflict and ask how to resolve
+   - Options: "Accept incoming (main)", "Accept current (work)", "Edit manually", "Abort rebase"
+   - If user chooses to edit manually, wait for them to resolve, then continue with `git rebase --continue`
+   - If user aborts, stop the workflow and report status
+5. **Fast-forward main**: Run `git push . HEAD:main` to update the main branch in-place
+6. **Push main to remote**: Run `git push origin main`
+7. **Report success**: Inform the user that the work has been merged to main
+
+Note: Do NOT clean up the worktree - the agent script handles cleanup on startup.
 
 ## Key Principles
 
