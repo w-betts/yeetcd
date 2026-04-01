@@ -1,9 +1,12 @@
 package pipeline
 
+import "github.com/yeetcd/yeetcd/internal/core/types"
+
 // PipelineStatus represents the status of a pipeline execution
-type PipelineStatus int
+// This is an alias for types.PipelineStatus for backward compatibility
+type PipelineStatus = types.PipelineStatus
 
 const (
-	PipelineSuccess PipelineStatus = iota
-	PipelineFailure
+	PipelineSuccess = types.PipelineSuccess
+	PipelineFailure = types.PipelineFailure
 )

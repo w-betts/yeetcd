@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"context"
 	"fmt"
 
 	pb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
@@ -73,10 +72,7 @@ func WorkFromProtobuf(protoWork *pb.Work) (*Work, error) {
 	return work, nil
 }
 
-// Execute runs the work with the given context and engine
-func (w *Work) Execute(ctx context.Context, containingContext WorkContext, engine interface{}, metadata PipelineMetadata, tracker *WorkResultTracker, handler interface{}) (*WorkResult, error) {
-	return nil, fmt.Errorf("not implemented")
-}
+
 
 // PreviousWorkStdOutAsWorkContext returns previous work stdout as work context
 func (w *Work) PreviousWorkStdOutAsWorkContext() WorkContext {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	pipelinepb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
-	"github.com/yeetcd/yeetcd/internal/core/pipeline"
+	"github.com/yeetcd/yeetcd/internal/core/types"
 )
 
 // WorkStatus represents previous work status
@@ -33,22 +33,22 @@ func NewPreviousWorkStatusCondition(status WorkStatus) *PreviousWorkStatusCondit
 }
 
 // Evaluate checks if previous work status matches condition
-func (p *PreviousWorkStatusCondition) Evaluate(workContext pipeline.WorkContext, workResultTracker *pipeline.WorkResultTracker) (bool, error) {
+func (p *PreviousWorkStatusCondition) Evaluate(workContext types.WorkContext, workResultTracker types.WorkResultTracker) (bool, error) {
 	if workResultTracker == nil {
 		return false, errors.New("previous work result is nil")
 	}
-	
+
 	// Get the last work result from the tracker
 	lastResult := workResultTracker.GetLastResult("")
 	if lastResult == nil {
 		return false, errors.New("no previous work result available")
 	}
-	
+
 	switch p.Status {
 	case WorkStatusSuccess:
-		return lastResult.WorkStatus == pipeline.WorkStatusSucceeded, nil
+		return lastResult.WorkStatus == types.WorkStatusSucceeded, nil
 	case WorkStatusFailure:
-		return lastResult.WorkStatus == pipeline.WorkStatusFailed, nil
+		return lastResult.WorkStatus == types.WorkStatusFailed, nil
 	case WorkStatusAny:
 		return true, nil
 	default:
@@ -69,7 +69,7 @@ func (p *PreviousWorkStatusCondition) ToProtobuf() (*pipelinepb.Condition, error
 	default:
 		return nil, fmt.Errorf("unknown work status: %v", p.Status)
 	}
-	
+
 	return &pipelinepb.Condition{
 		Conditions: &pipelinepb.Condition_PreviousWorkStatusCondition{
 			PreviousWorkStatusCondition: &pipelinepb.PreviousWorkStatusCondition{
@@ -79,12 +79,12 @@ func (p *PreviousWorkStatusCondition) ToProtobuf() (*pipelinepb.Condition, error
 	}, nil
 }
 
-// FromProtobuf converts protobuf PreviousWorkStatusCondition to Go struct
+// PreviousWorkStatusConditionFromProtobuf converts protobuf PreviousWorkStatusCondition to Go struct
 func PreviousWorkStatusConditionFromProtobuf(proto *pipelinepb.PreviousWorkStatusCondition) (*PreviousWorkStatusCondition, error) {
 	if proto == nil {
 		return nil, errors.New("proto PreviousWorkStatusCondition is nil")
 	}
-	
+
 	var status WorkStatus
 	switch proto.Status {
 	case pipelinepb.PreviousWorkStatusCondition_SUCCESS:
@@ -96,7 +96,7 @@ func PreviousWorkStatusConditionFromProtobuf(proto *pipelinepb.PreviousWorkStatu
 	default:
 		return nil, fmt.Errorf("unknown proto status: %v", proto.Status)
 	}
-	
+
 	return &PreviousWorkStatusCondition{
 		Status: status,
 	}, nil

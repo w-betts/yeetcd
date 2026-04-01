@@ -1,8 +1,7 @@
 package pipeline
 
+import "github.com/yeetcd/yeetcd/internal/core/types"
+
 // WorkResult represents the result of work execution
-type WorkResult struct {
-	WorkStatus              WorkStatus
-	OutputDirectoriesParent string
-	JobStreams              interface{} // JobStreams
-}
+// This is an alias for types.WorkResult for backward compatibility
+type WorkResult = types.WorkResult

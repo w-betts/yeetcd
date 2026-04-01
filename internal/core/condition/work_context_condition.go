@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	pipelinepb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
-	"github.com/yeetcd/yeetcd/internal/core/pipeline"
+	"github.com/yeetcd/yeetcd/internal/core/types"
 )
 
 // Operator represents comparison operators
@@ -32,16 +32,16 @@ func NewWorkContextCondition(key, expectedValue string, operator Operator) *Work
 }
 
 // Evaluate checks if work context matches condition
-func (w *WorkContextCondition) Evaluate(workContext pipeline.WorkContext, workResultTracker *pipeline.WorkResultTracker) (bool, error) {
+func (w *WorkContextCondition) Evaluate(workContext types.WorkContext, workResultTracker types.WorkResultTracker) (bool, error) {
 	if workContext == nil {
 		return false, errors.New("work context is nil")
 	}
-	
+
 	value, exists := workContext[w.Key]
 	if !exists {
 		return false, fmt.Errorf("key '%s' not found in work context", w.Key)
 	}
-	
+
 	switch w.Operator {
 	case OperatorEquals:
 		return value == w.ExpectedValue, nil
@@ -59,7 +59,7 @@ func (w *WorkContextCondition) ToProtobuf() (*pipelinepb.Condition, error) {
 	default:
 		return nil, fmt.Errorf("unknown operator: %v", w.Operator)
 	}
-	
+
 	return &pipelinepb.Condition{
 		Conditions: &pipelinepb.Condition_WorkContextCondition{
 			WorkContextCondition: &pipelinepb.WorkContextCondition{
@@ -71,12 +71,12 @@ func (w *WorkContextCondition) ToProtobuf() (*pipelinepb.Condition, error) {
 	}, nil
 }
 
-// FromProtobuf converts protobuf WorkContextCondition to Go struct
+// WorkContextConditionFromProtobuf converts protobuf WorkContextCondition to Go struct
 func WorkContextConditionFromProtobuf(proto *pipelinepb.WorkContextCondition) (*WorkContextCondition, error) {
 	if proto == nil {
 		return nil, errors.New("proto WorkContextCondition is nil")
 	}
-	
+
 	var operator Operator
 	switch proto.Operand {
 	case pipelinepb.WorkContextCondition_EQUALS:
@@ -84,7 +84,7 @@ func WorkContextConditionFromProtobuf(proto *pipelinepb.WorkContextCondition) (*
 	default:
 		return nil, fmt.Errorf("unknown proto operator: %v", proto.Operand)
 	}
-	
+
 	return &WorkContextCondition{
 		Key:           proto.Key,
 		ExpectedValue: proto.Value,

@@ -1,36 +1,16 @@
 package pipeline
 
+import "github.com/yeetcd/yeetcd/internal/core/types"
+
 // WorkContext is a map of key-value pairs for work context
-type WorkContext map[string]string
+// This is an alias for types.WorkContext for backward compatibility
+type WorkContext = types.WorkContext
 
-// Empty creates an empty WorkContext
-func EmptyWorkContext() WorkContext {
-	return make(WorkContext)
-}
+// EmptyWorkContext creates an empty WorkContext
+var EmptyWorkContext = types.EmptyWorkContext
 
-// FromMap creates a WorkContext from a map
-func WorkContextFromMap(m map[string]string) WorkContext {
-	return WorkContext(m)
-}
+// WorkContextFromMap creates a WorkContext from a map
+var WorkContextFromMap = types.WorkContextFromMap
 
-// NewWorkContext creates a new WorkContext from a map (alias for WorkContextFromMap)
-func NewWorkContext(m map[string]string) WorkContext {
-	return WorkContext(m)
-}
-
-// MergeInto merges this context into another, with source overriding destination
-func (wc WorkContext) MergeInto(dest WorkContext) WorkContext {
-	result := make(WorkContext)
-	
-	// First copy all from destination
-	for k, v := range dest {
-		result[k] = v
-	}
-	
-	// Then override with source values
-	for k, v := range wc {
-		result[k] = v
-	}
-	
-	return result
-}
+// NewWorkContext creates a new WorkContext from a map
+var NewWorkContext = types.NewWorkContext
