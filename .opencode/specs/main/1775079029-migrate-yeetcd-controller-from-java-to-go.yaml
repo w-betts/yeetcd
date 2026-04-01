@@ -1,5 +1,5 @@
 # Spec (updated)
-# Updated: 2026-04-01T22:29:03.734Z
+# Updated: 2026-04-01T22:32:57.882Z
 
 version: 2
 problem_statement: "The yeetcd controller is currently implemented in Java, requiring a JVM and making deployment heavier than needed. We need to migrate the core controller functionality to Go to support three execution modes: (1) CLI with Docker executor for local development, (2) CLI with Mock executor for testing, and (3) Kubernetes Operator for production deployment. The immediate scope is CLI + Docker executor, but the core package interfaces must be designed to support all three modes."
@@ -609,7 +609,7 @@ phases:
           THEN: Returns PipelineStatus.SUCCESS"
   - name: "Phase 2: Docker Execution Engine"
     description: "Implement DockerExecutionEngine with BuildImage, RunJob, RemoveImage methods. Implement BuildService for source building. Unit tests with mocked Docker client, integration tests with real Docker."
-    status: "pending"
+    status: "in_progress"
     is_release_boundary: false
     file_changes:
       - path: "pkg/engine/docker/docker_engine.go"
@@ -1502,6 +1502,26 @@ addressed_issues:
     resolution: "clarified"
     resolution_note: "SourceLanguage interface will include GetImageBase() ImageBase and GetGeneratePipelineDefinitionsCmd() string methods. This mirrors the Java design and provides clean integration between SourceLanguage and ImageBase."
     timestamp: "2026-04-01T21:59:59.210Z"
+  - issue: "ImageBase.BaseImage() returns empty string - needs to return 'maven:3.9.9-eclipse-temurin-17' for JAVA"
+    resolution: "fixed"
+    resolution_note: "Implemented BaseImage() to return correct base image for JAVA enum value"
+    timestamp: "2026-04-01T22:32:50.933Z"
+  - issue: "ImageBase.EntryPoint() has wrong signature - needs parameters (artifactParentDirectoryPath, artifactDefinitionNames) to build classpath args"
+    resolution: "fixed"
+    resolution_note: "Updated EntryPoint() to take artifactParentDirectoryPath and artifactDefinitionNames parameters and return []string with java -cp command"
+    timestamp: "2026-04-01T22:32:51.789Z"
+  - issue: "JobStreams.NewJobStreams() ignores passed-in io.Writer parameters - breaks output capture"
+    resolution: "fixed"
+    resolution_note: "Updated NewJobStreams() to use provided writers, falling back to internal buffers only when nil is passed"
+    timestamp: "2026-04-01T22:32:52.428Z"
+  - issue: "Source.SHA256() returns empty string - needs actual SHA256 implementation"
+    resolution: "fixed"
+    resolution_note: "Implemented SHA256() using crypto/sha256 to compute hex-encoded hash of zip contents"
+    timestamp: "2026-04-01T22:32:53.015Z"
+  - issue: "BuildResult missing SourceBuildResult slice per spec"
+    resolution: "fixed"
+    resolution_note: "Added SourceBuildResult struct and SourceBuildResults field to BuildResult"
+    timestamp: "2026-04-01T22:32:53.596Z"
 review:
   status: "failed"
   reviewer: "reviewer"
