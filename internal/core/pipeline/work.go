@@ -75,16 +75,36 @@ func WorkFromProtobuf(protoWork *pb.Work) (*Work, error) {
 
 
 // PreviousWorkStdOutAsWorkContext returns previous work stdout as work context
-func (w *Work) PreviousWorkStdOutAsWorkContext() WorkContext {
-	return WorkContext{}
+func (w *Work) PreviousWorkStdOutAsWorkContext(tracker *WorkResultTracker) WorkContext {
+	ctx := make(WorkContext)
+	for _, prevWork := range w.PreviousWork {
+		if prevWork.StdOutEnvVar != "" {
+			stdout := tracker.StdOut(prevWork.Work)
+			ctx[prevWork.StdOutEnvVar] = stdout
+		}
+	}
+	return ctx
 }
 
 // PreviousWorkMountInputs returns mount inputs from previous work
-func (w *Work) PreviousWorkMountInputs() map[string]interface{} {
-	return nil
+func (w *Work) PreviousWorkMountInputs(tracker *WorkResultTracker) map[string]interface{} {
+	mounts := make(map[string]interface{})
+	for _, prevWork := range w.PreviousWork {
+		if prevWork.OutputPathsMount != "" {
+			mountInput := tracker.OutputDirectoriesMountInput(prevWork.Work)
+			if mountInput != nil {
+				mounts[prevWork.OutputPathsMount] = mountInput
+			}
+		}
+	}
+	return mounts
 }
 
 // OutputDirectoryPaths returns output directory paths
 func (w *Work) OutputDirectoryPaths() map[string]string {
-	return nil
+	paths := make(map[string]string, len(w.OutputPaths))
+	for _, outputPath := range w.OutputPaths {
+		paths[outputPath.Name] = outputPath.Path
+	}
+	return paths
 }

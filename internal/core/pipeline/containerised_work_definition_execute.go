@@ -26,13 +26,13 @@ func (c *ContainerisedWorkDefinition) Execute(ctx context.Context, work Work, en
 	mergedContext := work.WorkContext
 
 	// Add previous work stdout as environment variables
-	prevWorkStdOutContext := work.PreviousWorkStdOutAsWorkContext()
+	prevWorkStdOutContext := work.PreviousWorkStdOutAsWorkContext(tracker)
 	for k, v := range prevWorkStdOutContext {
 		mergedContext[k] = v
 	}
 
 	// Get mount inputs from previous work
-	mountInputs := work.PreviousWorkMountInputs()
+	mountInputs := work.PreviousWorkMountInputs(tracker)
 
 	// Convert mount inputs to engine.MountInput
 	inputFilePaths := make(map[string]engine.MountInput)

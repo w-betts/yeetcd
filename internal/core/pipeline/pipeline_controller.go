@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	pb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
 	"github.com/yeetcd/yeetcd/pkg/build"
 	"github.com/yeetcd/yeetcd/pkg/engine"
 )
@@ -26,7 +27,31 @@ func NewPipelineController(buildService build.BuildService, sourceExtractor buil
 
 // Assemble extracts source, builds it, builds source image, runs container to generate protobuf definitions, parses into Pipeline structs
 func (pc *PipelineController) Assemble(ctx context.Context, source build.Source) ([]*Pipeline, error) {
-	return nil, fmt.Errorf("not implemented")
+	// Build the source using the build service
+	buildResult, err := pc.buildService.Build(ctx, source)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build source: %w", err)
+	}
+
+	// Parse protobuf Pipeline messages into Go Pipeline structs
+	pipelines := make([]*Pipeline, 0, len(buildResult.Pipelines))
+	for _, protoPipeline := range buildResult.Pipelines {
+		// Type assert to protobuf Pipeline type
+		pbPipeline, ok := protoPipeline.(*pb.Pipeline)
+		if !ok {
+			return nil, fmt.Errorf("invalid pipeline type: expected *pb.Pipeline, got %T", protoPipeline)
+		}
+
+		// Convert protobuf to Go struct
+		pipeline, err := FromProtobuf(pbPipeline)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse pipeline: %w", err)
+		}
+
+		pipelines = append(pipelines, pipeline)
+	}
+
+	return pipelines, nil
 }
 
 // Execute creates WorkResultTracker, records PipelineStarted event, executes all final work items,

@@ -30,7 +30,7 @@ func (w *Work) Execute(ctx context.Context, containingContext types.WorkContext,
 				workContext := w.WorkContext.MergeInto(containingContext)
 
 				// Add previous work stdout as context if configured
-				prevWorkStdOutContext := w.PreviousWorkStdOutAsWorkContext()
+				prevWorkStdOutContext := w.PreviousWorkStdOutAsWorkContext(tracker)
 				for k, v := range prevWorkStdOutContext {
 					workContext[k] = v
 				}
