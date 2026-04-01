@@ -2,6 +2,8 @@ package docker
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,42 +12,10 @@ import (
 )
 
 // TestDockerExecutionEngine_BuildImage_Integration tests building a Docker image
-// Given: A valid BuildImageDefinition with a simple Dockerfile
+// Given: A valid BuildImageDefinition with artifacts
 // When: BuildImage is called
 // Then: It should successfully build the image and return a valid image ID
 func TestDockerExecutionEngine_BuildImage_Integration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
-
-	ctx := context.Background()
-
-	// Create engine (no parameters needed)
-	eng, err := NewDockerExecutionEngine()
-	require.NoError(t, err)
-
-	// Create build definition using correct types
-	buildDef := engine.BuildImageDefinition{
-		Image:             "test",
-		Tag:               "v1",
-		ImageBase:         engine.JAVA,
-		ArtifactDirectory: "/tmp/artifacts",
-		ArtifactNames:     []string{"classes", "dependencies"},
-		Cmd:               "TestMain",
-	}
-
-	// Build the image - should fail with "not implemented" since it's a stub
-	result, err := eng.BuildImage(ctx, buildDef)
-	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
-	assert.Nil(t, result)
-}
-
-// TestDockerExecutionEngine_BuildImage_WithBuildArgs_Integration tests building with build args
-// Given: A BuildImageDefinition with build arguments
-// When: BuildImage is called
-// Then: It should successfully build the image with the provided build arguments
-func TestDockerExecutionEngine_BuildImage_WithBuildArgs_Integration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
@@ -56,16 +26,35 @@ func TestDockerExecutionEngine_BuildImage_WithBuildArgs_Integration(t *testing.T
 	eng, err := NewDockerExecutionEngine()
 	require.NoError(t, err)
 
+	// Create temp artifact directory with test files
+	artifactDir := t.TempDir()
+	classesDir := filepath.Join(artifactDir, "classes")
+	depsDir := filepath.Join(artifactDir, "dependencies")
+	require.NoError(t, os.MkdirAll(classesDir, 0755))
+	require.NoError(t, os.MkdirAll(depsDir, 0755))
+	// Write a dummy class file
+	require.NoError(t, os.WriteFile(filepath.Join(classesDir, "Test.class"), []byte("test"), 0644))
+
+	// Create build definition
 	buildDef := engine.BuildImageDefinition{
-		Image: "test",
-		Tag:   "v1",
+		Image:             "yeetcd-test-build",
+		Tag:               "v1",
+		ImageBase:         engine.JAVA,
+		ArtifactDirectory: artifactDir,
+		ArtifactNames:     []string{"classes", "dependencies"},
+		Cmd:               "TestMain",
 	}
 
-	// Build the image - should fail with "not implemented"
+	// Build the image
 	result, err := eng.BuildImage(ctx, buildDef)
-	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
-	assert.Nil(t, result)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.ImageID)
+
+	// Cleanup: remove the image
+	defer func() {
+		_ = eng.RemoveImage(ctx, result.ImageID)
+	}()
 }
 
 // TestDockerExecutionEngine_RemoveImage_Integration tests removing a Docker image
@@ -83,18 +72,33 @@ func TestDockerExecutionEngine_RemoveImage_Integration(t *testing.T) {
 	eng, err := NewDockerExecutionEngine()
 	require.NoError(t, err)
 
-	imageID := "sha256:abc123"
+	// First build an image to remove
+	artifactDir := t.TempDir()
+	classesDir := filepath.Join(artifactDir, "classes")
+	require.NoError(t, os.MkdirAll(classesDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(classesDir, "Test.class"), []byte("test"), 0644))
 
-	// Remove the image - should fail with "not implemented"
-	err = eng.RemoveImage(ctx, imageID)
-	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
+	buildDef := engine.BuildImageDefinition{
+		Image:             "yeetcd-test-remove",
+		Tag:               "v1",
+		ImageBase:         engine.JAVA,
+		ArtifactDirectory: artifactDir,
+		ArtifactNames:     []string{"classes"},
+		Cmd:               "TestMain",
+	}
+
+	result, err := eng.BuildImage(ctx, buildDef)
+	require.NoError(t, err)
+
+	// Remove the image
+	err = eng.RemoveImage(ctx, result.ImageID)
+	assert.NoError(t, err)
 }
 
 // TestDockerExecutionEngine_RunJob_Integration tests running a container job
 // Given: A valid JobDefinition with a simple container command
 // When: RunJob is called
-// Then: It should successfully run the job and return the exit code and output
+// Then: It should successfully run the job and return the exit code
 func TestDockerExecutionEngine_RunJob_Integration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
@@ -106,17 +110,17 @@ func TestDockerExecutionEngine_RunJob_Integration(t *testing.T) {
 	eng, err := NewDockerExecutionEngine()
 	require.NoError(t, err)
 
-	// Create job definition using correct types
+	// Create job definition
 	jobDef := engine.JobDefinition{
 		Image: "alpine:latest",
 		Cmd:   []string{"echo", "hello"},
 	}
 
-	// Run the job - should fail with "not implemented"
+	// Run the job
 	result, err := eng.RunJob(ctx, jobDef)
-	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
-	assert.Nil(t, result)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 0, result.ExitCode)
 }
 
 // TestDockerExecutionEngine_RunJob_WithEnvVars_Integration tests running with environment variables
@@ -134,20 +138,20 @@ func TestDockerExecutionEngine_RunJob_WithEnvVars_Integration(t *testing.T) {
 	eng, err := NewDockerExecutionEngine()
 	require.NoError(t, err)
 
-	// Create job definition using correct types
+	// Create job definition with environment variables
 	jobDef := engine.JobDefinition{
 		Image: "alpine:latest",
-		Cmd:   []string{"sh", "-c", "echo $MY_VAR"},
+		Cmd:   []string{"sh", "-c", "test $MY_VAR = test_value"},
 		Environment: map[string]string{
 			"MY_VAR": "test_value",
 		},
 	}
 
-	// Run the job - should fail with "not implemented"
+	// Run the job
 	result, err := eng.RunJob(ctx, jobDef)
-	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
-	assert.Nil(t, result)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 0, result.ExitCode)
 }
 
 // TestDockerExecutionEngine_RunJob_WithMounts_Integration tests running with volume mounts
@@ -165,20 +169,25 @@ func TestDockerExecutionEngine_RunJob_WithMounts_Integration(t *testing.T) {
 	eng, err := NewDockerExecutionEngine()
 	require.NoError(t, err)
 
-	// Create job definition using correct types with OnDiskMountInput
+	// Create temp directory with test file
+	hostDir := t.TempDir()
+	testFile := filepath.Join(hostDir, "test.txt")
+	require.NoError(t, os.WriteFile(testFile, []byte("hello from host"), 0644))
+
+	// Create job definition with mount
 	jobDef := engine.JobDefinition{
 		Image: "alpine:latest",
 		Cmd:   []string{"cat", "/mnt/test.txt"},
 		InputFilePaths: map[string]engine.MountInput{
-			"/mnt": engine.OnDiskMountInput{Dir: "/tmp/test"},
+			"/mnt": engine.OnDiskMountInput{Dir: hostDir},
 		},
 	}
 
-	// Run the job - should fail with "not implemented"
+	// Run the job
 	result, err := eng.RunJob(ctx, jobDef)
-	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
-	assert.Nil(t, result)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 0, result.ExitCode)
 }
 
 // TestDockerExecutionEngine_RunJob_WithOutputDirs_Integration tests running with output directories
@@ -196,7 +205,7 @@ func TestDockerExecutionEngine_RunJob_WithOutputDirs_Integration(t *testing.T) {
 	eng, err := NewDockerExecutionEngine()
 	require.NoError(t, err)
 
-	// Create job definition using correct types with output directories
+	// Create job definition with output directories
 	jobDef := engine.JobDefinition{
 		Image: "alpine:latest",
 		Cmd:   []string{"sh", "-c", "mkdir -p /output && echo hello > /output/result.txt"},
@@ -205,11 +214,18 @@ func TestDockerExecutionEngine_RunJob_WithOutputDirs_Integration(t *testing.T) {
 		},
 	}
 
-	// Run the job - should fail with "not implemented"
+	// Run the job
 	result, err := eng.RunJob(ctx, jobDef)
-	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
-	assert.Nil(t, result)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 0, result.ExitCode)
+	assert.NotEmpty(t, result.OutputDirectoriesParent)
+
+	// Verify the output file was extracted
+	outputFile := filepath.Join(result.OutputDirectoriesParent, "output", "result.txt")
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "hello")
 }
 
 // TestDockerExecutionEngine_RunJob_WithStreams_Integration tests running with job streams
@@ -230,16 +246,20 @@ func TestDockerExecutionEngine_RunJob_WithStreams_Integration(t *testing.T) {
 	// Create job streams
 	streams := engine.NewJobStreams(nil, nil)
 
-	// Create job definition using correct types
+	// Create job definition
 	jobDef := engine.JobDefinition{
 		Image:      "alpine:latest",
 		Cmd:        []string{"echo", "hello"},
 		JobStreams: streams,
 	}
 
-	// Run the job - should fail with "not implemented"
+	// Run the job
 	result, err := eng.RunJob(ctx, jobDef)
-	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
-	assert.Nil(t, result)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 0, result.ExitCode)
+
+	// Verify stdout was captured
+	stdout := streams.GetStdOut()
+	assert.Contains(t, string(stdout), "hello")
 }

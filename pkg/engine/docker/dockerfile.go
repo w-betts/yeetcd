@@ -2,12 +2,65 @@ package docker
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/yeetcd/yeetcd/pkg/engine"
 )
 
-// CreateDockerfile generates a Dockerfile for building images
+// CreateDockerfile generates a Dockerfile for building images.
+// It creates a Dockerfile in the context directory and returns the path and a cleanup function.
 func CreateDockerfile(ctx context.Context, def engine.BuildImageDefinition, contextDir string) (string, func(), error) {
-	return "", nil, errors.New("not implemented")
+	// Create Dockerfile path
+	dockerfile := filepath.Join(contextDir, "Dockerfile")
+
+	// Get base image
+	baseImage := def.ImageBase.BaseImage()
+	if baseImage == "" {
+		return "", nil, fmt.Errorf("unknown image base: %d", def.ImageBase)
+	}
+
+	// Get entrypoint
+	entrypoint := def.ImageBase.EntryPoint("/artifacts", def.ArtifactNames)
+	if len(entrypoint) == 0 {
+		return "", nil, fmt.Errorf("no entrypoint for image base: %d", def.ImageBase)
+	}
+
+	// Format entrypoint as JSON array
+	entrypointJSON := formatJSONArray(entrypoint)
+
+	// Format CMD
+	cmdJSON := fmt.Sprintf(`["%s"]`, def.Cmd)
+
+	// Build Dockerfile content
+	content := fmt.Sprintf(`FROM %s
+ADD / /artifacts
+ENTRYPOINT %s
+CMD %s
+`, baseImage, entrypointJSON, cmdJSON)
+
+	// Write Dockerfile
+	if err := os.WriteFile(dockerfile, []byte(content), 0644); err != nil {
+		return "", nil, fmt.Errorf("failed to write Dockerfile: %w", err)
+	}
+
+	// Return cleanup function
+	cleanup := func() {
+		if err := os.Remove(dockerfile); err != nil {
+			// Log error but don't panic - cleanup is best effort
+		}
+	}
+
+	return dockerfile, cleanup, nil
+}
+
+// formatJSONArray formats a string slice as a JSON array string
+func formatJSONArray(items []string) string {
+	quoted := make([]string, len(items))
+	for i, item := range items {
+		quoted[i] = fmt.Sprintf(`"%s"`, item)
+	}
+	return fmt.Sprintf("[%s]", strings.Join(quoted, ", "))
 }
