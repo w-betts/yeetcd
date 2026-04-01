@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package yeetcd.protocol.pipeline;
 
+option go_package = "github.com/yeetcd/yeetcd/internal/core/proto/pipeline";
+
 message CustomWorkDefinition {
   string executionId = 1;
 }

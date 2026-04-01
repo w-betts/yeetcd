@@ -1,0 +1,1617 @@
+# Spec (updated)
+# Updated: 2026-04-01T22:29:03.734Z
+
+version: 2
+problem_statement: "The yeetcd controller is currently implemented in Java, requiring a JVM and making deployment heavier than needed. We need to migrate the core controller functionality to Go to support three execution modes: (1) CLI with Docker executor for local development, (2) CLI with Mock executor for testing, and (3) Kubernetes Operator for production deployment. The immediate scope is CLI + Docker executor, but the core package interfaces must be designed to support all three modes."
+goals:
+  - "Create a Go core package with well-defined interfaces for execution engines, build services, and progress reporting"
+  - "Implement a Docker execution engine that can build images and run containers"
+  - "Implement source building (extract zip, build in container, generate protobuf definitions)"
+  - "Implement pipeline execution with work dependencies, conditions, context merging, and output handling"
+  - "Create a CLI that can run pipelines from source code using the Docker executor"
+  - "Replicate the existing Java controller test coverage in Go"
+constraints:
+  - "Keep the Java SDK for pipeline definitions - Go SDK is out of scope for now"
+  - "Reuse existing protobuf definitions from protocol/src/main/proto - single .proto file for all languages"
+  - "Monorepo structure with single Go module - internal packages for core, cmd/ for CLI and operator"
+  - "Design interfaces to support Docker, Mock, and Kubernetes executors from the start"
+  - "Must pass equivalent test coverage to Java controller (PipelineControllerTest, AbstractExecutionEngineTest, JavaSampleTest)"
+tech_choices:
+  - area: "language"
+    choice: "Go 1.21+"
+    rationale: "User preference, single binary deployment, good Docker/Kubernetes ecosystem"
+  - area: "protobuf"
+    choice: "protoc with protoc-gen-go"
+    rationale: "Standard Go protobuf generation, reuse existing .proto file"
+  - area: "docker"
+    choice: "docker/docker client library"
+    rationale: "Official Go Docker SDK for container management"
+  - area: "cli"
+    choice: "cobra"
+    rationale: "Standard Go CLI framework, good composability"
+  - area: "testing"
+    choice: "standard Go testing + testify"
+    rationale: "Standard Go testing with useful assertions"
+architecture:
+  description: "Go core package with clean interfaces separating pipeline logic from execution. The core package handles pipeline assembly, work scheduling, dependency resolution, and condition evaluation. Execution engines implement a common interface for running containers. The CLI provides a user-facing entry point that wires together the core package with the Docker executor."
+  components:
+    - name: "Core Package (internal/core)"
+      responsibility: "Pipeline types, work scheduling, dependency resolution, condition evaluation, context merging"
+      interfaces:
+        - "Pipeline, Work, WorkDefinition types from protobuf"
+        - "Scheduler for work execution ordering"
+        - "Condition evaluator"
+    - name: "Engine Package (pkg/engine)"
+      responsibility: "ExecutionEngine interface and Docker implementation"
+      interfaces:
+        - "ExecutionEngine.BuildImage(ctx, BuildImageDefinition) BuildImageResult"
+        - "ExecutionEngine.RunJob(ctx, JobDefinition) JobResult"
+        - "ExecutionEngine.RemoveImage(ctx, imageID) error"
+    - name: "Build Package (pkg/build)"
+      responsibility: "Source building - extract zip, build in container, generate protobuf"
+      interfaces:
+        - "BuildService.Build(ctx, Source) BuildResult"
+    - name: "Progress Package (pkg/progress)"
+      responsibility: "Progress reporting interface for CLI output and future operator status"
+      interfaces:
+        - "ProgressReporter.PipelineStarted(pipeline)"
+        - "ProgressReporter.WorkStarted(work, streams)"
+        - "ProgressReporter.WorkFinished(work, status)"
+    - name: "CLI (cmd/yeetcd)"
+      responsibility: "Command-line interface entry point"
+      interfaces:
+        - "yeetcd run --source <zip> --pipeline <name>"
+test_strategy:
+  approach: "Unit tests for each package with mocked dependencies. Integration tests using real Docker. End-to-end tests building and running java-sample project."
+  test_patterns:
+    - language: "go"
+      pattern: "*_test.go"
+phases:
+  - name: "Phase 1: Core Package Foundation"
+    description: "Set up Go module structure, generate protobuf Go code, define core interfaces, implement pipeline/work types. This phase establishes the foundational types and contracts that all other phases depend on."
+    status: "completed"
+    is_release_boundary: false
+    file_changes:
+      - action: "create"
+        description: "Go module definition at repository root with module name 'github.com/yeetcd/yeetcd' and Go 1.21+ requirement. Dependencies: google.golang.org/protobuf for protobuf, gopkg.in/yaml.v3 for YAML parsing, github.com/stretchr/testify for testing. Coexists with existing pom.xml at root."
+        is_test: false
+        path: "go.mod"
+      - action: "create"
+        description: "Go dependencies checksum file (auto-generated by go mod tidy)"
+        is_test: false
+        path: "go.sum"
+      - action: "modify"
+        description: "Add Go package option 'option go_package = \"github.com/yeetcd/yeetcd/internal/core/proto/pipeline\";' to enable Go protobuf generation. Keep existing Java package options intact."
+        is_test: false
+        path: "protocol/src/main/proto/yeetcd/protocol/pipeline/pipeline.proto"
+      - action: "create"
+        description: "Generated Go protobuf code from pipeline.proto. Contains Go structs for Pipeline, Work, WorkDefinition types, Conditions, Parameters, etc. Generated via 'protoc --go_out=. --go_opt=module=github.com/yeetcd/yeetcd protocol/src/main/proto/yeetcd/protocol/pipeline/pipeline.proto'"
+        is_test: false
+        path: "internal/core/proto/pipeline/pipeline.pb.go"
+      - action: "create"
+        description: "Pipeline type with methods: FromProtobuf(), WithArguments(). Contains name, parameters, workContext, finalWork, and metadata fields. Mirrors Java Pipeline record."
+        is_test: false
+        path: "internal/core/pipeline/pipeline.go"
+      - action: "create"
+        description: "Work type with methods: FromProtobuf(), Execute(), PreviousWorkStdOutAsWorkContext(), PreviousWorkMountInputs(), OutputDirectoryPaths(). Contains id, description, workContext, workDefinition, condition, outputPaths, previousWork fields. Mirrors Java Work record."
+        is_test: false
+        path: "internal/core/pipeline/work.go"
+      - action: "create"
+        description: "WorkContext type with methods: Empty(), FromMap(), MergeInto(). Simple map[string]string wrapper for work context key-value pairs. Mirrors Java WorkContext record."
+        is_test: false
+        path: "internal/core/pipeline/work_context.go"
+      - action: "create"
+        description: "WorkDefinition interface with Execute() method. Also defines ContainerisedWorkDefinition, CustomWorkDefinition, CompoundWorkDefinition, DynamicWorkGeneratingWorkDefinition structs implementing this interface."
+        is_test: false
+        path: "internal/core/pipeline/work_definition.go"
+      - action: "create"
+        description: "FromWorkProtobuf() function to convert protobuf Work to appropriate WorkDefinition type. Mirrors Java WorkDefinitions class."
+        is_test: false
+        path: "internal/core/pipeline/work_definitions.go"
+      - action: "create"
+        description: "PreviousWork type with work, outputPathsMount, stdOutEnvVar fields. FromProtobuf() method. Mirrors Java PreviousWork record."
+        is_test: false
+        path: "internal/core/pipeline/previous_work.go"
+      - action: "create"
+        description: "WorkOutputPath type with name, path fields. FromProtobuf() method. Mirrors Java WorkOutputPath record."
+        is_test: false
+        path: "internal/core/pipeline/work_output_path.go"
+      - action: "create"
+        description: "WorkResult type with workStatus, outputDirectoriesParent, jobStreams fields. Mirrors Java WorkResult record."
+        is_test: false
+        path: "internal/core/pipeline/work_result.go"
+      - action: "create"
+        description: "WorkStatus enum with SUCCESS, SKIPPED, FAILURE values. Mirrors Java WorkStatus enum."
+        is_test: false
+        path: "internal/core/pipeline/work_status.go"
+      - action: "create"
+        description: "WorkResultTracker type with GetOrExecute(), GetWorkResultMap(), OutputDirectoriesMountInput(), StdOut() methods. Thread-safe map for tracking work execution results. Mirrors Java WorkResultTracker class."
+        is_test: false
+        path: "internal/core/pipeline/work_result_tracker.go"
+      - action: "create"
+        description: "Parameter type with TypeCheck enum (STRING, NUMBER, BOOLEAN), ValidateArgument() method. FromProtobuf() method. Mirrors Java Parameter record."
+        is_test: false
+        path: "internal/core/pipeline/parameter.go"
+      - action: "create"
+        description: "Parameters type wrapping map[string]Parameter. Empty(), FromMap() methods. Mirrors Java Parameters record."
+        is_test: false
+        path: "internal/core/pipeline/parameters.go"
+      - action: "create"
+        description: "Arguments type with AsValidatedWorkContext() method that validates arguments against parameters. Of() factory methods. Mirrors Java Arguments record."
+        is_test: false
+        path: "internal/core/pipeline/arguments.go"
+      - action: "create"
+        description: "PipelineMetadata type with pipelineName, builtSourceImage, sourceLanguage fields. Mirrors Java PipelineMetadata record."
+        is_test: false
+        path: "internal/core/pipeline/pipeline_metadata.go"
+      - action: "create"
+        description: "PipelineStatus enum with SUCCESS, FAILURE values. Mirrors Java PipelineStatus enum."
+        is_test: false
+        path: "internal/core/pipeline/pipeline_status.go"
+      - action: "create"
+        description: "PipelineResult type with workResults map and PipelineStatus() method. Mirrors Java PipelineResult record."
+        is_test: false
+        path: "internal/core/pipeline/pipeline_result.go"
+      - action: "create"
+        description: "PipelineOutputHandler interface with RecordEvent() and NewJobStreams() methods. Mirrors Java PipelineOutputHandler interface."
+        is_test: false
+        path: "internal/core/pipeline/pipeline_output_handler.go"
+      - action: "create"
+        description: "PipelineEvent interface marker. Mirrors Java PipelineEvent interface."
+        is_test: false
+        path: "internal/core/pipeline/events/pipeline_event.go"
+      - action: "create"
+        description: "PipelineStarted event type with pipeline field. Mirrors Java PipelineStarted record."
+        is_test: false
+        path: "internal/core/pipeline/events/pipeline_started.go"
+      - action: "create"
+        description: "PipelineFinished event type with pipelineStatus field. Mirrors Java PipelineFinished record."
+        is_test: false
+        path: "internal/core/pipeline/events/pipeline_finished.go"
+      - action: "create"
+        description: "WorkStarted event type with work, jobStreams fields. Mirrors Java WorkStarted record."
+        is_test: false
+        path: "internal/core/pipeline/events/work_started.go"
+      - action: "create"
+        description: "WorkFinished event type with work, workStatus fields. Mirrors Java WorkFinished record."
+        is_test: false
+        path: "internal/core/pipeline/events/work_finished.go"
+      - action: "create"
+        description: "Condition interface with Evaluate(workContext, workResultTracker) method. Mirrors Java Condition interface."
+        is_test: false
+        path: "internal/core/condition/condition.go"
+      - action: "create"
+        description: "Conditions factory with FromProtobuf() and PREVIOUS_WORK_SUCCESS constant. Mirrors Java Conditions class."
+        is_test: false
+        path: "internal/core/condition/conditions.go"
+      - action: "create"
+        description: "WorkContextCondition type with key, operand, value fields. Operand enum with EQUALS. Evaluate() method. FromProtobuf() method. Mirrors Java WorkContextCondition record."
+        is_test: false
+        path: "internal/core/condition/work_context_condition.go"
+      - action: "create"
+        description: "PreviousWorkStatusCondition type with Status enum (SUCCESS, FAILURE, ANY). Evaluate() method checks completed work results. FromProtobuf() method. Mirrors Java PreviousWorkStatusCondition record."
+        is_test: false
+        path: "internal/core/condition/previous_work_status_condition.go"
+      - action: "create"
+        description: "AndCondition type with left, right Condition fields. Evaluate() returns left && right. FromProtobuf() method. Mirrors Java AndCondition record."
+        is_test: false
+        path: "internal/core/condition/and_condition.go"
+      - action: "create"
+        description: "OrCondition type with left, right Condition fields. Evaluate() returns left || right. FromProtobuf() method. Mirrors Java OrCondition record."
+        is_test: false
+        path: "internal/core/condition/or_condition.go"
+      - action: "create"
+        description: "NotCondition type with condition field. Evaluate() returns !condition. FromProtobuf() method. Mirrors Java NotCondition record."
+        is_test: false
+        path: "internal/core/condition/not_condition.go"
+      - action: "create"
+        description: "YeetcdConfig type for yeetcd.yaml parsing. Contains Name, Language (SourceLanguage interface), BuildImage, BuildCmd, Artifacts fields. Load() function to parse YAML file. Mirrors Java YeetcdDefinition record."
+        is_test: false
+        path: "pkg/config/config.go"
+      - action: "create"
+        description: "ArtifactDefinition type with Name, Path fields. Mirrors Java ArtifactDefinition record."
+        is_test: false
+        path: "pkg/config/artifact.go"
+      - action: "create"
+        description: "SourceLanguage interface with methods: GetImageBase() ImageBase, GetGeneratePipelineDefinitionsCmd() string, GetCustomTaskRunnerCmd(pipelineName, taskName string) string. JavaSourceLanguage struct implements this interface. Mirrors Java SourceLanguage enum with abstract methods."
+        is_test: false
+        path: "pkg/config/source_language.go"
+      - action: "create"
+        description: "ImageBase enum with JAVA value. BaseImage() and EntryPoint() methods. Mirrors Java ImageBase enum."
+        is_test: false
+        path: "pkg/engine/image_base.go"
+      - action: "create"
+        description: "ExecutionEngine interface with BuildImage(ctx, BuildImageDefinition), RemoveImage(ctx, imageID), RunJob(ctx, JobDefinition) methods. Returns errors instead of futures for Go idiomatic style. Mirrors Java ExecutionEngine interface."
+        is_test: false
+        path: "pkg/engine/engine.go"
+      - action: "create"
+        description: "BuildImageDefinition type with Image, Tag, ImageBase, ArtifactDirectory, ArtifactNames, Cmd fields. Mirrors Java BuildImageDefinition record."
+        is_test: false
+        path: "pkg/engine/build_image_definition.go"
+      - action: "create"
+        description: "BuildImageResult type with ImageID field. Mirrors Java BuildImageResult record."
+        is_test: false
+        path: "pkg/engine/build_image_result.go"
+      - action: "create"
+        description: "JobDefinition type with Image, Cmd, WorkingDir, Environment, InputFilePaths, OutputDirectoryPaths, JobStreams fields. Mirrors Java JobDefinition record."
+        is_test: false
+        path: "pkg/engine/job_definition.go"
+      - action: "create"
+        description: "JobResult type with ExitCode, OutputDirectoriesParent fields. Mirrors Java JobResult record."
+        is_test: false
+        path: "pkg/engine/job_result.go"
+      - action: "create"
+        description: "JobStreams type with stdout/stderr capture via io.Writer interface. GetStdOut(), GetStdErr() methods return []byte. Mirrors Java JobStreams class."
+        is_test: false
+        path: "pkg/engine/job_streams.go"
+      - action: "create"
+        description: "MountInput interface with Directory() method. OnDiskMountInput implementation. Mirrors Java MountInput interface and OnDiskMountInput record."
+        is_test: false
+        path: "pkg/engine/mount_input.go"
+      - action: "create"
+        description: "BuildService interface with Build(ctx, Source) method returning BuildResult. Interface for source building (extract zip, build in container, generate protobuf)."
+        is_test: false
+        path: "pkg/build/build.go"
+      - action: "create"
+        description: "BuildResult type with ImageID, Pipelines fields. Result of source building."
+        is_test: false
+        path: "pkg/build/build_result.go"
+      - action: "create"
+        description: "ProgressReporter interface with PipelineStarted(pipeline), WorkStarted(work, streams), WorkFinished(work, status) methods. Interface for progress reporting (CLI output, future operator status)."
+        is_test: false
+        path: "pkg/progress/progress.go"
+      - action: "create"
+        description: "Unit tests for Pipeline type: FromProtobuf conversion, WithArguments merging, work context inheritance."
+        is_test: true
+        path: "internal/core/pipeline/pipeline_test.go"
+      - action: "create"
+        description: "Unit tests for WorkContext: Empty(), FromMap(), MergeInto() with override behavior."
+        is_test: true
+        path: "internal/core/pipeline/work_context_test.go"
+      - action: "create"
+        description: "Unit tests for Arguments validation: string/number/boolean type checking, choices validation, required parameter validation. Mirrors Java ArgumentsTest coverage."
+        is_test: true
+        path: "internal/core/pipeline/arguments_test.go"
+      - action: "create"
+        description: "Unit tests for Parameter: ValidateArgument() for STRING, NUMBER, BOOLEAN types, choices validation."
+        is_test: true
+        path: "internal/core/pipeline/parameter_test.go"
+      - action: "create"
+        description: "Unit tests for all condition types: WorkContextCondition EQUALS, PreviousWorkStatusCondition SUCCESS/FAILURE/ANY, AndCondition, OrCondition, NotCondition, complex nested conditions."
+        is_test: true
+        path: "internal/core/condition/condition_test.go"
+      - action: "create"
+        description: "Unit tests for Conditions factory: FromProtobuf() for all condition types, PREVIOUS_WORK_SUCCESS constant."
+        is_test: true
+        path: "internal/core/condition/conditions_test.go"
+      - action: "create"
+        description: "Unit tests for yeetcd.yaml parsing: valid config, missing fields, invalid language, artifact parsing."
+        is_test: true
+        path: "pkg/config/config_test.go"
+      - action: "create"
+        description: "Unit tests for SourceLanguage interface: JavaSourceLanguage.GetImageBase() returns JAVA ImageBase, JavaSourceLanguage.GetGeneratePipelineDefinitionsCmd() returns correct command, JavaSourceLanguage.GetCustomTaskRunnerCmd() returns correct command with pipelineName and taskName."
+        is_test: true
+        path: "pkg/config/source_language_test.go"
+    test_cases:
+      - description: "Pipeline FromProtobuf converts protobuf Pipeline message to Go Pipeline struct with all fields correctly mapped"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "Pipeline.FromProtobuf()"
+        given_when_then: "GIVEN: Valid protobuf Pipeline message with name, parameters, workContext, and finalWork
+
+          WHEN: FromProtobuf() is called
+
+          THEN: Go Pipeline struct is created with all fields correctly mapped from protobuf"
+      - description: "Pipeline WithArguments merges arguments into pipeline work context with correct override behavior"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "Pipeline.WithArguments()"
+          - "Arguments.AsValidatedWorkContext()"
+        given_when_then: "GIVEN: Pipeline with existing workContext and Parameters definition
+
+          WHEN: WithArguments() is called with Arguments containing override values
+
+          THEN: New Pipeline is returned with arguments merged into workContext, arguments override existing context values"
+      - description: "WorkContext MergeInto correctly merges two contexts with source overriding destination"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "WorkContext.MergeInto()"
+          - "WorkContext.FromMap()"
+        given_when_then: "GIVEN: Two WorkContext maps with overlapping keys
+
+          WHEN: MergeInto() is called
+
+          THEN: Result contains all keys from both maps, with source context values overriding destination for duplicate keys"
+      - description: "Arguments validation passes for valid STRING parameter with matching choice"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "Arguments.AsValidatedWorkContext()"
+          - "Parameter.ValidateArgument()"
+        given_when_then: "GIVEN: Parameter with TypeCheck STRING and choices ['value1', 'value2']
+
+          WHEN: AsValidatedWorkContext() is called with argument 'value1'
+
+          THEN: Validation passes and WorkContext contains the argument"
+      - description: "Arguments validation fails for invalid NUMBER parameter (non-numeric value)"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "Arguments.AsValidatedWorkContext()"
+          - "Parameter.ValidateArgument()"
+        given_when_then: "GIVEN: Parameter with TypeCheck NUMBER
+
+          WHEN: AsValidatedWorkContext() is called with argument 'not-a-number'
+
+          THEN: Validation fails with error indicating invalid number format"
+      - description: "Arguments validation fails for invalid BOOLEAN parameter (non-boolean value)"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "Arguments.AsValidatedWorkContext()"
+          - "Parameter.ValidateArgument()"
+        given_when_then: "GIVEN: Parameter with TypeCheck BOOLEAN
+
+          WHEN: AsValidatedWorkContext() is called with argument 'not-a-boolean'
+
+          THEN: Validation fails with error indicating invalid boolean value"
+      - description: "Arguments validation fails when argument not in allowed choices"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "Arguments.AsValidatedWorkContext()"
+          - "Parameter.ValidateArgument()"
+        given_when_then: "GIVEN: Parameter with choices ['allowed1', 'allowed2']
+
+          WHEN: AsValidatedWorkContext() is called with argument 'not-allowed'
+
+          THEN: Validation fails with error indicating argument not in allowed choices"
+      - description: "Arguments validation fails when required parameter is missing"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "Arguments.AsValidatedWorkContext()"
+        given_when_then: "GIVEN: Parameter with required=true
+
+          WHEN: AsValidatedWorkContext() is called without providing that argument
+
+          THEN: Validation fails with error indicating required parameter is missing"
+      - description: "WorkContextCondition EQUALS evaluates true when context value matches"
+        type: "unit"
+        target_component: "internal/core/condition"
+        contracts:
+          - "WorkContextCondition.Evaluate()"
+          - "WorkContextCondition.Operand.EQUALS"
+        given_when_then: "GIVEN: WorkContext with key='myKey' value='expectedValue'
+
+          WHEN: WorkContextCondition(key='myKey', operand=EQUALS, value='expectedValue').Evaluate() is called
+
+          THEN: Returns true"
+      - description: "WorkContextCondition EQUALS evaluates false when context value does not match"
+        type: "unit"
+        target_component: "internal/core/condition"
+        contracts:
+          - "WorkContextCondition.Evaluate()"
+        given_when_then: "GIVEN: WorkContext with key='myKey' value='actualValue'
+
+          WHEN: WorkContextCondition(key='myKey', operand=EQUALS, value='expectedValue').Evaluate() is called
+
+          THEN: Returns false"
+      - description: "PreviousWorkStatusCondition SUCCESS evaluates true when all completed work succeeded"
+        type: "unit"
+        target_component: "internal/core/condition"
+        contracts:
+          - "PreviousWorkStatusCondition.Evaluate()"
+        given_when_then: "GIVEN: WorkResultTracker with completed work results all having WorkStatus.SUCCESS
+
+          WHEN: PreviousWorkStatusCondition(status=SUCCESS).Evaluate() is called
+
+          THEN: Returns true"
+      - description: "PreviousWorkStatusCondition SUCCESS evaluates false when any completed work failed"
+        type: "unit"
+        target_component: "internal/core/condition"
+        contracts:
+          - "PreviousWorkStatusCondition.Evaluate()"
+        given_when_then: "GIVEN: WorkResultTracker with at least one completed work result having WorkStatus.FAILURE
+
+          WHEN: PreviousWorkStatusCondition(status=SUCCESS).Evaluate() is called
+
+          THEN: Returns false"
+      - description: "PreviousWorkStatusCondition FAILURE evaluates true when any completed work failed"
+        type: "unit"
+        target_component: "internal/core/condition"
+        contracts:
+          - "PreviousWorkStatusCondition.Evaluate()"
+        given_when_then: "GIVEN: WorkResultTracker with at least one completed work result having WorkStatus.FAILURE
+
+          WHEN: PreviousWorkStatusCondition(status=FAILURE).Evaluate() is called
+
+          THEN: Returns true"
+      - description: "PreviousWorkStatusCondition ANY always evaluates true"
+        type: "unit"
+        target_component: "internal/core/condition"
+        contracts:
+          - "PreviousWorkStatusCondition.Evaluate()"
+        given_when_then: "GIVEN: Any WorkResultTracker state
+
+          WHEN: PreviousWorkStatusCondition(status=ANY).Evaluate() is called
+
+          THEN: Returns true"
+      - description: "AndCondition evaluates true when both left and right conditions are true"
+        type: "unit"
+        target_component: "internal/core/condition"
+        contracts:
+          - "AndCondition.Evaluate()"
+        given_when_then: "GIVEN: AndCondition with left condition evaluating true and right condition evaluating true
+
+          WHEN: Evaluate() is called
+
+          THEN: Returns true"
+      - description: "AndCondition evaluates false when left condition is false"
+        type: "unit"
+        target_component: "internal/core/condition"
+        contracts:
+          - "AndCondition.Evaluate()"
+        given_when_then: "GIVEN: AndCondition with left condition evaluating false
+
+          WHEN: Evaluate() is called
+
+          THEN: Returns false"
+      - description: "OrCondition evaluates true when either left or right condition is true"
+        type: "unit"
+        target_component: "internal/core/condition"
+        contracts:
+          - "OrCondition.Evaluate()"
+        given_when_then: "GIVEN: OrCondition with left condition evaluating false and right condition evaluating true
+
+          WHEN: Evaluate() is called
+
+          THEN: Returns true"
+      - description: "OrCondition evaluates false when both conditions are false"
+        type: "unit"
+        target_component: "internal/core/condition"
+        contracts:
+          - "OrCondition.Evaluate()"
+        given_when_then: "GIVEN: OrCondition with both left and right conditions evaluating false
+
+          WHEN: Evaluate() is called
+
+          THEN: Returns false"
+      - description: "NotCondition evaluates true when inner condition is false"
+        type: "unit"
+        target_component: "internal/core/condition"
+        contracts:
+          - "NotCondition.Evaluate()"
+        given_when_then: "GIVEN: NotCondition with inner condition evaluating false
+
+          WHEN: Evaluate() is called
+
+          THEN: Returns true"
+      - description: "Complex nested condition evaluates correctly (AND of NOT of OR)"
+        type: "unit"
+        target_component: "internal/core/condition"
+        contracts:
+          - "AndCondition.Evaluate()"
+          - "NotCondition.Evaluate()"
+          - "OrCondition.Evaluate()"
+          - "WorkContextCondition.Evaluate()"
+        given_when_then: "GIVEN: Complex condition: AND(WorkContextCondition(key='k', value='v'), NOT(OR(WorkContextCondition('missing1', ''), WorkContextCondition('missing2', ''))))
+
+          WHEN: Evaluate() is called with WorkContext containing k='v'
+
+          THEN: Returns true (first condition true, second condition NOT(OR(false, false)) = true)"
+      - description: "Conditions FromProtobuf correctly maps all protobuf condition types"
+        type: "unit"
+        target_component: "internal/core/condition"
+        contracts:
+          - "Conditions.FromProtobuf()"
+        given_when_then: "GIVEN: Protobuf Condition messages for AndCondition, OrCondition, NotCondition, WorkContextCondition, PreviousWorkStatusCondition
+
+          WHEN: FromProtobuf() is called for each type
+
+          THEN: Correct Go condition type is returned with all fields correctly mapped"
+      - description: "YeetcdConfig Load parses valid yeetcd.yaml file"
+        type: "unit"
+        target_component: "pkg/config"
+        contracts:
+          - "YeetcdConfig.Load()"
+          - "YeetcdConfig struct"
+        given_when_then: "GIVEN: Valid yeetcd.yaml file with name, language=JAVA, buildImage, buildCmd, and artifacts
+
+          WHEN: Load() is called with the file path
+
+          THEN: YeetcdConfig struct is returned with all fields correctly parsed"
+      - description: "YeetcdConfig Load fails for invalid language value"
+        type: "unit"
+        target_component: "pkg/config"
+        contracts:
+          - "YeetcdConfig.Load()"
+          - "Language enum"
+        given_when_then: "GIVEN: yeetcd.yaml file with language='INVALID'
+
+          WHEN: Load() is called
+
+          THEN: Error is returned indicating invalid language value"
+      - description: "YeetcdConfig Load parses artifacts array correctly"
+        type: "unit"
+        target_component: "pkg/config"
+        contracts:
+          - "YeetcdConfig.Load()"
+          - "ArtifactDefinition struct"
+        given_when_then: "GIVEN: yeetcd.yaml with multiple artifacts each having name and path
+
+          WHEN: Load() is called
+
+          THEN: Artifacts slice contains all artifacts with correct name and path values"
+      - description: "Work FromProtobuf converts protobuf Work message with all work definition types"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "Work.FromProtobuf()"
+          - "WorkDefinitions.FromWorkProtobuf()"
+        given_when_then: "GIVEN: Protobuf Work messages with ContainerisedWorkDefinition, CustomWorkDefinition, CompoundWorkDefinition, DynamicWorkGeneratingWorkDefinition
+
+          WHEN: FromProtobuf() is called for each
+
+          THEN: Go Work struct is created with correct WorkDefinition type"
+      - description: "WorkDefinitions FromWorkProtobuf returns error for unrecognized work definition type"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "WorkDefinitions.FromWorkProtobuf()"
+        given_when_then: "GIVEN: Protobuf Work message with no work definition set (empty oneof)
+
+          WHEN: FromWorkProtobuf() is called
+
+          THEN: Error is returned indicating unsupported work definition type"
+      - description: "WorkResultTracker GetOrExecute returns existing result for already-executed work"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "WorkResultTracker.GetOrExecute()"
+        given_when_then: "GIVEN: WorkResultTracker with existing result for work W
+
+          WHEN: GetOrExecute(W, executeFunc) is called
+
+          THEN: Existing result is returned, executeFunc is NOT called"
+      - description: "WorkResultTracker GetOrExecute executes and stores result for new work"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "WorkResultTracker.GetOrExecute()"
+        given_when_then: "GIVEN: Empty WorkResultTracker
+
+          WHEN: GetOrExecute(W, executeFunc) is called
+
+          THEN: executeFunc is called, result is stored and returned"
+      - description: "PipelineResult PipelineStatus returns FAILURE when any work failed"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineResult.PipelineStatus()"
+        given_when_then: "GIVEN: PipelineResult with workResults containing at least one WorkStatus.FAILURE
+
+          WHEN: PipelineStatus() is called
+
+          THEN: Returns PipelineStatus.FAILURE"
+      - description: "PipelineResult PipelineStatus returns SUCCESS when all work succeeded or skipped"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineResult.PipelineStatus()"
+        given_when_then: "GIVEN: PipelineResult with workResults containing only SUCCESS and SKIPPED statuses
+
+          WHEN: PipelineStatus() is called
+
+          THEN: Returns PipelineStatus.SUCCESS"
+  - name: "Phase 2: Docker Execution Engine"
+    description: "Implement DockerExecutionEngine with BuildImage, RunJob, RemoveImage methods. Implement BuildService for source building. Unit tests with mocked Docker client, integration tests with real Docker."
+    status: "pending"
+    is_release_boundary: false
+    file_changes:
+      - path: "pkg/engine/docker/docker_engine.go"
+        action: "create"
+        description: "DockerExecutionEngine struct implementing ExecutionEngine interface. Contains Docker client from github.com/docker/docker/client. Methods: NewDockerExecutionEngine() constructor, BuildImage(ctx, BuildImageDefinition) (BuildImageResult, error), RemoveImage(ctx, imageID) error, RunJob(ctx, JobDefinition) (JobResult, error). Uses slog for logging. Mirrors Java DockerExecutionEngine class."
+        is_test: false
+      - path: "pkg/engine/docker/image_builder.go"
+        action: "create"
+        description: "DockerDaemonImageBuilder helper struct for building Docker images. Method: BuildImage(ctx, dockerClient, BuildImageDefinition) (BuildImageResult, error). Creates Dockerfile dynamically, builds image using Docker daemon API. Mirrors Java DockerDaemonImageBuilder inner class."
+        is_test: false
+      - path: "pkg/engine/docker/container_runner.go"
+        action: "create"
+        description: "ContainerRunner helper struct for running containers. Methods: PullImage(ctx, dockerClient, imageTag) error, CreateContainer(ctx, dockerClient, JobDefinition) (containerID string, error), RunContainer(ctx, dockerClient, containerID, JobStreams) (exitCode int, error), ExtractArchive(ctx, dockerClient, containerID, path) ([]byte, error). Handles container lifecycle, volume mounts, environment variables, output extraction. Mirrors Java DockerExecutionEngine container management methods."
+        is_test: false
+      - path: "pkg/engine/docker/dockerfile.go"
+        action: "create"
+        description: "Dockerfile generation helper. Function: CreateDockerfile(ctx, BuildImageDefinition, contextDir string) (dockerfilePath string, cleanup func(), error). Generates Dockerfile content based on ImageBase, artifact names, and cmd. Returns cleanup function to delete Dockerfile. Mirrors Java createDockerfile method."
+        is_test: false
+      - path: "pkg/build/source.go"
+        action: "create"
+        description: "Source type with Name string and Zip []byte fields. Method: SHA256() string returns hex-encoded SHA256 hash of zip contents. Mirrors Java Source record."
+        is_test: false
+      - path: "pkg/build/source_extraction_result.go"
+        action: "create"
+        description: "SourceExtractionResult struct with Source, Directory string, YeetcdDefinitions map[string]YeetcdConfig fields. Implements io.Closer for cleanup. Mirrors Java SourceExtractionResult record."
+        is_test: false
+      - path: "pkg/build/source_build_result.go"
+        action: "create"
+        description: "SourceBuildResult struct with YeetcdConfig and OutputDirectoriesParent string fields. Mirrors Java SourceBuildResult record."
+        is_test: false
+      - path: "pkg/build/zip_extractor.go"
+        action: "create"
+        description: "ZipExtractor utility for extracting zip files. Function: Extract(zipData []byte, destDir string, handlers ...FileHandler) error. FileHandler struct with ShouldHandle predicate and Handle callback. Handles zip entry extraction, directory creation, file writing. Mirrors Java ZipExtractor class."
+        is_test: false
+      - path: "pkg/build/source_extractor.go"
+        action: "create"
+        description: "SourceExtractor struct for extracting source zips. Method: Extract(source Source) (SourceExtractionResult, error). Creates temp directory, extracts zip, parses yeetcd.yaml files using pkg/config. Mirrors Java SourceExtractor class."
+        is_test: false
+      - path: "pkg/build/docker_build_service.go"
+        action: "create"
+        description: "DockerBuildService struct implementing BuildService interface. Contains ExecutionEngine dependency. Method: Build(ctx, Source) (BuildResult, error). Orchestrates: extract source, run build in container, generate protobuf definitions, build final image. Uses slog for logging. Mirrors Java SourceBuilder class."
+        is_test: false
+      - path: "pkg/build/build_result.go"
+        action: "modify"
+        description: "Update BuildResult to include SourceBuildResult slice. Add ImageID string field for the built source image. Add Pipelines field for parsed pipeline definitions (protobuf messages)."
+        is_test: false
+      - path: "pkg/engine/docker/docker_engine_test.go"
+        action: "create"
+        description: "Integration tests for DockerExecutionEngine using real Docker. Tests: shouldRunAJob, shouldMakeEnvironmentVariablesAvailable, shouldMakeInputFilesAvailable, shouldExtractOutputFiles, shouldBuildAndRunAJavaImage. Mirrors Java AbstractExecutionEngineTest coverage. Uses testutil for temp directories and file creation."
+        is_test: true
+      - path: "pkg/engine/docker/docker_engine_mock_test.go"
+        action: "create"
+        description: "Unit tests for DockerExecutionEngine with mocked Docker client. Tests: BuildImage creates Dockerfile and calls Docker build API, RemoveImage calls Docker remove API, RunJob pulls image if missing, creates container with correct mounts/env, extracts outputs. Uses testify/mock for Docker client mocking."
+        is_test: true
+      - path: "pkg/engine/docker/mocks/docker_client_mock.go"
+        action: "create"
+        description: "Mock Docker client for unit testing. Implements docker client interface methods used by DockerExecutionEngine: ImageBuild, ImageRemove, ContainerCreate, ContainerStart, ContainerWait, ContainerLogs, ContainerRemove, CopyFromContainer. Generated using testify/mock or manual implementation."
+        is_test: true
+      - path: "pkg/build/zip_extractor_test.go"
+        action: "create"
+        description: "Unit tests for ZipExtractor. Tests: Extract creates directory structure, Extract writes file contents, FileHandler called for matching files, Extract handles nested directories, Extract returns error for invalid zip data. Mirrors Java ZipExtractor behavior."
+        is_test: true
+      - path: "pkg/build/source_extractor_test.go"
+        action: "create"
+        description: "Unit tests for SourceExtractor. Tests: Extract creates temp directory, Extract parses yeetcd.yaml, Extract returns correct YeetcdDefinitions map, Close removes temp directory. Uses test zip data with yeetcd.yaml. Mirrors Java SourceExtractorTest."
+        is_test: true
+      - path: "pkg/build/docker_build_service_test.go"
+        action: "create"
+        description: "Unit tests for DockerBuildService with mocked ExecutionEngine. Tests: Build extracts source, Build runs build command in container, Build generates protobuf definitions, Build returns BuildResult with image ID. Integration test variant uses real Docker. Mirrors Java SourceBuilder behavior."
+        is_test: true
+      - path: "pkg/build/testutil/testutil.go"
+        action: "create"
+        description: "Test utilities for build package. Functions: CreateTestZip(files map[string][]byte) []byte, CreateTempDir(t) (dir string, cleanup func()), CreateTestFile(dir, name, contents string) string. Helper for creating test source zips and temp directories."
+        is_test: true
+      - path: "pkg/build/source_test.go"
+        action: "create"
+        description: "Unit tests for Source type. Tests: SHA256 returns consistent hash for same content, SHA256 returns different hash for different content, SHA256 returns hex-encoded string."
+        is_test: true
+    test_cases:
+      - description: "DockerExecutionEngine BuildImage creates Dockerfile and builds image with correct tag"
+        type: "unit"
+        target_component: "pkg/engine/docker"
+        contracts:
+          - "DockerExecutionEngine.BuildImage()"
+          - "DockerDaemonImageBuilder.BuildImage()"
+        given_when_then: "GIVEN: Mock Docker client and BuildImageDefinition with image='test', tag='v1', ImageBase=JAVA, artifactDirectory with compiled classes
+
+          WHEN: BuildImage(ctx, buildImageDef) is called
+
+          THEN: Dockerfile is created in artifact directory, Docker ImageBuild API is called with correct tag, BuildImageResult with imageID is returned"
+      - description: "DockerExecutionEngine BuildImage cleans up Dockerfile after build"
+        type: "unit"
+        target_component: "pkg/engine/docker"
+        contracts:
+          - "DockerExecutionEngine.BuildImage()"
+          - "CreateDockerfile()"
+        given_when_then: "GIVEN: Mock Docker client and BuildImageDefinition
+
+          WHEN: BuildImage(ctx, buildImageDef) is called and completes
+
+          THEN: Dockerfile is deleted from artifact directory after build completes (success or failure)"
+      - description: "DockerExecutionEngine RemoveImage calls Docker API with correct image ID"
+        type: "unit"
+        target_component: "pkg/engine/docker"
+        contracts:
+          - "DockerExecutionEngine.RemoveImage()"
+        given_when_then: "GIVEN: Mock Docker client and image ID 'sha256:abc123'
+
+          WHEN: RemoveImage(ctx, 'sha256:abc123') is called
+
+          THEN: Docker ImageRemove API is called with 'sha256:abc123', no error is returned"
+      - description: "DockerExecutionEngine RunJob pulls image if not present locally"
+        type: "unit"
+        target_component: "pkg/engine/docker"
+        contracts:
+          - "DockerExecutionEngine.RunJob()"
+          - "PullImage()"
+        given_when_then: "GIVEN: Mock Docker client that returns NotFound for image inspect, JobDefinition with image='maven:3.9.9'
+
+          WHEN: RunJob(ctx, jobDef) is called
+
+          THEN: Docker ImagePull API is called with 'maven:3.9.9'"
+      - description: "DockerExecutionEngine RunJob creates container with correct configuration"
+        type: "unit"
+        target_component: "pkg/engine/docker"
+        contracts:
+          - "DockerExecutionEngine.RunJob()"
+          - "CreateContainer()"
+        given_when_then: "GIVEN: Mock Docker client, JobDefinition with image='test:latest', cmd=['echo', 'hello'], workingDir='/app', env={'KEY': 'value'}, inputFilePaths={'/input': OnDiskMountInput('/host/path')}
+
+          WHEN: RunJob(ctx, jobDef) is called
+
+          THEN: Container is created with image='test:latest', cmd=['echo', 'hello'], workingDir='/app', env=['KEY=value'], binds=['/host/path:/input']"
+      - description: "DockerExecutionEngine RunJob captures stdout and stderr to JobStreams"
+        type: "unit"
+        target_component: "pkg/engine/docker"
+        contracts:
+          - "DockerExecutionEngine.RunJob()"
+          - "RunContainer()"
+          - "JobStreams.GetStdOut()"
+        given_when_then: "GIVEN: Mock Docker client that returns container logs, JobStreams with stdout/stderr buffers, JobDefinition
+
+          WHEN: RunJob(ctx, jobDef) is called and container produces output
+
+          THEN: Container logs are written to JobStreams, GetStdOut() returns captured stdout bytes, GetStdErr() returns captured stderr bytes"
+      - description: "DockerExecutionEngine RunJob extracts output directories to host"
+        type: "unit"
+        target_component: "pkg/engine/docker"
+        contracts:
+          - "DockerExecutionEngine.RunJob()"
+          - "ExtractArchive()"
+        given_when_then: "GIVEN: Mock Docker client, JobDefinition with outputDirectoryPaths={'output': '/var/out'}, container that created files in /var/out
+
+          WHEN: RunJob(ctx, jobDef) is called and container exits with code 0
+
+          THEN: Docker CopyFromContainer API is called for /var/out, files are extracted to temp directory, JobResult.OutputDirectoriesParent contains extracted files"
+      - description: "DockerExecutionEngine RunJob removes container after execution"
+        type: "unit"
+        target_component: "pkg/engine/docker"
+        contracts:
+          - "DockerExecutionEngine.RunJob()"
+        given_when_then: "GIVEN: Mock Docker client, JobDefinition
+
+          WHEN: RunJob(ctx, jobDef) is called (success or failure)
+
+          THEN: Docker ContainerRemove API is called to clean up container"
+      - description: "DockerExecutionEngine integration test runs simple echo command"
+        type: "integration"
+        target_component: "pkg/engine/docker"
+        contracts:
+          - "DockerExecutionEngine.RunJob()"
+        given_when_then: "GIVEN: Real Docker daemon, DockerExecutionEngine, JobDefinition with image='maven:3.9.9-eclipse-temurin-17', cmd=['echo', '-n', 'hello']
+
+          WHEN: RunJob(ctx, jobDef) is called
+
+          THEN: JobResult.ExitCode equals 0, JobStreams.GetStdOut() equals 'hello'"
+      - description: "DockerExecutionEngine integration test makes environment variables available"
+        type: "integration"
+        target_component: "pkg/engine/docker"
+        contracts:
+          - "DockerExecutionEngine.RunJob()"
+        given_when_then: "GIVEN: Real Docker daemon, DockerExecutionEngine, JobDefinition with image='maven:3.9.9-eclipse-temurin-17', cmd=['env'], env={'TEST_VAR': 'test_value'}
+
+          WHEN: RunJob(ctx, jobDef) is called
+
+          THEN: JobResult.ExitCode equals 0, JobStreams.GetStdOut() contains 'TEST_VAR=test_value'"
+      - description: "DockerExecutionEngine integration test mounts input files"
+        type: "integration"
+        target_component: "pkg/engine/docker"
+        contracts:
+          - "DockerExecutionEngine.RunJob()"
+        given_when_then: "GIVEN: Real Docker daemon, DockerExecutionEngine, temp directory with test file 'test.txt' containing 'hello', JobDefinition with image='maven:3.9.9-eclipse-temurin-17', cmd=['cat', '/input/test.txt'], inputFilePaths={'/input': OnDiskMountInput(tempDir)}
+
+          WHEN: RunJob(ctx, jobDef) is called
+
+          THEN: JobResult.ExitCode equals 0, JobStreams.GetStdOut() equals 'hello'"
+      - description: "DockerExecutionEngine integration test extracts output files"
+        type: "integration"
+        target_component: "pkg/engine/docker"
+        contracts:
+          - "DockerExecutionEngine.RunJob()"
+        given_when_then: "GIVEN: Real Docker daemon, DockerExecutionEngine, temp directory with test file, JobDefinition with image='maven:3.9.9-eclipse-temurin-17', cmd=['bash', '-c', 'mkdir -p /output && cp /input/test.txt /output/'], inputFilePaths={'/input': OnDiskMountInput(tempDir)}, outputDirectoryPaths={'output': '/output'}
+
+          WHEN: RunJob(ctx, jobDef) is called
+
+          THEN: JobResult.ExitCode equals 0, JobResult.OutputDirectoriesParent contains 'output' directory with 'test.txt' file"
+      - description: "DockerExecutionEngine integration test builds and runs Java image"
+        type: "integration"
+        target_component: "pkg/engine/docker"
+        contracts:
+          - "DockerExecutionEngine.BuildImage()"
+          - "DockerExecutionEngine.RunJob()"
+        given_when_then: "GIVEN: Real Docker daemon, DockerExecutionEngine, temp directory with compiled Java class 'TestMain.class', BuildImageDefinition with image='test', tag='v1', ImageBase=JAVA, cmd='TestMain'
+
+          WHEN: BuildImage(ctx, buildImageDef) then RunJob(ctx, JobDefinition{image: imageID}) is called
+
+          THEN: BuildImageResult.ImageID is returned, JobResult.ExitCode equals 0, JobStreams.GetStdOut() contains Java program output"
+      - description: "ZipExtractor Extract creates directory structure from zip"
+        type: "unit"
+        target_component: "pkg/build"
+        contracts:
+          - "ZipExtractor.Extract()"
+        given_when_then: "GIVEN: Zip data containing 'dir1/dir2/file.txt' with content 'hello'
+
+          WHEN: Extract(zipData, destDir) is called
+
+          THEN: Directory 'destDir/dir1/dir2/' is created, file 'destDir/dir1/dir2/file.txt' contains 'hello'"
+      - description: "ZipExtractor Extract calls FileHandler for matching files"
+        type: "unit"
+        target_component: "pkg/build"
+        contracts:
+          - "ZipExtractor.Extract()"
+          - "FileHandler.ShouldHandle"
+          - "FileHandler.Handle"
+        given_when_then: "GIVEN: Zip data containing 'yeetcd.yaml' with content 'name: test', FileHandler with ShouldHandle=(name == 'yeetcd.yaml')
+
+          WHEN: Extract(zipData, destDir, handler) is called
+
+          THEN: FileHandler.Handle is called with HandledFile{Parent: 'path/to/parent', Contents: []byte('name: test')}"
+      - description: "SourceExtractor Extract creates temp directory and extracts zip"
+        type: "unit"
+        target_component: "pkg/build"
+        contracts:
+          - "SourceExtractor.Extract()"
+        given_when_then: "GIVEN: Source with Name='test' and Zip containing 'yeetcd.yaml' with valid config
+
+          WHEN: Extract(source) is called
+
+          THEN: SourceExtractionResult.Directory is created, SourceExtractionResult.YeetcdDefinitions contains parsed config"
+      - description: "SourceExtractor Extract parses multiple yeetcd.yaml files"
+        type: "unit"
+        target_component: "pkg/build"
+        contracts:
+          - "SourceExtractor.Extract()"
+        given_when_then: "GIVEN: Source with Zip containing 'project1/yeetcd.yaml' and 'project2/yeetcd.yaml'
+
+          WHEN: Extract(source) is called
+
+          THEN: SourceExtractionResult.YeetcdDefinitions contains entries for 'project1/yeetcd.yaml' and 'project2/yeetcd.yaml'"
+      - description: "SourceExtractionResult Close removes temp directory"
+        type: "unit"
+        target_component: "pkg/build"
+        contracts:
+          - "SourceExtractionResult.Close()"
+        given_when_then: "GIVEN: SourceExtractionResult with temp directory containing extracted files
+
+          WHEN: Close() is called
+
+          THEN: Temp directory is removed from filesystem"
+      - description: "Source SHA256 returns consistent hex-encoded hash"
+        type: "unit"
+        target_component: "pkg/build"
+        contracts:
+          - "Source.SHA256()"
+        given_when_then: "GIVEN: Source with Zip=[0x01, 0x02, 0x03]
+
+          WHEN: SHA256() is called
+
+          THEN: Returns hex-encoded SHA256 hash of zip bytes"
+      - description: "DockerBuildService Build extracts source and runs build"
+        type: "unit"
+        target_component: "pkg/build"
+        contracts:
+          - "DockerBuildService.Build()"
+          - "ExecutionEngine.RunJob()"
+        given_when_then: "GIVEN: Mock ExecutionEngine, Source with Zip containing 'yeetcd.yaml' with buildImage='maven:3.9.9', buildCmd='mvn package'
+
+          WHEN: Build(ctx, source) is called
+
+          THEN: ExecutionEngine.RunJob is called with JobDefinition containing image='maven:3.9.9', cmd=['mvn', 'package']"
+      - description: "DockerBuildService Build returns BuildResult with image ID"
+        type: "unit"
+        target_component: "pkg/build"
+        contracts:
+          - "DockerBuildService.Build()"
+          - "ExecutionEngine.BuildImage()"
+        given_when_then: "GIVEN: Mock ExecutionEngine that returns BuildImageResult{ImageID: 'sha256:abc123'}, Source with valid config
+
+          WHEN: Build(ctx, source) is called
+
+          THEN: BuildResult.ImageID equals 'sha256:abc123'"
+      - description: "DockerBuildService integration test builds java-sample project"
+        type: "integration"
+        target_component: "pkg/build"
+        contracts:
+          - "DockerBuildService.Build()"
+        given_when_then: "GIVEN: Real Docker daemon, DockerExecutionEngine, DockerBuildService, Source with Zip of java-sample project
+
+          WHEN: Build(ctx, source) is called
+
+          THEN: BuildResult.ImageID is returned, BuildResult contains parsed pipelines"
+  - name: "Phase 3: Pipeline Controller"
+    description: "Implement PipelineController with assemble and execute phases. Implement work scheduling with dependency resolution, condition evaluation, context merging, output handling. Unit tests replicating PipelineControllerTest coverage."
+    status: "in_progress"
+    is_release_boundary: false
+    file_changes:
+      - path: "internal/core/pipeline/work_execute.go"
+        action: "create"
+        description: "Execute() method for Work struct. Implements work execution with dependency resolution, condition evaluation, context merging, and result tracking. Method signature: Execute(ctx context.Context, containingContext WorkContext, engine ExecutionEngine, metadata PipelineMetadata, tracker *WorkResultTracker, handler PipelineOutputHandler) (WorkResult, error). Logic: (1) recursively execute all previous work dependencies, (2) check condition and skip if not met, (3) merge work context with containing context, (4) execute work definition, (5) handle dynamic work generation if applicable, (6) record WorkFinished event. Mirrors Java Work.execute() method."
+        is_test: false
+      - path: "internal/core/pipeline/containerised_work_definition_execute.go"
+        action: "create"
+        description: "Execute() method for ContainerisedWorkDefinition. Implements WorkDefinition interface. Creates JobStreams via PipelineOutputHandler, records WorkStarted event, builds JobDefinition with image/cmd/workingDir/env/mounts/outputs, calls ExecutionEngine.RunJob(), maps exit code to WorkStatus (0=SUCCESS, non-zero=FAILURE). Mirrors Java ContainerisedWorkDefinition.execute() method."
+        is_test: false
+      - path: "internal/core/pipeline/compound_work_definition_execute.go"
+        action: "create"
+        description: "Execute() method for CompoundWorkDefinition. Implements WorkDefinition interface. Records WorkStarted event with empty JobStreams, executes all final work items recursively, determines compound result (SUCCESS if all succeeded, FAILURE otherwise), returns WorkResult with compound status. Mirrors Java CompoundWorkDefinition.execute() method."
+        is_test: false
+      - path: "internal/core/pipeline/native_work_definition.go"
+        action: "create"
+        description: "Shared execution logic for CustomWorkDefinition and DynamicWorkGeneratingWorkDefinition. NativeWorkDefinition struct with executionId field. Execute() method: creates JobStreams, records WorkStarted event, builds JobDefinition using pipelineMetadata.builtSourceImage and sourceLanguage.GetCustomTaskRunnerCmd(), calls ExecutionEngine.RunJob(), maps exit code to WorkStatus. Mirrors Java AbstractNativeWorkDefinition class."
+        is_test: false
+      - path: "internal/core/pipeline/custom_work_definition_execute.go"
+        action: "create"
+        description: "Execute() method for CustomWorkDefinition. Delegates to NativeWorkDefinition.Execute() with executionId from CustomWorkDefinition struct. Mirrors Java CustomWorkDefinition class."
+        is_test: false
+      - path: "internal/core/pipeline/dynamic_work_generating_work_definition_execute.go"
+        action: "create"
+        description: "Execute() method for DynamicWorkGeneratingWorkDefinition. Delegates to NativeWorkDefinition.Execute() with executionId. After successful execution, parses stdout as protobuf Work message and recursively executes the generated work. Mirrors Java handling in Work.execute() for DynamicWorkGeneratingWorkDefinition."
+        is_test: false
+      - path: "internal/core/pipeline/pipeline_controller.go"
+        action: "create"
+        description: "PipelineController struct with BuildService, SourceExtractor, and ExecutionEngine dependencies. Constructor: NewPipelineController(buildService, sourceExtractor, engine). Methods: (1) Assemble(ctx, Source) ([]Pipeline, error) - extracts source, builds it, builds source image, runs container to generate protobuf definitions, parses into Pipeline structs. (2) Execute(ctx, Pipeline, PipelineOutputHandler) (PipelineResult, error) - creates WorkResultTracker, records PipelineStarted event, executes all final work items, collects results, records PipelineFinished event, returns PipelineResult. Mirrors Java PipelineController class."
+        is_test: false
+      - path: "internal/core/pipeline/future_utils.go"
+        action: "create"
+        description: "FutureUtils package for concurrent execution. Function: Zip(futures []Future[T]) []T - waits for all futures to complete and returns results. In Go, this is implemented using errgroup.Group or sync.WaitGroup with channels. Mirrors Java CompletableFutureUtils.zip() method."
+        is_test: false
+      - path: "internal/core/pipeline/test_pipeline_output_handler.go"
+        action: "create"
+        description: "Test helper implementing PipelineOutputHandler interface. Records all PipelineEvent events in a thread-safe slice. NewJobStreams() returns JobStreams with os.Stdout/os.Stderr. GetPipelineEvents() returns recorded events. Used in unit tests to verify event sequencing. Mirrors Java TestPipelineOutputHandler class."
+        is_test: true
+      - path: "internal/core/pipeline/pipeline_controller_test.go"
+        action: "create"
+        description: "Unit tests for PipelineController.Execute() method. Tests: shouldPassThePipelineWhenAllWorkIsSuccessful, shouldFailThePipelineWhenOneWorkFails, shouldSkipWorksWhichDependOnFailedWork, shouldRunExplicitlyListedAndDependencyWorkOnceOnly, shouldRunMultipleDependenciesOfAWork, shouldRunADependencyOfMultipleWorksOnceOnly, shouldRunCompoundWork, shouldRunIdenticalWorkDefinedInDifferentCompoundWorkOnlyOnce, shouldIncludeAndOverrideContainingWorkContexts, shouldIncludeArgumentsInPipelineWorkContext, shouldMountOutputFileFromPreviousWork, shouldMountOutputDirectoryFromPreviousWork, shouldSetStdOutEnvVarFromPreviousWork, shouldRunWorkIfComplexConditionIsMet, shouldNotRunWorkIfConditionNotMet, shouldRunWorkAfterFailureIfConditionIsMet. Uses mock ExecutionEngine and TestPipelineOutputHandler. Mirrors Java PipelineControllerTest coverage (684 lines)."
+        is_test: true
+      - path: "internal/core/pipeline/work_execute_test.go"
+        action: "create"
+        description: "Unit tests for Work.Execute() method. Tests: Execute runs previous work dependencies first, Execute skips work when condition evaluates false, Execute merges work context with containing context, Execute handles dynamic work generation, Execute records WorkFinished event. Uses mock ExecutionEngine and WorkResultTracker."
+        is_test: true
+      - path: "internal/core/pipeline/containerised_work_definition_execute_test.go"
+        action: "create"
+        description: "Unit tests for ContainerisedWorkDefinition.Execute(). Tests: Execute creates JobDefinition with correct image and cmd, Execute merges previous work stdout into env vars, Execute mounts previous work output directories, Execute maps exit code 0 to SUCCESS, Execute maps non-zero exit code to FAILURE, Execute records WorkStarted event. Uses mock ExecutionEngine."
+        is_test: true
+      - path: "internal/core/pipeline/compound_work_definition_execute_test.go"
+        action: "create"
+        description: "Unit tests for CompoundWorkDefinition.Execute(). Tests: Execute runs all final work items, Execute returns SUCCESS when all work succeeds, Execute returns FAILURE when any work fails, Execute records WorkStarted event with empty streams. Uses mock ExecutionEngine."
+        is_test: true
+      - path: "internal/core/pipeline/native_work_definition_test.go"
+        action: "create"
+        description: "Unit tests for NativeWorkDefinition.Execute(). Tests: Execute uses builtSourceImage from metadata, Execute calls GetCustomTaskRunnerCmd with pipelineName and executionId, Execute merges previous work stdout into env vars, Execute mounts previous work outputs, Execute maps exit code to WorkStatus. Uses mock ExecutionEngine."
+        is_test: true
+    test_cases:
+      - description: "PipelineController Execute passes pipeline when all work is successful"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "Work.Execute()"
+          - "WorkResultTracker.GetOrExecute()"
+        given_when_then: "GIVEN: Pipeline with work1 (successful) and work2 (successful, depends on work1), mock ExecutionEngine returning exitCode=0
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: PipelineResult.PipelineStatus equals SUCCESS, work1 and work2 both have WorkStatus.SUCCESS, events recorded: PipelineStarted, WorkStarted(work1), WorkFinished(work1,SUCCESS), WorkStarted(work2), WorkFinished(work2,SUCCESS), PipelineFinished(SUCCESS)"
+      - description: "PipelineController Execute fails pipeline when one work fails"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "Work.Execute()"
+        given_when_then: "GIVEN: Pipeline with work1 (successful) and work2 (failure, depends on work1), mock ExecutionEngine returning exitCode=1 for work2
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: PipelineResult.PipelineStatus equals FAILURE, work1 has WorkStatus.SUCCESS, work2 has WorkStatus.FAILURE, events recorded: PipelineStarted, WorkStarted(work1), WorkFinished(work1,SUCCESS), WorkStarted(work2), WorkFinished(work2,FAILURE), PipelineFinished(FAILURE)"
+      - description: "PipelineController Execute skips works which depend on failed work"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "Work.Execute()"
+          - "PreviousWorkStatusCondition.Evaluate()"
+        given_when_then: "GIVEN: Pipeline with work1 (failure) and work2 (depends on work1 with PREVIOUS_WORK_SUCCESS condition), mock ExecutionEngine returning exitCode=1 for work1
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: PipelineResult.PipelineStatus equals FAILURE, work1 has WorkStatus.FAILURE, work2 has WorkStatus.SKIPPED (condition not met), events recorded: PipelineStarted, WorkStarted(work1), WorkFinished(work1,FAILURE), WorkFinished(work2,SKIPPED), PipelineFinished(FAILURE)"
+      - description: "PipelineController Execute runs explicitly listed and dependency work once only"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "WorkResultTracker.GetOrExecute()"
+        given_when_then: "GIVEN: Pipeline with finalWork=[work1, work2] where work2 depends on work1, mock ExecutionEngine
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: work1 is executed exactly once (not twice), work2 is executed once, both have WorkStatus.SUCCESS, PipelineStatus equals SUCCESS"
+      - description: "PipelineController Execute runs multiple dependencies of a work"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "Work.Execute()"
+        given_when_then: "GIVEN: Pipeline with work1, work2 (independent), and work3 (depends on both work1 and work2), mock ExecutionEngine
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: work1 and work2 execute (possibly in parallel), work3 executes after both complete, all have WorkStatus.SUCCESS, PipelineStatus equals SUCCESS"
+      - description: "PipelineController Execute runs dependency of multiple works once only"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "WorkResultTracker.GetOrExecute()"
+        given_when_then: "GIVEN: Pipeline with work1, work2 (depends on work1), work3 (depends on work1), mock ExecutionEngine
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: work1 executes exactly once, work2 and work3 both execute after work1, all have WorkStatus.SUCCESS, PipelineStatus equals SUCCESS"
+      - description: "PipelineController Execute runs compound work"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "CompoundWorkDefinition.Execute()"
+        given_when_then: "GIVEN: Pipeline with compoundWork containing [work2] where work2 depends on work1, mock ExecutionEngine
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: work1 executes, work2 executes, compoundWork has WorkStatus.SUCCESS, all three recorded in workResults, PipelineStatus equals SUCCESS"
+      - description: "PipelineController Execute runs identical work in different compound work only once"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "WorkResultTracker.GetOrExecute()"
+        given_when_then: "GIVEN: Pipeline with compoundWork1 containing [work1], compoundWork2 (depends on compoundWork1) containing [work1], mock ExecutionEngine
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: work1 executes exactly once (shared between both compound works), compoundWork1 and compoundWork2 both have WorkStatus.SUCCESS, PipelineStatus equals SUCCESS"
+      - description: "PipelineController Execute includes and overrides containing work contexts"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "WorkContext.MergeInto()"
+        given_when_then: "GIVEN: Pipeline with workContext={pipelineKey: pipelineValue, innerOverride: willBeOverridden}, compoundWork with workContext={compoundOverride: compoundValue}, innerWork with workContext={innerOverride: innerValue}, mock ExecutionEngine capturing env vars
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: innerWork receives merged context with pipelineKey=pipelineValue, innerOverride=innerValue (overridden), compoundOverride=compoundValue"
+      - description: "PipelineController Execute includes arguments in pipeline work context"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "Pipeline.WithArguments()"
+          - "Arguments.AsValidatedWorkContext()"
+        given_when_then: "GIVEN: Pipeline with parameters and workContext={keyToOverride: originalValue, keyNotOverridden: value}, Arguments with keyToOverride=argumentValue and newKey=newValue, mock ExecutionEngine capturing env vars
+
+          WHEN: Execute(ctx, pipeline.WithArguments(arguments), outputHandler) is called
+
+          THEN: work receives merged context with keyToOverride=argumentValue (overridden by argument), keyNotOverridden=value, newKey=newValue"
+      - description: "PipelineController Execute mounts output file from previous work"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "Work.previousWorkMountInputs()"
+          - "WorkResultTracker.OutputDirectoriesMountInput()"
+        given_when_then: "GIVEN: work1 with outputPaths=[{name: 'output', path: '/var/output'}], work2 with previousWork=[{work: work1, outputPathsMount: '/work1'}], mock ExecutionEngine that creates file at /var/output and captures mount paths
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: work2's JobDefinition.InputFilePaths contains '/work1' mapped to work1's output directory, work2 can read files from /work1/output"
+      - description: "PipelineController Execute mounts output directory from previous work"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "Work.previousWorkMountInputs()"
+        given_when_then: "GIVEN: work1 with outputPaths=[{name: 'outputDir', path: '/var/output'}] that creates directory with file, work2 with previousWork=[{work: work1, outputPathsMount: '/work1'}], mock ExecutionEngine
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: work2's JobDefinition.InputFilePaths contains '/work1' mapping, work2 can read /work1/outputDir/file"
+      - description: "PipelineController Execute sets stdout env var from previous work"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "Work.previousWorkStdOutAsWorkContext()"
+          - "WorkResultTracker.StdOut()"
+        given_when_then: "GIVEN: work1 that outputs 'stdoutValue' to stdout, work2 with previousWork=[{work: work1, stdOutEnvVar: 'PREV_STDOUT'}], mock ExecutionEngine capturing env vars
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: work2's JobDefinition.Environment contains PREV_STDOUT=stdoutValue"
+      - description: "PipelineController Execute runs work if complex condition is met"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "AndCondition.Evaluate()"
+          - "NotCondition.Evaluate()"
+          - "OrCondition.Evaluate()"
+          - "WorkContextCondition.Evaluate()"
+        given_when_then: "GIVEN: work with workContext={key: value} and condition=AND(WorkContextCondition(key, EQUALS, value), NOT(OR(WorkContextCondition('missing1', EQUALS, ''), WorkContextCondition('missing2', EQUALS, '')))), mock ExecutionEngine
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: condition evaluates true (first part true, second part NOT(OR(false, false))=true), work executes with WorkStatus.SUCCESS"
+      - description: "PipelineController Execute does not run work if condition not met"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "NotCondition.Evaluate()"
+          - "WorkContextCondition.Evaluate()"
+        given_when_then: "GIVEN: work with workContext={key: value} and condition=NOT(WorkContextCondition(key, EQUALS, value)), mock ExecutionEngine
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: condition evaluates false (NOT(true)=false), work is skipped with WorkStatus.SKIPPED, no container is run"
+      - description: "PipelineController Execute runs work after failure if condition is met"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "PipelineController.Execute()"
+          - "PreviousWorkStatusCondition.Evaluate()"
+        given_when_then: "GIVEN: work1 (failure), work2 (depends on work1) with condition=PreviousWorkStatusCondition(FAILURE), mock ExecutionEngine returning exitCode=1 for work1
+
+          WHEN: Execute(ctx, pipeline, outputHandler) is called
+
+          THEN: work1 has WorkStatus.FAILURE, work2's condition evaluates true (FAILURE status matches), work2 executes with WorkStatus.SUCCESS, PipelineStatus equals FAILURE (due to work1 failure)"
+      - description: "Work Execute recursively executes previous work dependencies"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "Work.Execute()"
+          - "WorkResultTracker.GetOrExecute()"
+        given_when_then: "GIVEN: work1, work2 (depends on work1), work3 (depends on work2), mock ExecutionEngine, WorkResultTracker
+
+          WHEN: work3.Execute(ctx, emptyContext, engine, metadata, tracker, handler) is called
+
+          THEN: work1 executes first, work2 executes after work1, work3 executes after work2, all results stored in tracker"
+      - description: "Work Execute merges work context with containing context"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "Work.Execute()"
+          - "WorkContext.MergeInto()"
+        given_when_then: "GIVEN: work with workContext={workKey: workValue, sharedKey: workOverride}, containingContext={sharedKey: containerValue, containerKey: containerValue}, mock ExecutionEngine capturing env vars
+
+          WHEN: work.Execute(ctx, containingContext, engine, metadata, tracker, handler) is called
+
+          THEN: WorkDefinition.Execute() receives merged context with workKey=workValue, sharedKey=workOverride (work overrides container), containerKey=containerValue"
+      - description: "ContainerisedWorkDefinition Execute creates correct JobDefinition"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "ContainerisedWorkDefinition.Execute()"
+          - "ExecutionEngine.RunJob()"
+        given_when_then: "GIVEN: ContainerisedWorkDefinition with image='test:latest', cmd=['echo', 'hello'], work with previousWork stdout env vars and mount inputs, mock ExecutionEngine
+
+          WHEN: Execute(ctx, workContext, engine, metadata, work, tracker, handler) is called
+
+          THEN: RunJob() is called with JobDefinition containing image='test:latest', cmd=['echo', 'hello'], workingDir='/', env including previous work stdout, mounts including previous work outputs"
+      - description: "ContainerisedWorkDefinition Execute maps exit code to WorkStatus"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "ContainerisedWorkDefinition.Execute()"
+        given_when_then: "GIVEN: ContainerisedWorkDefinition, mock ExecutionEngine returning JobResult{ExitCode: 0}
+
+          WHEN: Execute() is called
+
+          THEN: WorkResult.WorkStatus equals SUCCESS
+
+
+          GIVEN: mock ExecutionEngine returning JobResult{ExitCode: 1}
+
+          WHEN: Execute() is called
+
+          THEN: WorkResult.WorkStatus equals FAILURE"
+      - description: "CompoundWorkDefinition Execute runs all final work items"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "CompoundWorkDefinition.Execute()"
+          - "Work.Execute()"
+        given_when_then: "GIVEN: CompoundWorkDefinition with finalWork=[work1, work2], mock ExecutionEngine, WorkResultTracker
+
+          WHEN: Execute(ctx, workContext, engine, metadata, compoundWork, tracker, handler) is called
+
+          THEN: work1.Execute() and work2.Execute() are both called, WorkResult.WorkStatus equals SUCCESS if both succeed, FAILURE if any fail"
+      - description: "NativeWorkDefinition Execute uses built source image"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "NativeWorkDefinition.Execute()"
+          - "ExecutionEngine.RunJob()"
+        given_when_then: "GIVEN: NativeWorkDefinition with executionId='customTask123', PipelineMetadata with builtSourceImage='sha256:abc', SourceLanguage=JAVA, mock ExecutionEngine
+
+          WHEN: Execute(ctx, workContext, engine, metadata, work, tracker, handler) is called
+
+          THEN: RunJob() is called with JobDefinition.Image equals 'sha256:abc', JobDefinition.Cmd equals JAVA.GetCustomTaskRunnerCmd(pipelineName, 'customTask123')"
+      - description: "DynamicWorkGeneratingWorkDefinition Execute generates and runs dynamic work"
+        type: "unit"
+        target_component: "internal/core/pipeline"
+        contracts:
+          - "DynamicWorkGeneratingWorkDefinition.Execute()"
+          - "Work.FromProtobuf()"
+        given_when_then: "GIVEN: DynamicWorkGeneratingWorkDefinition, mock ExecutionEngine that returns stdout containing valid protobuf Work message, mock Work.FromProtobuf()
+
+          WHEN: Execute() is called and succeeds (exitCode=0)
+
+          THEN: stdout is parsed as protobuf Work, generated work's Execute() is called recursively, final WorkResult reflects generated work's status"
+  - name: "Phase 4: CLI Implementation"
+    description: "Implement CLI entry point with cobra. Wire together core package with Docker executor. End-to-end tests building and running java-sample project. This is the first user-facing deliverable."
+    status: "pending"
+    is_release_boundary: true
+    file_changes:
+      - path: "cmd/yeetcd/main.go"
+        action: "create"
+        description: "CLI entry point using cobra. Initializes root command with 'run' and 'list' subcommands. Sets up logging with slog. Handles version flag. Main function calls cobra.Execute()."
+        is_test: false
+      - path: "cmd/yeetcd/run.go"
+        action: "create"
+        description: "yeetcd run command implementation. Flags: --source (required, path to zip file), --pipeline (required, pipeline name), --argument (optional, repeatable, format KEY=VALUE). Logic: (1) read zip file, (2) create Source, (3) create PipelineController with DockerExecutionEngine, (4) call Assemble(), (5) find named pipeline, (6) apply arguments, (7) call Execute() with CLI output handler, (8) print result, (9) exit with appropriate code. Uses slog for progress logging."
+        is_test: false
+      - path: "cmd/yeetcd/list.go"
+        action: "create"
+        description: "yeetcd list command implementation. Flags: --source (required, path to zip file). Logic: (1) read zip file, (2) create Source, (3) create PipelineController with DockerExecutionEngine, (4) call Assemble(), (5) print pipeline names and their parameters. Uses slog for progress logging."
+        is_test: false
+      - path: "internal/cli/output_handler.go"
+        action: "create"
+        description: "CLI-specific PipelineOutputHandler implementation. RecordEvent() logs events using slog with appropriate log levels (PipelineStarted=info, WorkStarted=info, WorkFinished=info with status, PipelineFinished=info with status). NewJobStreams() returns JobStreams with os.Stdout/os.Stderr for live output. Mirrors Java TestPipelineOutputHandler but with CLI-friendly logging."
+        is_test: false
+      - path: "internal/cli/progress_reporter.go"
+        action: "create"
+        description: "ProgressReporter implementation for CLI. Wraps PipelineOutputHandler to provide human-readable progress output. Methods: PipelineStarted() prints 'Starting pipeline: <name>', WorkStarted() prints '  Running: <work description>', WorkFinished() prints '  Done: <work description> (<status>)', PipelineFinished() prints 'Pipeline completed: <status>'. Uses terminal detection for color output."
+        is_test: false
+      - path: "internal/testutil/archive.go"
+        action: "create"
+        description: "Test utility for creating project zips. Function: CreateProjectZip(rootDir string) ([]byte, error) - creates zip of directory excluding 'target' directories and hidden files. Function: CreateProjectZipFromCurrentRepo() ([]byte, error) - creates zip of repository root (detected by finding go.mod). Mirrors Java ArchiveUtils.projectZip() functionality."
+        is_test: true
+      - path: "internal/testutil/java_sample.go"
+        action: "create"
+        description: "Test utility for java-sample project. Function: GetJavaSampleZip() ([]byte, error) - returns cached zip of java-sample project. Function: GetJavaSampleZipWithRepo() ([]byte, error) - returns zip of entire repository (needed because java-sample depends on java-sdk and protocol). Caches zip in sync.Once for test performance. Mirrors Java ArchiveUtils.projectZip() which zips entire repo root."
+        is_test: true
+      - path: "e2e/java_sample_test.go"
+        action: "create"
+        description: "End-to-end tests for java-sample project. Tests replicate JavaSampleTest.java coverage: shouldBuildTheJavaSampleApplication, shouldAssembleAndExecuteTheJavaSamplePipeline, shouldAssembleAndExecuteTheJavaSampleCompoundPipeline, shouldAssembleAndExecuteTheJavaSampleWorkContextPipeline, shouldAssembleAndExecuteTheJavaSampleWithParametersPipeline, shouldAssembleAndExecuteTheJavaSampleWithWorkOutputsPipeline, shouldAssembleAndExecuteTheJavaSampleWithConditionsPipeline, shouldAssembleAndExecuteTheJavaSampleDynamicWorkPipeline. Uses real Docker daemon. Each test creates PipelineController, assembles source, executes pipeline, verifies status and event sequence."
+        is_test: true
+      - path: "e2e/cli_test.go"
+        action: "create"
+        description: "End-to-end tests for CLI commands. Tests: 'yeetcd list' shows all pipelines from java-sample, 'yeetcd run --source <zip> --pipeline sample' executes successfully, 'yeetcd run' with --argument passes arguments to pipeline, 'yeetcd run' with invalid pipeline name returns error, 'yeetcd run' with missing source returns error. Uses exec.Command to run actual CLI binary."
+        is_test: true
+    test_cases:
+      - description: "CLI yeetcd list shows all pipelines from java-sample project"
+        type: "e2e"
+        target_component: "cmd/yeetcd"
+        contracts:
+          - "PipelineController.Assemble()"
+          - "Pipeline.name()"
+        given_when_then: "GIVEN: Real Docker daemon, java-sample project zip, built yeetcd CLI binary
+
+
+          WHEN: 'yeetcd list --source <zip>' is executed
+
+
+          THEN: Output contains pipeline names: sample, sampleCompound, sampleWithWorkContext, sampleWithParameters, sampleWithWorkOutputs, sampleWithConditions, sampleDynamicWork"
+      - description: "CLI yeetcd run executes sample pipeline successfully"
+        type: "e2e"
+        target_component: "cmd/yeetcd"
+        contracts:
+          - "PipelineController.Assemble()"
+          - "PipelineController.Execute()"
+          - "PipelineOutputHandler.RecordEvent()"
+        given_when_then: "GIVEN: Real Docker daemon, java-sample project zip, built yeetcd CLI binary
+
+
+          WHEN: 'yeetcd run --source <zip> --pipeline sample' is executed
+
+
+          THEN: CLI exits with code 0, output contains 'Pipeline completed: SUCCESS', output shows work execution progress"
+      - description: "CLI yeetcd run passes arguments to pipeline"
+        type: "e2e"
+        target_component: "cmd/yeetcd"
+        contracts:
+          - "PipelineController.Execute()"
+          - "Pipeline.WithArguments()"
+          - "Arguments.AsValidatedWorkContext()"
+        given_when_then: "GIVEN: Real Docker daemon, java-sample project zip, built yeetcd CLI binary
+
+
+          WHEN: 'yeetcd run --source <zip> --pipeline sampleWithParameters --argument PARAMETER_NAME=other' is executed
+
+
+          THEN: CLI exits with code 0, pipeline receives PARAMETER_NAME=other argument, work validates argument is in allowed choices"
+      - description: "CLI yeetcd run returns error for invalid pipeline name"
+        type: "e2e"
+        target_component: "cmd/yeetcd"
+        contracts:
+          - "PipelineController.Assemble()"
+        given_when_then: "GIVEN: Real Docker daemon, java-sample project zip, built yeetcd CLI binary
+
+
+          WHEN: 'yeetcd run --source <zip> --pipeline nonexistent' is executed
+
+
+          THEN: CLI exits with non-zero code, error message indicates pipeline not found"
+      - description: "CLI yeetcd run returns error for missing source"
+        type: "e2e"
+        target_component: "cmd/yeetcd"
+        contracts: []
+        given_when_then: "GIVEN: Built yeetcd CLI binary
+
+
+          WHEN: 'yeetcd run --source /nonexistent/path.zip --pipeline sample' is executed
+
+
+          THEN: CLI exits with non-zero code, error message indicates source file not found"
+      - description: "E2E should build the java-sample application"
+        type: "e2e"
+        target_component: "e2e"
+        contracts:
+          - "DockerBuildService.Build()"
+          - "ExecutionEngine.BuildImage()"
+        given_when_then: "GIVEN: Real Docker daemon, DockerExecutionEngine, DockerBuildService, Source with Zip of entire repository (java-sample depends on java-sdk and protocol)
+
+
+          WHEN: Build(ctx, source) is called
+
+
+          THEN: BuildResult.ImageID is returned, output directories contain compiled JAR files"
+      - description: "E2E should assemble and execute the java-sample pipeline"
+        type: "e2e"
+        target_component: "e2e"
+        contracts:
+          - "PipelineController.Assemble()"
+          - "PipelineController.Execute()"
+          - "ContainerisedWorkDefinition.Execute()"
+          - "CustomWorkDefinition.Execute()"
+        given_when_then: "GIVEN: Real Docker daemon, PipelineController, Source with repository zip
+
+
+          WHEN: Assemble(ctx, source) then Execute(ctx, pipeline 'sample', outputHandler) is called
+
+
+          THEN: PipelineResult.PipelineStatus equals SUCCESS, events recorded: PipelineStarted, WorkStarted(containerised-work-definition), WorkFinished(SUCCESS), WorkStarted(custom-work-definition), WorkFinished(SUCCESS), PipelineFinished(SUCCESS)"
+      - description: "E2E should assemble and execute the java-sample compound pipeline"
+        type: "e2e"
+        target_component: "e2e"
+        contracts:
+          - "PipelineController.Execute()"
+          - "CompoundWorkDefinition.Execute()"
+        given_when_then: "GIVEN: Real Docker daemon, PipelineController, Source with repository zip
+
+
+          WHEN: Execute(ctx, pipeline 'sampleCompound', outputHandler) is called
+
+
+          THEN: PipelineResult.PipelineStatus equals SUCCESS, events show compound work execution with nested pipeline works, total 14 events (2 compound works each containing sample pipeline)"
+      - description: "E2E should assemble and execute the java-sample work context pipeline"
+        type: "e2e"
+        target_component: "e2e"
+        contracts:
+          - "PipelineController.Execute()"
+          - "WorkContext.MergeInto()"
+        given_when_then: "GIVEN: Real Docker daemon, PipelineController, Source with repository zip
+
+
+          WHEN: Execute(ctx, pipeline 'sampleWithWorkContext', outputHandler) is called
+
+
+          THEN: PipelineResult.PipelineStatus equals SUCCESS, work receives merged context with PIPELINE_WORK_CONTEXT and WORK_WORK_CONTEXT env vars, work validates context values"
+      - description: "E2E should assemble and execute the java-sample with parameters pipeline"
+        type: "e2e"
+        target_component: "e2e"
+        contracts:
+          - "PipelineController.Execute()"
+          - "Pipeline.WithArguments()"
+          - "Arguments.AsValidatedWorkContext()"
+        given_when_then: "GIVEN: Real Docker daemon, PipelineController, Source with repository zip
+
+
+          WHEN: Execute(ctx, pipeline 'sampleWithParameters'.WithArguments({'PARAMETER_NAME': 'other'}), outputHandler) is called
+
+
+          THEN: PipelineResult.PipelineStatus equals SUCCESS, work receives PARAMETER_NAME=other env var, work validates argument is in allowed choices"
+      - description: "E2E should assemble and execute the java-sample with work outputs pipeline"
+        type: "e2e"
+        target_component: "e2e"
+        contracts:
+          - "PipelineController.Execute()"
+          - "WorkOutputPath"
+          - "PreviousWork.outputsMountPath"
+          - "PreviousWork.stdOutEnvVar"
+        given_when_then: "GIVEN: Real Docker daemon, PipelineController, Source with repository zip
+
+
+          WHEN: Execute(ctx, pipeline 'sampleWithWorkOutputs', outputHandler) is called
+
+
+          THEN: PipelineResult.PipelineStatus equals SUCCESS, generate-outputs work creates file and stdout, consume-outputs work receives mounted file and stdout env var, work validates outputs match expected values"
+      - description: "E2E should assemble and execute the java-sample with conditions pipeline"
+        type: "e2e"
+        target_component: "e2e"
+        contracts:
+          - "PipelineController.Execute()"
+          - "WorkContextCondition.Evaluate()"
+          - "WorkStatus.SKIPPED"
+        given_when_then: "GIVEN: Real Docker daemon, PipelineController, Source with repository zip
+
+
+          WHEN: Execute(ctx, pipeline 'sampleWithConditions', outputHandler) is called
+
+
+          THEN: PipelineResult.PipelineStatus equals SUCCESS, first work executes with SUCCESS, second work SKIPPED (condition not met), third work SKIPPED (depends on skipped work), events show 6 total events with SKIPPED statuses"
+      - description: "E2E should assemble and execute the java-sample dynamic work pipeline"
+        type: "e2e"
+        target_component: "e2e"
+        contracts:
+          - "PipelineController.Execute()"
+          - "DynamicWorkGeneratingWorkDefinition.Execute()"
+          - "Work.FromProtobuf()"
+        given_when_then: "GIVEN: Real Docker daemon, PipelineController, Source with repository zip
+
+
+          WHEN: Execute(ctx, pipeline 'sampleDynamicWork'.WithArguments({'WORK_COUNT': '2'}), outputHandler) is called
+
+
+          THEN: PipelineResult.PipelineStatus equals SUCCESS, dynamic work generates 2 child works, events show 10 total events (PipelineStarted, WorkStarted(dynamic), WorkStarted(work-0), WorkFinished, WorkStarted(work-1), WorkFinished, WorkFinished(dynamic), PipelineFinished)"
+status: "approved"
+addressed_issues:
+  - issue: "Where should the Go module live in the repository?"
+    resolution: "clarified"
+    resolution_note: "Go module at repository root. This requires restructuring Java modules to subdirectories (java-sdk/, java-test/, java-sample/, protocol/, controller/). The go.mod will be at the root level."
+    timestamp: "2026-04-01T21:36:59.922Z"
+  - issue: "How should we generate Go protobuf code from the existing .proto file?"
+    resolution: "clarified"
+    resolution_note: "Add Go package option to existing .proto file. Run protoc with --go_out to generate Go code in internal/core/proto/. Single .proto file for all languages."
+    timestamp: "2026-04-01T21:37:02.116Z"
+  - issue: "Should we include yeetcd.yaml parsing in Phase 1 or Phase 2?"
+    resolution: "clarified"
+    resolution_note: "Include YAML parsing in Phase 1 as pkg/config/. It's needed for CLI and source building, so it should be part of the core foundation."
+    timestamp: "2026-04-01T21:37:04.073Z"
+  - issue: "What logging approach should we use?"
+    resolution: "clarified"
+    resolution_note: "Use slog (Go 1.21+ standard library structured logging). No dependencies, good for CLI and future operator."
+    timestamp: "2026-04-01T21:37:05.682Z"
+  - issue: "How should we approach replicating Java test coverage in Go?"
+    resolution: "clarified"
+    resolution_note: "Unit tests first, then integration. Write unit tests for each package with mocks, then add integration tests with real Docker. This mirrors the Java approach."
+    timestamp: "2026-04-01T21:37:09.077Z"
+  - issue: "Go Module Location Conflict - reviewer flagged go.mod at root with existing pom.xml"
+    resolution: "clarified"
+    resolution_note: "Keep both go.mod and pom.xml at root. No restructuring needed. Go and Java builds coexist at repository root. Each Java module (java-sdk/, java-test/, etc.) already has its own pom.xml in subdirectories."
+    timestamp: "2026-04-01T21:59:54.025Z"
+  - issue: "Missing SourceLanguage Implementation - Java SourceLanguage has abstract method getCustomTaskRunnerCmd"
+    resolution: "clarified"
+    resolution_note: "SourceLanguage will be an interface in Go with GetCustomTaskRunnerCmd(pipelineName, taskName string) string method. JAVA implements this interface. This mirrors the Java design and allows adding more languages later."
+    timestamp: "2026-04-01T21:59:56.696Z"
+  - issue: "ImageBase Integration Missing - Java SourceLanguage depends on ImageBase for getImageBase() and getGeneratePipelineDefinitionsCmd()"
+    resolution: "clarified"
+    resolution_note: "SourceLanguage interface will include GetImageBase() ImageBase and GetGeneratePipelineDefinitionsCmd() string methods. This mirrors the Java design and provides clean integration between SourceLanguage and ImageBase."
+    timestamp: "2026-04-01T21:59:59.210Z"
+review:
+  status: "failed"
+  reviewer: "reviewer"
+  timestamp: "2026-04-01T21:57:39.034Z"
+  feedback: "## Review Summary
+
+
+    The spec is generally well-structured and addresses the core migration from Java to Go. However, I've identified several issues that need to be addressed:
+
+
+    ### Critical Issues
+
+
+    **1. Go Module Location Conflict (Technical Feasibility)**
+
+    - Phase 1 specifies creating `go.mod` at repository root
+
+    - But there's an existing `pom.xml` at the root level
+
+    - Go and Maven cannot coexist at the same directory level
+
+    - Resolution: Either put Go in a subdirectory (e.g., `/go/`) or move Java modules to subdirectories as the addressed_issue suggests - but this conflicts with the existing Java module structure at root
+
+
+    **2. Missing SourceLanguage Implementation (Incompleteness)**
+
+    - Phase 1 references `SourceLanguage` in `PipelineMetadata`
+
+    - Java's `SourceLanguage` enum has `getCustomTaskRunnerCmd(pipelineName, taskName)` abstract method
+
+    - Java's `SourceLanguage.JAVA` implementation calls `yeetcd.sdk.GeneratedCustomWorkRunner`
+
+    - The spec doesn't define a Go equivalent for this language-specific command generation
+
+    - This is needed for CustomWorkDefinition and DynamicWorkGeneratingWorkDefinition execution
+
+
+    **3. ImageBase Integration Missing (Incompleteness)**
+
+    - Java's `SourceLanguage` depends on `ImageBase` (getImageBase(), getGeneratePipelineDefinitionsCmd())
+
+    - The spec mentions `pkg/engine/image_base.go` but doesn't show how it integrates with `SourceLanguage`
+
+    - BuildImageDefinition needs ImageBase to generate the correct Dockerfile entry point
+
+
+    ### Medium Issues
+
+
+    **4. Protobuf Generation Clarification (Correctness)**
+
+    - Phase 1 says \"create internal/core/proto/pipeline/pipeline.pb.go\"\ 
+
+    - This should be generated via protoc, not manually created
+
+    - The spec should reference running: `protoc --go_out=. --go_opt=module=github.com/yeetcd/yeetcd protocol/src/main/proto/yeetcd/protocol/pipeline/pipeline.proto`
+
+
+    **5. Concurrent Execution Pattern (Technical Feasibility)**
+
+    - Java uses CompletableFuture for parallel work execution (see Work.execute() and CompletableFutureUtils.zip())
+
+    - Go doesn't have built-in futures - uses goroutines and channels
+
+    - The spec mentions FutureUtils but doesn't specify the Go pattern for parallel execution
+
+    - Need to clarify how Work.Execute() handles concurrent dependency execution
+
+
+    **6. Test Method Coverage Mapping (Incompleteness)**
+
+    - Spec references Java test classes but doesn't map all test methods
+
+    - Java's PipelineControllerTest has 25+ test methods covering: skip works on failure, multiple dependencies, compound work, identical work deduplication, context inheritance, argument handling, output mounting, condition evaluation
+
+    - Need to ensure all are covered in Go test cases
+
+
+    ### Minor Issues
+
+
+    **7. Phase 3 Work Execute Logic Ambiguity**
+
+    - DynamicWorkGeneratingWorkDefinition executes, then parses stdout as protobuf Work, then recursively executes
+
+    - The spec mentions this but the flow is complex
+
+    - Consider adding explicit step-by-step logic
+
+
+    **8. CLI Flag Specification**
+
+    - Phase 4 mentions `yeetcd run --source <zip> --pipeline <name>`
+
+    - Should specify if --pipeline is required or optional (execute all if not specified)
+
+
+    ### What's Good
+
+
+    - Clean separation of concerns (core, engine, build, progress packages)
+
+    - Interface-first design supports Docker/Mock/K8s executors
+
+    - Test cases are well-structured with GIVEN/WHEN/THEN format
+
+    - Phases are appropriately sequential with clear dependencies
+
+
+    ### Recommendation
+
+
+    The spec needs clarification on the Go module location conflict and missing SourceLanguage/ImageBase integration before implementation can proceed."
