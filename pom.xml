@@ -10,7 +10,6 @@
         <module>java-sample</module>
         <module>java-sdk</module>
         <module>java-test</module>
-        <module>controller</module>
         <module>protocol</module>
     </modules>
 
