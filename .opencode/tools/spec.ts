@@ -31,6 +31,13 @@ const TestCaseSchema = z.object({
   given_when_then: z.string().describe("Pseudo test structure: GIVEN initial state/context, WHEN action is performed, THEN expected outcome"),
 })
 
+const FileChangeSchema = z.object({
+  path: z.string().describe("File path relative to project root"),
+  action: z.enum(["create", "modify", "delete"]).describe("What action to take"),
+  description: z.string().describe("What this file change accomplishes"),
+  is_test: z.boolean().describe("Whether this is a test file"),
+})
+
 const ChunkTestCaseSchema = TestCaseSchema // Alias for clarity when in chunk context
 
 const ChunkSchema = z.object({
@@ -39,13 +46,6 @@ const ChunkSchema = z.object({
   status: z.enum(["pending", "in_progress", "completed"]).describe("Chunk status"),
   file_changes: z.array(FileChangeSchema).describe("File changes for this chunk"),
   test_cases: z.array(ChunkTestCaseSchema).describe("Test cases for this chunk"),
-})
-
-const FileChangeSchema = z.object({
-  path: z.string().describe("File path relative to project root"),
-  action: z.enum(["create", "modify", "delete"]).describe("What action to take"),
-  description: z.string().describe("What this file change accomplishes"),
-  is_test: z.boolean().describe("Whether this is a test file"),
 })
 
 const PhaseSchema = z.object({
