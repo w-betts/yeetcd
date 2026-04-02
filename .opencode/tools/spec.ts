@@ -31,6 +31,16 @@ const TestCaseSchema = z.object({
   given_when_then: z.string().describe("Pseudo test structure: GIVEN initial state/context, WHEN action is performed, THEN expected outcome"),
 })
 
+const ChunkTestCaseSchema = TestCaseSchema // Alias for clarity when in chunk context
+
+const ChunkSchema = z.object({
+  name: z.string().describe("Chunk name (e.g., 'Chunk 1: Core parser logic')"),
+  description: z.string().describe("What this chunk accomplishes"),
+  status: z.enum(["pending", "in_progress", "completed"]).describe("Chunk status"),
+  file_changes: z.array(FileChangeSchema).describe("File changes for this chunk"),
+  test_cases: z.array(ChunkTestCaseSchema).describe("Test cases for this chunk"),
+})
+
 const FileChangeSchema = z.object({
   path: z.string().describe("File path relative to project root"),
   action: z.enum(["create", "modify", "delete"]).describe("What action to take"),
@@ -43,8 +53,9 @@ const PhaseSchema = z.object({
   description: z.string().describe("What this phase accomplishes"),
   status: z.enum(["pending", "in_progress", "completed", "released"]).describe("Phase status"),
   is_release_boundary: z.boolean().describe("Whether this phase marks a release boundary"),
-  file_changes: z.array(FileChangeSchema).describe("File changes for this phase (filled by planner)"),
-  test_cases: z.array(TestCaseSchema).describe("Test cases for this phase (filled by planner)"),
+  file_changes: z.array(FileChangeSchema).describe("File changes for this phase (filled by planner) - deprecated: use chunks instead"),
+  test_cases: z.array(TestCaseSchema).describe("Test cases for this phase (filled by planner) - deprecated: use chunks instead"),
+  chunks: z.array(ChunkSchema).describe("Implementation chunks within this phase - each chunk is independently verifiable"),
 })
 
 const AddressedIssueSchema = z.object({
@@ -228,7 +239,7 @@ export const spec_write = tool({
                 description: tool.schema.string(),
                 is_test: tool.schema.boolean(),
               })
-            ),
+            ).optional(),
             test_cases: tool.schema.array(
               tool.schema.object({
                 description: tool.schema.string(),
@@ -237,7 +248,33 @@ export const spec_write = tool({
                 contracts: tool.schema.array(tool.schema.string()),
                 given_when_then: tool.schema.string(),
               })
-            ),
+            ).optional(),
+            chunks: tool.schema
+              .array(
+                tool.schema.object({
+                  name: tool.schema.string(),
+                  description: tool.schema.string(),
+                  status: tool.schema.enum(["pending", "in_progress", "completed"]),
+                  file_changes: tool.schema.array(
+                    tool.schema.object({
+                      path: tool.schema.string(),
+                      action: tool.schema.enum(["create", "modify", "delete"]),
+                      description: tool.schema.string(),
+                      is_test: tool.schema.boolean(),
+                    })
+                  ),
+                  test_cases: tool.schema.array(
+                    tool.schema.object({
+                      description: tool.schema.string(),
+                      type: tool.schema.enum(["unit", "integration", "e2e"]),
+                      target_component: tool.schema.string(),
+                      contracts: tool.schema.array(tool.schema.string()),
+                      given_when_then: tool.schema.string(),
+                    })
+                  ),
+                })
+              )
+              .optional(),
           })
         )
         .describe("Implementation phases"),
@@ -376,11 +413,28 @@ export const spec_read = tool({
       const boundary = phase.is_release_boundary ? " [RELEASE BOUNDARY]" : ""
       output += `\nPhase ${i + 1} (index ${i}): ${phase.name} (${phase.status})${boundary}\n`
       output += `   ${phase.description}\n`
-      if (phase.file_changes.length > 0) {
-        output += `   File changes:\n${phase.file_changes.map((f) => `     - ${f.action} ${f.path}${f.is_test ? " [TEST]" : ""}: ${f.description}`).join("\n")}\n`
-      }
-      if (phase.test_cases.length > 0) {
-        output += `   Test cases:\n${phase.test_cases.map((t) => `     - [${t.type}] ${t.description} (targets: ${t.target_component})\n       Contracts: ${t.contracts.join(", ")}\n       ${t.given_when_then}`).join("\n")}\n`
+      
+      // Show chunks if present
+      if (phase.chunks && phase.chunks.length > 0) {
+        output += `   Chunks:\n`
+        phase.chunks.forEach((chunk, ci) => {
+          output += `     Chunk ${ci + 1} (index ${ci}): ${chunk.name} (${chunk.status})\n`
+          output += `       ${chunk.description}\n`
+          if (chunk.file_changes.length > 0) {
+            output += `       File changes:\n${chunk.file_changes.map((f) => `         - ${f.action} ${f.path}${f.is_test ? " [TEST]" : ""}: ${f.description}`).join("\n")}\n`
+          }
+          if (chunk.test_cases.length > 0) {
+            output += `       Test cases:\n${chunk.test_cases.map((t) => `         - [${t.type}] ${t.description} (targets: ${t.target_component})\n           Contracts: ${t.contracts.join(", ")}\n           ${t.given_when_then}`).join("\n")}\n`
+          }
+        })
+      } else {
+        // Fallback to deprecated file_changes and test_cases
+        if (phase.file_changes && phase.file_changes.length > 0) {
+          output += `   File changes:\n${phase.file_changes.map((f) => `     - ${f.action} ${f.path}${f.is_test ? " [TEST]" : ""}: ${f.description}`).join("\n")}\n`
+        }
+        if (phase.test_cases && phase.test_cases.length > 0) {
+          output += `   Test cases:\n${phase.test_cases.map((t) => `     - [${t.type}] ${t.description} (targets: ${t.target_component})\n       Contracts: ${t.contracts.join(", ")}\n       ${t.given_when_then}`).join("\n")}\n`
+        }
       }
     })
     if (spec.review) {
@@ -453,7 +507,38 @@ export const spec_update = tool({
         })
       )
       .optional()
-      .describe("Replace the phase's test cases"),
+      .describe("Replace the phase's test cases (deprecated: use chunk_level updates instead)"),
+    chunk_index: tool.schema
+      .number()
+      .optional()
+      .describe("Index of the chunk to update within the phase (0-based)"),
+    chunk_status: tool.schema
+      .enum(["pending", "in_progress", "completed"])
+      .optional()
+      .describe("Update the chunk status"),
+    chunk_file_changes: tool.schema
+      .array(
+        tool.schema.object({
+          path: tool.schema.string(),
+          action: tool.schema.enum(["create", "modify", "delete"]),
+          description: tool.schema.string(),
+          is_test: tool.schema.boolean(),
+        })
+      )
+      .optional()
+      .describe("Replace the chunk's file changes"),
+    chunk_test_cases: tool.schema
+      .array(
+        tool.schema.object({
+          description: tool.schema.string(),
+          type: tool.schema.enum(["unit", "integration", "e2e"]),
+          target_component: tool.schema.string(),
+          contracts: tool.schema.array(tool.schema.string()),
+          given_when_then: tool.schema.string(),
+        })
+      )
+      .optional()
+      .describe("Replace the chunk's test cases"),
     review_status: tool.schema
       .enum(["pending", "passed", "failed"])
       .optional()
@@ -545,6 +630,29 @@ export const spec_update = tool({
       if (args.phase_test_cases !== undefined) {
         phase.test_cases = args.phase_test_cases
         updates.push(`Phase ${args.phase_index} ("${phase.name}") test_cases → ${args.phase_test_cases.length} cases`)
+      }
+
+      // Handle chunk-level updates
+      if (args.chunk_index !== undefined) {
+        if (!phase.chunks) {
+          return `ERROR: Phase ${args.phase_index} has no chunks. Add chunks via spec_write or planner first.`
+        }
+        if (args.chunk_index < 0 || args.chunk_index >= phase.chunks.length) {
+          return `ERROR: Invalid chunk_index ${args.chunk_index}. Valid range: 0-${phase.chunks.length - 1}`
+        }
+        const chunk = phase.chunks[args.chunk_index]
+        if (args.chunk_status !== undefined) {
+          chunk.status = args.chunk_status
+          updates.push(`Phase ${args.phase_index} chunk ${args.chunk_index} ("${chunk.name}") status → ${args.chunk_status}`)
+        }
+        if (args.chunk_file_changes !== undefined) {
+          chunk.file_changes = args.chunk_file_changes
+          updates.push(`Phase ${args.phase_index} chunk ${args.chunk_index} ("${chunk.name}") file_changes → ${args.chunk_file_changes.length} changes`)
+        }
+        if (args.chunk_test_cases !== undefined) {
+          chunk.test_cases = args.chunk_test_cases
+          updates.push(`Phase ${args.phase_index} chunk ${args.chunk_index} ("${chunk.name}") test_cases → ${args.chunk_test_cases.length} cases`)
+        }
       }
     }
 
