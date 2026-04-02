@@ -17,7 +17,7 @@ type NativeWorkDefinition struct {
 // Creates JobStreams, records WorkStarted event, builds JobDefinition using
 // pipelineMetadata.builtSourceImage and sourceLanguage.GetCustomTaskRunnerCmd(),
 // calls ExecutionEngine.RunJob(), maps exit code to WorkStatus
-func (n *NativeWorkDefinition) Execute(ctx context.Context, work Work, eng engine.ExecutionEngine, metadata PipelineMetadata, tracker *WorkResultTracker, handler PipelineOutputHandler) (*types.WorkResult, error) {
+func (n *NativeWorkDefinition) Execute(ctx context.Context, work Work, mergedContext types.WorkContext, eng engine.ExecutionEngine, metadata PipelineMetadata, tracker *WorkResultTracker, handler PipelineOutputHandler) (*types.WorkResult, error) {
 	// Create JobStreams via PipelineOutputHandler
 	jobStreams := handler.NewJobStreams()
 
@@ -26,9 +26,6 @@ func (n *NativeWorkDefinition) Execute(ctx context.Context, work Work, eng engin
 		Work:       work,
 		JobStreams: jobStreams,
 	})
-
-	// Build merged context
-	mergedContext := work.WorkContext
 
 	// Add previous work stdout as environment variables
 	prevWorkStdOutContext := work.PreviousWorkStdOutAsWorkContext(tracker)

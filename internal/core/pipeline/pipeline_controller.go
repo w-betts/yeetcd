@@ -12,12 +12,12 @@ import (
 // PipelineController orchestrates pipeline assembly and execution
 type PipelineController struct {
 	buildService     build.BuildService
-	sourceExtractor  build.SourceExtractor
+	sourceExtractor  *build.SourceExtractor
 	executionEngine  engine.ExecutionEngine
 }
 
 // NewPipelineController creates a new PipelineController
-func NewPipelineController(buildService build.BuildService, sourceExtractor build.SourceExtractor, engine engine.ExecutionEngine) *PipelineController {
+func NewPipelineController(buildService build.BuildService, sourceExtractor *build.SourceExtractor, engine engine.ExecutionEngine) *PipelineController {
 	return &PipelineController{
 		buildService:     buildService,
 		sourceExtractor:  sourceExtractor,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	pb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
+	"github.com/yeetcd/yeetcd/internal/core/types"
 	"github.com/yeetcd/yeetcd/pkg/engine"
 	"google.golang.org/protobuf/proto"
 )
@@ -12,26 +13,25 @@ import (
 // Execute implements WorkDefinition for DynamicWorkGeneratingWorkDefinition
 // Delegates to NativeWorkDefinition.Execute() with executionId.
 // After successful execution, parses stdout as protobuf Work message and recursively executes the generated work.
-func (d *DynamicWorkGeneratingWorkDefinition) Execute(ctx context.Context, work Work, eng engine.ExecutionEngine, metadata PipelineMetadata, tracker *WorkResultTracker, handler PipelineOutputHandler) (*WorkResult, error) {
+func (d *DynamicWorkGeneratingWorkDefinition) Execute(ctx context.Context, work Work, mergedContext types.WorkContext, eng engine.ExecutionEngine, metadata PipelineMetadata, tracker *WorkResultTracker, handler PipelineOutputHandler) (*types.WorkResult, error) {
 	native := &NativeWorkDefinition{
 		ExecutionID: d.ExecutionID,
 	}
 	
 	// Execute the native work definition
-	result, err := native.Execute(ctx, work, eng, metadata, tracker, handler)
+	result, err := native.Execute(ctx, work, mergedContext, eng, metadata, tracker, handler)
 	if err != nil {
 		return nil, err
 	}
 
 	// If successful, parse stdout as protobuf Work message and execute generated work
-	if result.WorkStatus == SUCCESS {
+	if result.WorkStatus == types.SUCCESS {
 		generatedWork, err := d.ParseAndCreateWork(result.JobStreams)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse generated work: %w", err)
 		}
 
 		// Execute the generated work recursively
-		mergedContext := work.WorkContext
 		generatedResult, err := generatedWork.Execute(ctx, mergedContext, eng, metadata, tracker, handler)
 		if err != nil {
 			return nil, fmt.Errorf("failed to execute generated work: %w", err)

@@ -58,7 +58,7 @@ func (w *Work) Execute(ctx context.Context, containingContext types.WorkContext,
 		mergedContext := w.WorkContext.MergeInto(containingContext)
 
 		// Step 4: Execute work definition
-		result, err := w.WorkDefinition.Execute(ctx, *w, engine, metadata, tracker, handler)
+		result, err := w.WorkDefinition.Execute(ctx, *w, mergedContext, engine, metadata, tracker, handler)
 		if err != nil {
 			return nil, fmt.Errorf("work definition execution failed: %w", err)
 		}

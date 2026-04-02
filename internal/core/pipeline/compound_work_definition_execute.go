@@ -12,7 +12,7 @@ import (
 // Records WorkStarted event with empty JobStreams, executes all final work items recursively,
 // determines compound result (SUCCESS if all succeeded, FAILURE otherwise),
 // returns WorkResult with compound status
-func (c *CompoundWorkDefinition) Execute(ctx context.Context, work Work, engine engine.ExecutionEngine, metadata PipelineMetadata, tracker *WorkResultTracker, handler PipelineOutputHandler) (*types.WorkResult, error) {
+func (c *CompoundWorkDefinition) Execute(ctx context.Context, work Work, mergedContext types.WorkContext, eng engine.ExecutionEngine, metadata PipelineMetadata, tracker *WorkResultTracker, handler PipelineOutputHandler) (*types.WorkResult, error) {
 	// Record WorkStarted event with empty streams
 	handler.RecordEvent(WorkStarted{
 		Work:       work,
@@ -22,7 +22,7 @@ func (c *CompoundWorkDefinition) Execute(ctx context.Context, work Work, engine 
 	// Execute all final work items recursively
 	allSucceeded := true
 	for _, finalWork := range c.FinalWork {
-		result, err := finalWork.Execute(ctx, work.WorkContext, engine, metadata, tracker, handler)
+		result, err := finalWork.Execute(ctx, mergedContext, eng, metadata, tracker, handler)
 		if err != nil {
 			return nil, fmt.Errorf("failed to execute final work %s: %w", finalWork.ID, err)
 		}

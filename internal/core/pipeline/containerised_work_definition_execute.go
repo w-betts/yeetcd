@@ -12,7 +12,7 @@ import (
 // Creates JobStreams via PipelineOutputHandler, records WorkStarted event,
 // builds JobDefinition with image/cmd/workingDir/env/mounts/outputs,
 // calls ExecutionEngine.RunJob(), maps exit code to WorkStatus (0=SUCCESS, non-zero=FAILURE)
-func (c *ContainerisedWorkDefinition) Execute(ctx context.Context, work Work, eng engine.ExecutionEngine, metadata PipelineMetadata, tracker *WorkResultTracker, handler PipelineOutputHandler) (*types.WorkResult, error) {
+func (c *ContainerisedWorkDefinition) Execute(ctx context.Context, work Work, mergedContext types.WorkContext, eng engine.ExecutionEngine, metadata PipelineMetadata, tracker *WorkResultTracker, handler PipelineOutputHandler) (*types.WorkResult, error) {
 	// Create JobStreams via PipelineOutputHandler
 	jobStreams := handler.NewJobStreams()
 
@@ -21,9 +21,6 @@ func (c *ContainerisedWorkDefinition) Execute(ctx context.Context, work Work, en
 		Work:       work,
 		JobStreams: jobStreams,
 	})
-
-	// Build merged context
-	mergedContext := work.WorkContext
 
 	// Add previous work stdout as environment variables
 	prevWorkStdOutContext := work.PreviousWorkStdOutAsWorkContext(tracker)

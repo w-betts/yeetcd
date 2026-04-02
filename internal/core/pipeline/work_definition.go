@@ -9,7 +9,7 @@ import (
 
 // WorkDefinition is the interface for all work definition types
 type WorkDefinition interface {
-	Execute(ctx context.Context, work Work, eng engine.ExecutionEngine, metadata PipelineMetadata, tracker *WorkResultTracker, handler PipelineOutputHandler) (*types.WorkResult, error)
+	Execute(ctx context.Context, work Work, mergedContext types.WorkContext, eng engine.ExecutionEngine, metadata PipelineMetadata, tracker *WorkResultTracker, handler PipelineOutputHandler) (*types.WorkResult, error)
 }
 
 // ContainerisedWorkDefinition runs a command in an existing container image
