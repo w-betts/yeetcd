@@ -154,27 +154,6 @@
   "plugin": [
     "./.opencode/plugins/notification-plugin.ts"
   ],
-  "provider": {
-    "opencode": {
-      "models": {
-        "glm-5": {
-          "limit": {
-            "context": 64000
-          }
-        },
-        "minimax-m2.5-free": {
-          "limit": {
-            "context": 64000
-          }
-        },
-        "kimi-k2.5": {
-          "limit": {
-            "context": 64000
-          }
-        }
-      }
-    }
-  },
   "permission": {
     "edit": {
       "*": "allow"
