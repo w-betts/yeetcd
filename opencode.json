@@ -66,7 +66,6 @@
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/planner.md}",
       "temperature": 0.2,
-      "steps": 50,
       "permission": {
         "edit": {
           "*": "deny",
@@ -81,7 +80,6 @@
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/reviewer.md}",
       "temperature": 0.2,
-      "steps": 15,
       "permission": {
         "edit": {
           "*": "deny",
@@ -96,7 +94,6 @@
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/test-writer.md}",
       "temperature": 0.3,
-      "steps": 25,
       "permission": {
         "edit": {
           "*": "ask"
@@ -110,7 +107,6 @@
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/implementer.md}",
       "temperature": 0.3,
-      "steps": 40,
       "permission": {
         "edit": {
           "*": "ask"
@@ -124,7 +120,6 @@
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/agent-doc-writer.md}",
       "temperature": 0.3,
-      "steps": 50,
       "permission": {
         "doc_read": "allow",
         "doc_write": "allow",
@@ -145,7 +140,6 @@
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/human-doc-writer.md}",
       "temperature": 0.3,
-      "steps": 40,
       "permission": {
         "doc_read": "allow",
         "write": "allow",
@@ -165,20 +159,17 @@
       "models": {
         "glm-5": {
           "limit": {
-            "context": 64000,
-            "output": 16384
+            "context": 64000
           }
         },
         "minimax-m2.5-free": {
           "limit": {
-            "context": 64000,
-            "output": 16384
+            "context": 64000
           }
         },
         "kimi-k2.5": {
           "limit": {
-            "context": 64000,
-            "output": 16384
+            "context": 64000
           }
         }
       }
