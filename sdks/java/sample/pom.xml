@@ -1,15 +1,14 @@
 <project>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>java-test</artifactId>
+    <artifactId>sample</artifactId>
     <version>0.0.1</version>
     <packaging>jar</packaging>
 
     <parent>
         <groupId>yeetcd</groupId>
-        <artifactId>parent</artifactId>
+        <artifactId>java-parent</artifactId>
         <version>0.0.1</version>
-        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <properties>
@@ -18,20 +17,11 @@
     </properties>
 
     <dependencies>
-        <!-- https://mvnrepository.com/artifact/com.github.docker-java/docker-java-core -->
         <dependency>
             <groupId>yeetcd</groupId>
-            <artifactId>java-sdk</artifactId>
-            <version>0.0.1</version>
+            <artifactId>sdk</artifactId>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>1.18.34</version>
-            <scope>provided</scope>
-        </dependency>
 
         <!--  TEST  -->
         <dependency>
@@ -52,6 +42,12 @@
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest</artifactId>
             <version>3.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>yeetcd</groupId>
+            <artifactId>test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -1,15 +1,14 @@
 <project>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>java-sdk</artifactId>
+    <artifactId>sdk</artifactId>
     <version>0.0.1</version>
     <packaging>jar</packaging>
 
     <parent>
         <groupId>yeetcd</groupId>
-        <artifactId>parent</artifactId>
+        <artifactId>java-parent</artifactId>
         <version>0.0.1</version>
-        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <properties>
@@ -22,13 +21,19 @@
         <dependency>
             <groupId>yeetcd</groupId>
             <artifactId>protocol</artifactId>
-            <version>0.0.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.auto.service</groupId>
+            <artifactId>auto-service-annotations</artifactId>
+            <version>1.1.1</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service</artifactId>
-            <version>1.0-rc2</version>
+            <version>1.1.1</version>
             <scope>provided</scope>
         </dependency>
 
@@ -96,4 +101,28 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.34</version>
+                        </path>
+                        <path>
+                            <groupId>com.google.auto.service</groupId>
+                            <artifactId>auto-service</artifactId>
+                            <version>1.1.1</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>
