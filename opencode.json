@@ -22,7 +22,7 @@
     },
     "vibe": {
       "mode": "primary",
-      "model": "opencode/glm-5",
+      "model": "opencode/big-pickle",
       "description": "Vibe agent - direct implementation workflow for rapid iteration and simpler tasks",
       "prompt": "{file:./.opencode/prompts/vibe.md}",
       "temperature": 0.3,
