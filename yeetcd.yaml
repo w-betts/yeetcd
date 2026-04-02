@@ -1,9 +1,0 @@
-name: "java-sample"
-language: "JAVA"
-buildImage: "maven:3.9.9-eclipse-temurin-17"
-buildCmd: "mvn -f sdks/java/pom.xml -pl sample -am clean test package dependency:copy-dependencies"
-artifacts:
-  - name: "classes"
-    path: "sdks/java/sample/target/classes"
-  - name: "dependencies"
-    path: "sdks/java/sample/target/dependency"

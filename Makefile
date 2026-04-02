@@ -79,6 +79,27 @@ test-java:
 test-go-verbose:
 	cd $(GOLANG_DIR) && go test -v ./...
 
+## install-sdk - Build and install SDK modules to local Maven repository
+.PHONY: install-sdk
+install-sdk:
+	$(call print_info,"Building and installing SDK to local Maven repository...")
+	cd $(JAVA_SDK_DIR) && ./mvnw -pl protocol,sdk,test -am clean install
+	$(call print_status,"SDK installed to ~/.m2/repository/yeetcd")
+
+## build-sample - Build the sample using locally installed SDK
+.PHONY: build-sample
+build-sample: install-sdk
+	$(call print_info,"Building sample...")
+	cd $(JAVA_SDK_DIR)/sample && ../mvnw clean package dependency:copy-dependencies
+	$(call print_status,"Sample built")
+
+## test-e2e - Build SDK, run Go e2e tests (requires Docker)
+.PHONY: test-e2e
+test-e2e: install-sdk
+	$(call print_info,"Running E2E tests...")
+	cd $(GOLANG_DIR) && go test -v -race -tags=e2e ./e2e/...
+	$(call print_status,"E2E tests passed")
+
 ## clean - Clean all build artifacts
 .PHONY: clean
 clean:

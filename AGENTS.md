@@ -275,19 +275,21 @@ This creates test config files in `controller/src/test/resources/`.
 
 #### Project Configuration (yeetcd.yaml)
 
-Each pipeline project needs a `yeetcd.yaml`:
+Each pipeline project needs a `yeetcd.yaml` in its root directory:
 
 ```yaml
 name: "project-name"
 language: "JAVA"
 buildImage: "maven:3.9.9-eclipse-temurin-17"
-buildCmd: "mvn clean test package dependency:copy-dependencies"
+buildCmd: "mvn -f pom.xml clean test package dependency:copy-dependencies"
 artifacts:
   - name: "classes"
     path: "target/classes"
   - name: "dependencies"
     path: "target/dependency"
 ```
+
+**Note:** The sample project (`sdks/java/sample/`) is standalone and not a child of the parent pom. It references the SDK via `dependencyManagement` with version `${sdk.version}` which defaults to `0.0.1`. To build locally with a different SDK version, use `-Dsdk.version=X.X.X`.
 
 ---
 
