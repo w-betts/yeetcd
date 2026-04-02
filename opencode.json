@@ -197,6 +197,7 @@
         "cat *": "allow",
         "file *": "allow",
         "find *": "allow",
+        "make *": "allow",
         "git -C *": "allow",
         "git add *": "allow",
         "git branch *": "allow",
