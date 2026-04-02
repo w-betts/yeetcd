@@ -3,10 +3,12 @@ package build
 import (
 	"archive/zip"
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yeetcd/yeetcd/pkg/config"
 )
 
 // createTestZipBytes creates a zip archive from the given files
@@ -49,11 +51,19 @@ artifacts:
 	// Create extractor
 	extractor := NewSourceExtractor()
 
-	// Extract - should fail with "not implemented" since it's a stub
+	// Extract should succeed
 	result, err := extractor.Extract(source)
-	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
-	assert.Nil(t, result)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	defer result.Close()
+
+	// Verify directory was created
+	assert.DirExists(t, result.Directory)
+
+	// Verify yeetcd.yaml was extracted
+	assert.Contains(t, result.YeetcdDefinitions, ".")
+	assert.Equal(t, "test-project", result.YeetcdDefinitions["."].Name)
+	assert.Equal(t, config.SourceLanguageJava, result.YeetcdDefinitions["."].Language)
 }
 
 // TestSourceExtractor_Extract_ParsesMultipleYeetcdYamlFiles tests that Extract parses multiple yeetcd.yaml files
@@ -65,10 +75,18 @@ func TestSourceExtractor_Extract_ParsesMultipleYeetcdYamlFiles(t *testing.T) {
 	yeetcdYaml1 := `name: project1
 language: JAVA
 buildImage: maven:3.9.9
+buildCmd: mvn package
+artifacts:
+  - name: classes
+    path: target/classes
 `
 	yeetcdYaml2 := `name: project2
 language: JAVA
 buildImage: maven:3.9.9
+buildCmd: mvn package
+artifacts:
+  - name: classes
+    path: target/classes
 `
 	zipData := createTestZipBytes(map[string][]byte{
 		"project1/yeetcd.yaml": []byte(yeetcdYaml1),
@@ -83,11 +101,18 @@ buildImage: maven:3.9.9
 	// Create extractor
 	extractor := NewSourceExtractor()
 
-	// Extract - should fail with "not implemented" since it's a stub
+	// Extract should succeed
 	result, err := extractor.Extract(source)
-	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
-	assert.Nil(t, result)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	defer result.Close()
+
+	// Verify both configs were parsed
+	assert.Len(t, result.YeetcdDefinitions, 2)
+	assert.Contains(t, result.YeetcdDefinitions, "project1")
+	assert.Contains(t, result.YeetcdDefinitions, "project2")
+	assert.Equal(t, "project1", result.YeetcdDefinitions["project1"].Name)
+	assert.Equal(t, "project2", result.YeetcdDefinitions["project2"].Name)
 }
 
 // TestSourceExtractor_Extract_WithEmptyZip tests extraction with empty zip
@@ -104,10 +129,10 @@ func TestSourceExtractor_Extract_WithEmptyZip(t *testing.T) {
 	// Create extractor
 	extractor := NewSourceExtractor()
 
-	// Extract - should fail with "not implemented" since it's a stub
+	// Extract should fail with invalid zip error
 	result, err := extractor.Extract(source)
 	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
+	assert.Contains(t, err.Error(), "zip")
 	assert.Nil(t, result)
 }
 
@@ -125,10 +150,10 @@ func TestSourceExtractor_Extract_WithInvalidZip(t *testing.T) {
 	// Create extractor
 	extractor := NewSourceExtractor()
 
-	// Extract - should fail with "not implemented" since it's a stub
+	// Extract should fail with invalid zip error
 	result, err := extractor.Extract(source)
 	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
+	assert.Contains(t, err.Error(), "zip")
 	assert.Nil(t, result)
 }
 
@@ -137,18 +162,36 @@ func TestSourceExtractor_Extract_WithInvalidZip(t *testing.T) {
 // When: Close() is called
 // Then: Temp directory is removed from filesystem
 func TestSourceExtractionResult_Close_RemovesTempDirectory(t *testing.T) {
-	// Create a source extraction result with a temp directory
-	// Note: Since Extract is not implemented, we can't get a real result
-	// This test verifies the Close method signature exists
-	
-	// Create a dummy result (this would normally come from Extract)
-	result := &SourceExtractionResult{
-		Source:    Source{Name: "test", Zip: []byte{}},
-		Directory: "/tmp/test-extraction",
+	// Create a source with zip containing yeetcd.yaml
+	yeetcdYaml := `name: test-project
+language: JAVA
+buildImage: maven:3.9.9
+`
+	zipData := createTestZipBytes(map[string][]byte{
+		"yeetcd.yaml": []byte(yeetcdYaml),
+	})
+
+	source := Source{
+		Name: "test",
+		Zip:  zipData,
 	}
 
-	// Close should fail with "not implemented" since it's a stub
-	err := result.Close()
-	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
+	// Create extractor
+	extractor := NewSourceExtractor()
+
+	// Extract should succeed
+	result, err := extractor.Extract(source)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	// Get the directory path before closing
+	dir := result.Directory
+
+	// Close should succeed
+	err = result.Close()
+	require.NoError(t, err)
+
+	// Verify directory was removed
+	_, err = os.Stat(dir)
+	assert.True(t, os.IsNotExist(err), "temp directory should be removed")
 }

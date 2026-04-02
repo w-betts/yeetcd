@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
 	"github.com/yeetcd/yeetcd/pkg/build"
 	"github.com/yeetcd/yeetcd/pkg/engine"
 )
@@ -35,13 +34,7 @@ func (pc *PipelineController) Assemble(ctx context.Context, source build.Source)
 
 	// Parse protobuf Pipeline messages into Go Pipeline structs
 	pipelines := make([]*Pipeline, 0, len(buildResult.Pipelines))
-	for _, protoPipeline := range buildResult.Pipelines {
-		// Type assert to protobuf Pipeline type
-		pbPipeline, ok := protoPipeline.(*pb.Pipeline)
-		if !ok {
-			return nil, fmt.Errorf("invalid pipeline type: expected *pb.Pipeline, got %T", protoPipeline)
-		}
-
+	for _, pbPipeline := range buildResult.Pipelines {
 		// Convert protobuf to Go struct
 		pipeline, err := FromProtobuf(pbPipeline)
 		if err != nil {

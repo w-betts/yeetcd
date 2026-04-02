@@ -205,12 +205,12 @@ func TestDockerExecutionEngine_RunJob_CapturesStdoutAndStderr(t *testing.T) {
 		Return(types.ImageInspect{}, []byte{}, nil)
 	mockClient.On("ContainerCreate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(container.CreateResponse{ID: "container123"}, nil)
+	mockClient.On("ContainerAttach", mock.Anything, "container123", mock.Anything).
+		Return(types.HijackedResponse{}, nil)
 	mockClient.On("ContainerStart", mock.Anything, "container123", mock.Anything).
 		Return(nil)
 	mockClient.On("ContainerWait", mock.Anything, "container123", mock.Anything).
 		Return(container.WaitResponse{StatusCode: 0}, nil)
-	mockClient.On("ContainerLogs", mock.Anything, "container123", mock.Anything).
-		Return(io.NopCloser(bytes.NewReader([]byte("hello\n"))), nil)
 	mockClient.On("ContainerRemove", mock.Anything, "container123", mock.Anything).
 		Return(nil)
 

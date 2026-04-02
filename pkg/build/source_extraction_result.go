@@ -1,20 +1,25 @@
 package build
 
 import (
-	"errors"
 	"io"
+	"os"
+
+	"github.com/yeetcd/yeetcd/pkg/config"
 )
 
 // SourceExtractionResult holds the result of extracting source code
 type SourceExtractionResult struct {
 	Source            Source
 	Directory         string
-	YeetcdDefinitions map[string]interface{} // Will be map[string]config.YeetcdConfig
+	YeetcdDefinitions map[string]config.YeetcdConfig
 }
 
 // Close cleans up the temporary directory
 func (s *SourceExtractionResult) Close() error {
-	return errors.New("not implemented")
+	if s.Directory != "" {
+		return os.RemoveAll(s.Directory)
+	}
+	return nil
 }
 
 // Ensure SourceExtractionResult implements io.Closer

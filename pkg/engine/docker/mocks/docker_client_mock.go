@@ -97,6 +97,15 @@ func (m *MockDockerClient) ContainerWait(ctx context.Context, containerID string
 	return statusCh, errCh
 }
 
+// ContainerAttach mocks the Docker ContainerAttach API
+func (m *MockDockerClient) ContainerAttach(ctx context.Context, containerID string, options container.AttachOptions) (types.HijackedResponse, error) {
+	args := m.Called(ctx, containerID, options)
+	if args.Get(0) == nil {
+		return types.HijackedResponse{}, args.Error(1)
+	}
+	return args.Get(0).(types.HijackedResponse), args.Error(1)
+}
+
 // ContainerLogs mocks the Docker ContainerLogs API
 func (m *MockDockerClient) ContainerLogs(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error) {
 	args := m.Called(ctx, containerID, options)

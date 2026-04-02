@@ -8,9 +8,11 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/yeetcd/yeetcd/pkg/engine"
 )
 
@@ -108,9 +110,46 @@ func (r *ContainerRunner) CreateContainer(ctx context.Context, dockerClient Dock
 func (r *ContainerRunner) RunContainer(ctx context.Context, dockerClient DockerClient, containerID string, streams *engine.JobStreams) (int, error) {
 	r.logger.Debug("starting container", "containerID", containerID)
 
+	// Attach to container's streams before starting (if streams are needed)
+	// This is similar to Java's logContainerCmd with withFollowStream(true)
+	var attachResp types.HijackedResponse
+	var attachSuccessful bool
+	if streams != nil {
+		var err error
+		attachResp, err = dockerClient.ContainerAttach(ctx, containerID, container.AttachOptions{
+			Stream: true,
+			Stdout: true,
+			Stderr: true,
+		})
+		if err != nil {
+			r.logger.Warn("failed to attach to container", "error", err)
+		} else if attachResp.Conn != nil {
+			attachSuccessful = true
+		}
+	}
+	
+	// Only close if attach was successful
+	if attachSuccessful {
+		defer attachResp.Close()
+	}
+
 	// Start container
 	if err := dockerClient.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 		return -1, fmt.Errorf("failed to start container: %w", err)
+	}
+
+	// If we have an attach response, demultiplex the stream in a goroutine
+	var demultiplexDone chan struct{}
+	if attachSuccessful {
+		demultiplexDone = make(chan struct{})
+		go func() {
+			defer close(demultiplexDone)
+			stdout := streams.StdoutWriter()
+			stderr := streams.StderrWriter()
+			if _, err := stdcopy.StdCopy(stdout, stderr, attachResp.Reader); err != nil {
+				r.logger.Warn("failed to demultiplex attached stream", "error", err)
+			}
+		}()
 	}
 
 	r.logger.Debug("waiting for container to complete", "containerID", containerID)
@@ -130,34 +169,9 @@ func (r *ContainerRunner) RunContainer(ctx context.Context, dockerClient DockerC
 
 	r.logger.Debug("container finished", "containerID", containerID, "exitCode", exitCode)
 
-	// Get container logs
-	if streams != nil {
-		logs, err := dockerClient.ContainerLogs(ctx, containerID, container.LogsOptions{
-			ShowStdout: true,
-			ShowStderr: true,
-			Follow:      false,
-		})
-		if err != nil {
-			r.logger.Warn("failed to get container logs", "error", err)
-		} else {
-			defer logs.Close()
-
-			// Copy logs to streams
-			// Docker multiplexes stdout and stderr in the log stream
-			// We need to demultiplex them
-			if stdout := streams.StdoutWriter(); stdout != nil {
-				if stderr := streams.StderrWriter(); stderr != nil {
-					// Demultiplex the stream
-					if _, err := io.Copy(stdout, logs); err != nil {
-						r.logger.Warn("failed to copy logs", "error", err)
-					}
-				} else {
-					if _, err := io.Copy(stdout, logs); err != nil {
-						r.logger.Warn("failed to copy stdout logs", "error", err)
-					}
-				}
-			}
-		}
+	// Wait for demultiplexing to complete
+	if demultiplexDone != nil {
+		<-demultiplexDone
 	}
 
 	return exitCode, nil

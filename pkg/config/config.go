@@ -64,3 +64,17 @@ func (c *YeetcdConfig) Validate() error {
 	
 	return nil
 }
+
+// LoadFromBytes parses YAML data directly into YeetcdConfig
+func LoadFromBytes(data []byte) (*YeetcdConfig, error) {
+	var config YeetcdConfig
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse config: %w", err)
+	}
+	
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
+	}
+	
+	return &config, nil
+}

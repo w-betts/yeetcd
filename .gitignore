@@ -4,3 +4,4 @@
 trusted-cas.pem
 
 .worktrees
+bin/

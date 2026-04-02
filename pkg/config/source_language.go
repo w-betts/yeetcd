@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+
+	"github.com/yeetcd/yeetcd/pkg/engine"
 )
 
 // SourceLanguage represents the source language type
@@ -48,4 +50,24 @@ func (s *SourceLanguage) UnmarshalYAML(unmarshal func(interface{}) error) error 
 	
 	*s = lang
 	return nil
+}
+
+// GetGeneratePipelineDefinitionsCmd returns the command to generate pipeline definitions
+func (s SourceLanguage) GetGeneratePipelineDefinitionsCmd() []string {
+	switch s {
+	case SourceLanguageJava:
+		return []string{"yeetcd.sdk.GeneratedPipelineDefinitions"}
+	default:
+		return nil
+	}
+}
+
+// GetImageBase returns the ImageBase for this language
+func (s SourceLanguage) GetImageBase() engine.ImageBase {
+	switch s {
+	case SourceLanguageJava:
+		return engine.JAVA
+	default:
+		return -1
+	}
 }

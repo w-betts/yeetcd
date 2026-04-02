@@ -1,5 +1,5 @@
 # Spec (updated)
-# Updated: 2026-04-01T23:19:46.239Z
+# Updated: 2026-04-02T00:26:53.506Z
 
 version: 2
 problem_statement: "The yeetcd controller is currently implemented in Java, requiring a JVM and making deployment heavier than needed. We need to migrate the core controller functionality to Go to support three execution modes: (1) CLI with Docker executor for local development, (2) CLI with Mock executor for testing, and (3) Kubernetes Operator for production deployment. The immediate scope is CLI + Docker executor, but the core package interfaces must be designed to support all three modes."
@@ -923,7 +923,7 @@ phases:
           THEN: BuildResult.ImageID is returned, BuildResult contains parsed pipelines"
   - name: "Phase 3: Pipeline Controller"
     description: "Implement PipelineController with assemble and execute phases. Implement work scheduling with dependency resolution, condition evaluation, context merging, output handling. Unit tests replicating PipelineControllerTest coverage."
-    status: "in_progress"
+    status: "completed"
     is_release_boundary: false
     file_changes:
       - path: "internal/core/pipeline/work_execute.go"
@@ -1253,7 +1253,7 @@ phases:
           THEN: stdout is parsed as protobuf Work, generated work's Execute() is called recursively, final WorkResult reflects generated work's status"
   - name: "Phase 4: CLI Implementation"
     description: "Implement CLI entry point with cobra. Wire together core package with Docker executor. End-to-end tests building and running java-sample project. This is the first user-facing deliverable."
-    status: "pending"
+    status: "in_progress"
     is_release_boundary: true
     file_changes:
       - path: "cmd/yeetcd/main.go"

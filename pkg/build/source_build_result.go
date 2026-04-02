@@ -1,7 +1,9 @@
 package build
 
+import "github.com/yeetcd/yeetcd/pkg/config"
+
 // SourceBuildResult is the result of building a single source project
 type SourceBuildResult struct {
-	YeetcdConfig           interface{} // Will be pkg/config.YeetcdConfig
+	YeetcdConfig            config.YeetcdConfig
 	OutputDirectoriesParent string
 }

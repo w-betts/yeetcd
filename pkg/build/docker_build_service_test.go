@@ -4,18 +4,21 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	pb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
 	"github.com/yeetcd/yeetcd/pkg/engine"
+	"google.golang.org/protobuf/proto"
 )
 
 // MockExecutionEngine is a mock implementation of engine.ExecutionEngine for testing
 type MockExecutionEngine struct {
-	BuildImageFunc func(ctx context.Context, def engine.BuildImageDefinition) (*engine.BuildImageResult, error)
+	BuildImageFunc  func(ctx context.Context, def engine.BuildImageDefinition) (*engine.BuildImageResult, error)
 	RemoveImageFunc func(ctx context.Context, imageID string) error
-	RunJobFunc func(ctx context.Context, def engine.JobDefinition) (*engine.JobResult, error)
+	RunJobFunc      func(ctx context.Context, def engine.JobDefinition) (*engine.JobResult, error)
 }
 
 func (m *MockExecutionEngine) BuildImage(ctx context.Context, def engine.BuildImageDefinition) (*engine.BuildImageResult, error) {
@@ -43,14 +46,21 @@ func (m *MockExecutionEngine) RunJob(ctx context.Context, def engine.JobDefiniti
 func createTestZip(files map[string][]byte) []byte {
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
-	
+
 	for name, content := range files {
 		w, _ := zipWriter.Create(name)
 		w.Write(content)
 	}
-	
+
 	zipWriter.Close()
 	return buf.Bytes()
+}
+
+// createEmptyProtobufPipelines creates an empty Pipelines protobuf message
+func createEmptyProtobufPipelines() []byte {
+	pipelines := &pb.Pipelines{}
+	data, _ := proto.Marshal(pipelines)
+	return data
 }
 
 // TestDockerBuildService_Build_ExtractsSourceAndRunsBuild tests that Build extracts source and runs build
@@ -78,24 +88,56 @@ artifacts:
 		Zip:  zipData,
 	}
 
+	// Create temp directory for output directories
+	tempDir, err := os.MkdirTemp("", "yeetcd-test-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
 	// Create mock engine
-	mockEngine := &MockExecutionEngine{}
+	var buildJobCalled bool
+	var pipelineGenJobCalled bool
+	mockEngine := &MockExecutionEngine{
+		RunJobFunc: func(ctx context.Context, def engine.JobDefinition) (*engine.JobResult, error) {
+			// First call is the build job
+			if !buildJobCalled {
+				buildJobCalled = true
+				assert.Equal(t, "maven:3.9.9", def.Image)
+				assert.Equal(t, []string{"mvn", "package"}, def.Cmd)
+				return &engine.JobResult{
+					ExitCode:                0,
+					OutputDirectoriesParent: tempDir,
+				}, nil
+			}
+			// Second call is the pipeline generator
+			pipelineGenJobCalled = true
+			return &engine.JobResult{
+				ExitCode: 0,
+			}, nil
+		},
+		BuildImageFunc: func(ctx context.Context, def engine.BuildImageDefinition) (*engine.BuildImageResult, error) {
+			return &engine.BuildImageResult{ImageID: "sha256:test-image"}, nil
+		},
+		RemoveImageFunc: func(ctx context.Context, imageID string) error {
+			return nil
+		},
+	}
 
 	// Create service with mock engine
 	service := NewDockerBuildService(mockEngine)
 
-	// Build should fail with "not implemented" since it's a stub
+	// Build should succeed
 	result, err := service.Build(ctx, source)
-	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
-	assert.Nil(t, result)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, buildJobCalled, "build job should have been called")
+	assert.True(t, pipelineGenJobCalled, "pipeline generator job should have been called")
 }
 
-// TestDockerBuildService_Build_ReturnsBuildResultWithImageID tests that Build returns BuildResult with image ID
-// Given: Mock ExecutionEngine that returns BuildImageResult{ImageID: 'sha256:abc123'}, Source with valid config
+// TestDockerBuildService_Build_ReturnsBuildResultWithPipelines tests that Build returns BuildResult with pipelines
+// Given: Mock ExecutionEngine that returns successful results, Source with valid config
 // When: Build(ctx, source) is called
-// Then: BuildResult.ImageID equals 'sha256:abc123'
-func TestDockerBuildService_Build_ReturnsBuildResultWithImageID(t *testing.T) {
+// Then: BuildResult contains pipelines from protobuf output
+func TestDockerBuildService_Build_ReturnsBuildResultWithPipelines(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a source with zip containing yeetcd.yaml
@@ -103,6 +145,9 @@ func TestDockerBuildService_Build_ReturnsBuildResultWithImageID(t *testing.T) {
 language: JAVA
 buildImage: maven:3.9.9
 buildCmd: mvn package
+artifacts:
+  - name: classes
+    path: target/classes
 `
 	zipData := createTestZip(map[string][]byte{
 		"yeetcd.yaml": []byte(yeetcdYaml),
@@ -113,21 +158,61 @@ buildCmd: mvn package
 		Zip:  zipData,
 	}
 
-	// Create mock engine that returns a successful build result
+	// Create temp directory for output directories
+	tempDir, err := os.MkdirTemp("", "yeetcd-test-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create a valid protobuf Pipelines message
+	pipelines := &pb.Pipelines{
+		Pipelines: []*pb.Pipeline{
+			{
+				Name: "test-pipeline",
+			},
+		},
+	}
+	protobufData, err := proto.Marshal(pipelines)
+	require.NoError(t, err)
+
+	// Create mock engine that returns successful results
+	var callCount int
 	mockEngine := &MockExecutionEngine{
+		RunJobFunc: func(ctx context.Context, def engine.JobDefinition) (*engine.JobResult, error) {
+			callCount++
+			// First call is the build job
+			if callCount == 1 {
+				return &engine.JobResult{
+					ExitCode:                0,
+					OutputDirectoriesParent: tempDir,
+				}, nil
+			}
+			// Second call is the pipeline generator - write protobuf to stdout
+			if def.JobStreams != nil {
+				def.JobStreams.StdoutWriter().Write(protobufData)
+			}
+			return &engine.JobResult{
+				ExitCode: 0,
+			}, nil
+		},
 		BuildImageFunc: func(ctx context.Context, def engine.BuildImageDefinition) (*engine.BuildImageResult, error) {
 			return &engine.BuildImageResult{ImageID: "sha256:abc123"}, nil
+		},
+		RemoveImageFunc: func(ctx context.Context, imageID string) error {
+			return nil
 		},
 	}
 
 	// Create service with mock engine
 	service := NewDockerBuildService(mockEngine)
 
-	// Build should fail with "not implemented" since DockerBuildService.Build is a stub
+	// Build should succeed
 	result, err := service.Build(ctx, source)
-	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
-	assert.Nil(t, result)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotNil(t, result.Pipelines)
+	assert.Len(t, result.Pipelines, 1)
+	assert.Equal(t, "test-pipeline", result.Pipelines[0].Name)
+	assert.Len(t, result.SourceBuildResults, 1)
 }
 
 // TestDockerBuildService_Build_WithInvalidSource tests build with invalid source
@@ -149,10 +234,10 @@ func TestDockerBuildService_Build_WithInvalidSource(t *testing.T) {
 	// Create service with mock engine
 	service := NewDockerBuildService(mockEngine)
 
-	// Build should fail with "not implemented" since DockerBuildService.Build is a stub
+	// Build should fail with invalid zip error
 	result, err := service.Build(ctx, source)
 	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
+	assert.Contains(t, err.Error(), "failed to extract source")
 	assert.Nil(t, result)
 }
 
@@ -167,10 +252,18 @@ func TestDockerBuildService_Build_WithMultipleYeetcdYaml(t *testing.T) {
 	yeetcdYaml1 := `name: project1
 language: JAVA
 buildImage: maven:3.9.9
+buildCmd: mvn package
+artifacts:
+  - name: classes
+    path: target/classes
 `
 	yeetcdYaml2 := `name: project2
 language: JAVA
 buildImage: maven:3.9.9
+buildCmd: mvn package
+artifacts:
+  - name: classes
+    path: target/classes
 `
 	zipData := createTestZip(map[string][]byte{
 		"project1/yeetcd.yaml": []byte(yeetcdYaml1),
@@ -182,15 +275,33 @@ buildImage: maven:3.9.9
 		Zip:  zipData,
 	}
 
+	// Create temp directory for output directories
+	tempDir, err := os.MkdirTemp("", "yeetcd-test-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
 	// Create mock engine
-	mockEngine := &MockExecutionEngine{}
+	mockEngine := &MockExecutionEngine{
+		RunJobFunc: func(ctx context.Context, def engine.JobDefinition) (*engine.JobResult, error) {
+			return &engine.JobResult{
+				ExitCode:                0,
+				OutputDirectoriesParent: tempDir,
+			}, nil
+		},
+		BuildImageFunc: func(ctx context.Context, def engine.BuildImageDefinition) (*engine.BuildImageResult, error) {
+			return &engine.BuildImageResult{ImageID: "sha256:test-image"}, nil
+		},
+		RemoveImageFunc: func(ctx context.Context, imageID string) error {
+			return nil
+		},
+	}
 
 	// Create service with mock engine
 	service := NewDockerBuildService(mockEngine)
 
-	// Build should fail with "not implemented" since DockerBuildService.Build is a stub
+	// Build should succeed
 	result, err := service.Build(ctx, source)
-	require.Error(t, err)
-	assert.Equal(t, "not implemented", err.Error())
-	assert.Nil(t, result)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result.SourceBuildResults, 2, "should have built both projects")
 }
