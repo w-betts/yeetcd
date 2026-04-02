@@ -106,20 +106,19 @@ yeetcd is a continuous deployment solution with container-based pipeline executi
 #### Build Commands
 
 ```bash
-# Compile all modules
-./mvnw clean compile
+# Compile all modules (from sdks/java)
+cd sdks/java && ./mvnw clean compile
 
 # Compile protocol module (generates protobuf Java classes)
-./mvnw clean compile -pl protocol -am
+cd sdks/java && ./mvnw clean compile -pl protocol -am
 
 # Run all tests
-./mvnw test
+cd sdks/java && ./mvnw test
 
 # Run tests for specific module
-./mvnw test -pl controller -am
-./mvnw test -pl java-sdk -am
-./mvnw test -pl java-test -am
-./mvnw test -pl java-sample -am
+cd sdks/java && ./mvnw test -pl sdk -am
+cd sdks/java && ./mvnw test -pl test -am
+cd sdks/java && ./mvnw test -pl sample -am
 ```
 
 #### Core Concepts

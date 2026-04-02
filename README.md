@@ -17,5 +17,5 @@ If you need to trust additional CAs beyond the defaults, create a file `trusted-
 
 #### generate the java protobuf files
 ```bash
-./mvnw clean compile -pl protocol -am
+cd sdks/java && ./mvnw clean compile -pl protocol -am
 ```
