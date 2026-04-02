@@ -3,7 +3,7 @@
   "agent": {
     "spec": {
       "mode": "primary",
-      "model": "opencode/glm-5",
+      "model": "opencode/big-pickle",
       "description": "Spec agent - orchestrates phase-based workflow for complex features requiring planning and architecture",
       "prompt": "{file:./.opencode/prompts/spec.md}",
       "temperature": 0.3,
@@ -44,7 +44,7 @@
     },
     "document": {
       "mode": "primary",
-      "model": "opencode/glm-5",
+      "model": "opencode/big-pickle",
       "description": "Document agent - orchestrates two-phase documentation workflow for keeping code docs in sync",
       "prompt": "{file:./.opencode/prompts/document.md}",
       "temperature": 0.3,
@@ -62,7 +62,7 @@
     },
     "planner": {
       "mode": "subagent",
-      "model": "opencode/glm-5",
+      "model": "opencode/big-pickle",
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/planner.md}",
       "temperature": 0.2,
@@ -92,7 +92,7 @@
     },
     "test-writer": {
       "mode": "subagent",
-      "model": "opencode/kimi-k2.5",
+      "model": "opencode/big-pickle",
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/test-writer.md}",
       "temperature": 0.3,
@@ -106,7 +106,7 @@
     },
     "implementer": {
       "mode": "subagent",
-      "model": "opencode/kimi-k2.5",
+      "model": "opencode/big-pickle",
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/implementer.md}",
       "temperature": 0.3,
@@ -120,7 +120,7 @@
     },
     "agent-doc-writer": {
       "mode": "subagent",
-      "model": "opencode/kimi-k2.5",
+      "model": "opencode/big-pickle",
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/agent-doc-writer.md}",
       "temperature": 0.3,
@@ -141,7 +141,7 @@
     },
     "human-doc-writer": {
       "mode": "subagent",
-      "model": "opencode/kimi-k2.5",
+      "model": "opencode/big-pickle",
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/human-doc-writer.md}",
       "temperature": 0.3,
