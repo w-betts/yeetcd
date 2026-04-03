@@ -105,7 +105,7 @@ Records a problem when something goes wrong:
 ```typescript
 session_record_problem(
   session_id: string,  // from session_start
-  type: "tool_failure" | "misunderstanding" | "workflow_friction" | "assumption_wrong" | "user_feedback_negative" | "regression",
+  type: "tool_failure" | "misunderstanding" | "workflow_friction" | "assumption_wrong" | "user_feedback_negative" | "regression" | "agent_self_review" | "user_feedback",
   description: string,
   context?: Record<string, unknown>,  // optional additional details
   severity: "critical" | "high" | "medium" | "low"

@@ -15,6 +15,8 @@ const ProblemTypeSchema = z.enum([
   "assumption_wrong",
   "user_feedback_negative",
   "regression",
+  "agent_self_review",
+  "user_feedback",
 ])
 
 const ProblemContextSchema = z.record(z.string(), z.unknown())
@@ -191,6 +193,8 @@ export const session_record_problem = tool({
         "assumption_wrong",
         "user_feedback_negative",
         "regression",
+        "agent_self_review",
+        "user_feedback",
       ])
       .describe("Category of the problem"),
     description: tool.schema
