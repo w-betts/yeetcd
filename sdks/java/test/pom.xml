@@ -17,10 +17,33 @@
     </properties>
 
     <dependencies>
-        <!-- https://mvnrepository.com/artifact/com.github.docker-java/docker-java-core -->
+        <!-- Protocol module for mock proto classes -->
+        <dependency>
+            <groupId>yeetcd</groupId>
+            <artifactId>protocol</artifactId>
+        </dependency>
+
+        <!-- SDK for FakePipelineRunner (existing test utilities) -->
         <dependency>
             <groupId>yeetcd</groupId>
             <artifactId>sdk</artifactId>
+        </dependency>
+
+        <!-- gRPC dependencies for MockServer -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <version>1.61.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+            <version>1.61.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+            <version>1.61.0</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
