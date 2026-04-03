@@ -21,19 +21,21 @@ This is NOT optional. There are NO exceptions. This includes:
 
 ---
 
-## Session Tracking Skill
+## Session Tracking Tools
 
-**You have access to the session-tracking skill.** Load it via the skill tool at session start:
-```
-skill(name: "session-tracking")
-```
+You have access to session tracking tools that enforce schema validation:
 
-This skill enables you to:
-- Create session files at `.opencode/sessions/spec/<timestamp>.yaml`
-- Record problems when things go unexpectedly wrong
-- Write session summaries at the end
+**At session start:**
+- `session_start(workflow_type: "spec")` - creates session file
+- Returns session_id for use in subsequent calls
 
-Use this to track issues and enable future improvement analysis.
+**When problems occur:**
+- `session_record_problem(session_id, type, description, context, severity)` - records issues
+
+**At session end:**
+- `session_end(session_id, summary?)` - finalizes session
+
+**Tools available:** `session_start`, `session_record_problem`, `session_end`, `session_mark_analysed`
 
 ---
 

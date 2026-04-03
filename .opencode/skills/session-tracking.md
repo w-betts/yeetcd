@@ -69,60 +69,75 @@ summary: "Optional summary of the session"
 | `medium` | Noticeable impact but work continued |
 | `low` | Minor inconvenience |
 
-## Usage
+## Problem Schema
 
-### Starting a Session
+Each problem has the following structure:
 
-At the start of a session, agents should:
-1. Generate a unique session ID (timestamp + random suffix)
-2. Create the session file with metadata
-3. Store the session ID for later use
+```yaml
+- type: "tool_failure"
+  description: "Edit tool failed to apply changes"
+  context:
+    file: "src/App.java"
+    tool: "edit"
+  timestamp: "2024-01-15T11:00:00Z"
+  severity: "high"
+  analysed: false  # Whether improve agent has processed this
+```
 
-### Recording Problems
+## Usage (Tools)
 
-When something goes unexpectedly wrong:
-1. Capture the problem details (type, description, context, severity)
-2. Append the problem to the session file
-3. Include relevant context (file, tool, timestamps)
+This skill provides TypeScript tools that enforce schema validation:
 
-### Ending a Session
+### session_start
 
-At session end (before commit):
-1. Update the session file with end time
-2. Add an optional summary
-3. Ensure the file is saved
+Starts a new session - call this at the beginning of your workflow:
 
-## Tools
+```typescript
+session_start(workflow_type: "vibe" | "spec" | "fix" | "document")
+```
 
-The skill uses the standard `write` tool to create session files. Use it with paths like:
-- `.opencode/sessions/vibe/20240115-103000-abc123.yaml`
-- `.opencode/sessions/spec/20240115-104500-def456.yaml`
+Returns a session_id - use this for subsequent calls.
 
-### write
+### session_record_problem
 
-Writes session data to YAML files:
-```python
-write(
-    content: str,  # YAML content
-    filePath: str  # Path like ".opencode/sessions/spec/20240115-103000-abc123.yaml"
+Records a problem when something goes wrong:
+
+```typescript
+session_record_problem(
+  session_id: string,  // from session_start
+  type: "tool_failure" | "misunderstanding" | "workflow_friction" | "assumption_wrong" | "user_feedback_negative" | "regression",
+  description: string,
+  context?: Record<string, unknown>,  // optional additional details
+  severity: "critical" | "high" | "medium" | "low"
 )
 ```
 
-### read
+### session_end
 
-Read existing session files:
-```python
-read(
-    filePath: str  # Path to the session file
+Ends the session - call this before committing:
+
+```typescript
+session_end(
+  session_id: string,
+  summary?: string  // optional session summary
 )
 ```
 
-## Integration
+### session_mark_analysed
 
-This skill should be loaded into all primary agent types:
-- `spec` agent
-- `vibe` agent
-- `fix` agent
-- `document` agent
+Marks problems as analysed (used by improve agent):
 
-The skill is automatically available when loaded via the skill tool.
+```typescript
+session_mark_analysed(
+  session_id: string,
+  problem_indices: number[]  // 0-based indices of problems
+)
+```
+
+## Session Data Location
+
+Sessions are stored in:
+- `.opencode/sessions/spec/<session-id>.yaml`
+- `.opencode/sessions/vibe/<session-id>.yaml`
+- `.opencode/sessions/fix/<session-id>.yaml`
+- `.opencode/sessions/document/<session-id>.yaml`

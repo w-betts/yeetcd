@@ -167,10 +167,28 @@
         },
         "task": "deny"
       }
+    },
+    "improve": {
+      "mode": "primary",
+      "model": "opencode/big-pickle",
+      "description": "Improve agent - analyzes recorded session problems and proposes workflow improvements",
+      "prompt": "{file:./.opencode/prompts/improve.md}",
+      "temperature": 0.3,
+      "permission": {
+        "question": "allow",
+        "read": "allow",
+        "glob": "allow",
+        "edit": {
+          "*": "allow"
+        },
+        "write": "allow",
+        "bash": "allow"
+      }
     }
   },
   "plugin": [
-    "./.opencode/plugins/notification-plugin.ts"
+    "./.opencode/plugins/notification-plugin.ts",
+    "./.opencode/tools/session.ts"
   ],
   "permission": {
     "edit": {

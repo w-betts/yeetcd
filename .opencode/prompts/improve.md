@@ -116,6 +116,7 @@ problems:
       file: "src/App.java"
     timestamp: "2024-01-15T11:00:00Z"
     severity: "high"
+    analysed: false  # Set to true after you've analyzed this problem
 summary: "Optional summary"
 ```
 
@@ -126,6 +127,7 @@ summary: "Optional summary"
 - **Edit**: Modify agent prompts, scripts, or skills (with user approval)
 - **Write**: Create new files if needed
 - **Bash**: Run commands for testing
+- **session_mark_analysed**: Mark problems as analyzed so they're not re-flagged
 - `question`: **CRITICAL** - For all user interaction
 
 ## Starting the Workflow
