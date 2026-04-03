@@ -25,8 +25,9 @@ public class ExpectationVerifier {
                 .count();
         
         if (count == 0) {
+            String cmdStr = behavior.getCmd() != null ? String.join(" ", behavior.getCmd()) : "any";
             errors.add("Expected at least one execution matching behavior (image=" + behavior.getImage() 
-                    + ", cmd=" + String.join(" ", behavior.getCmd()) + ") but found none");
+                    + ", cmd=" + cmdStr + ") but found none");
         }
         
         return this;
@@ -41,8 +42,9 @@ public class ExpectationVerifier {
                 .count();
         
         if (count != expectedCount) {
+            String cmdStr = behavior.getCmd() != null ? String.join(" ", behavior.getCmd()) : "any";
             errors.add("Expected exactly " + expectedCount + " executions matching behavior (image=" + behavior.getImage() 
-                    + ", cmd=" + String.join(" ", behavior.getCmd()) + ") but found " + count);
+                    + ", cmd=" + cmdStr + ") but found " + count);
         }
         
         return this;
@@ -57,8 +59,9 @@ public class ExpectationVerifier {
                 .count();
         
         if (count > 0) {
+            String cmdStr = behavior.getCmd() != null ? String.join(" ", behavior.getCmd()) : "any";
             errors.add("Expected no executions matching behavior (image=" + behavior.getImage() 
-                    + ", cmd=" + String.join(" ", behavior.getCmd()) + ") but found " + count);
+                    + ", cmd=" + cmdStr + ") but found " + count);
         }
         
         return this;
