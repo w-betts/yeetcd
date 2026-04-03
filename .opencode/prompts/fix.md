@@ -144,7 +144,7 @@ Commits are automatically signed via global git config (`commit.gpgsign = true`)
 
 ## Work Completion Workflow (Worktree Merge)
 
-After committing your changes, **use the question tool** to ask if the user wants to merge the work to main. If yes, execute the work completion workflow:
+Execute this workflow when the user confirms they want to merge to main (after session feedback is complete):
 
 1. **Check if in worktree**: Run `git worktree list` to verify we're in a worktree (not the main worktree)
 2. **Fetch remote**: Run `git fetch origin main` to update the remote tracking branch
@@ -161,9 +161,9 @@ After committing your changes, **use the question tool** to ask if the user want
 
 Note: Do NOT clean up the worktree - the agent script handles cleanup on startup.
 
-## Session Feedback
+## Session Feedback (Before Merge)
 
-After successfully merging to main:
+After committing your work but BEFORE merging to main:
 
 1. **Submit your self-review**: Call `session_record_problem` with:
    - type: "agent_self_review"
@@ -175,6 +175,10 @@ After successfully merging to main:
    - "How did this session go? Any thoughts on what worked well or could be improved?"
    - Record their response using `session_record_problem` with type "user_feedback"
 
-3. **End the session**: Call `session_end(session_id, summary?)` with a brief summary
+3. **Commit the session file**: The session file is automatically updated when you call `session_record_problem` and `session_end`. No additional commit needed - the session data is stored in the existing session file.
+
+4. **End the session**: Call `session_end(session_id, summary?)` with a brief summary
+
+5. **Then ask about merge**: After session feedback is complete, **use the question tool** to ask if the user wants to merge the work to main.
 
 **FINAL REMINDER: NEVER ask questions directly in your response text. ALWAYS use the question tool for ANY user interaction. This is a hard requirement - there are no exceptions.**

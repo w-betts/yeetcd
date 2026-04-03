@@ -328,26 +328,24 @@ For each chunk within the phase:
   - If the user cannot confirm release, STOP and report progress - do not proceed to the next phase
 
 **5g. Work Completion Workflow (Worktree Merge)**:
-- After committing a release boundary phase OR when the entire spec is complete:
-  - **Use the question tool** to ask if the user wants to merge the work to main
-  - If yes, execute the work completion workflow:
-    1. **Check if in worktree**: Run `git worktree list` to verify we're in a worktree (not the main worktree)
-    2. **Fetch remote**: Run `git fetch origin main` to update the remote tracking branch
-    3. **Rebase onto LOCAL main**: Run `git rebase main` to rebase the worktree commits onto the LOCAL main branch (NOT origin/main - this preserves any local main commits that haven't been pushed yet)
-    4. **Handle conflicts** (if any):
-       - Try to auto-resolve simple conflicts (e.g., both sides added different lines)
-       - For complex conflicts, **use the question tool** to present the conflict and ask how to resolve
-       - Options: "Accept incoming (main)", "Accept current (work)", "Edit manually", "Abort rebase"
-       - If user chooses to edit manually, wait for them to resolve, then continue with `git rebase --continue`
-       - If user aborts, stop the workflow and report status
-    5. **Fast-forward main**: Run `git push . HEAD:main` to update the main branch in-place
-    6. **Push main to remote**: Run `git push origin main`
-     7. **Report success**: Inform the user that the work has been merged to main
-   - Note: Do NOT clean up the worktree - the agent script handles cleanup on startup
+- Execute this workflow when the user confirms they want to merge to main (after session feedback is complete):
+  1. **Check if in worktree**: Run `git worktree list` to verify we're in a worktree (not the main worktree)
+  2. **Fetch remote**: Run `git fetch origin main` to update the remote tracking branch
+  3. **Rebase onto LOCAL main**: Run `git rebase main` to rebase the worktree commits onto the LOCAL main branch (NOT origin/main - this preserves any local main commits that haven't been pushed yet)
+  4. **Handle conflicts** (if any):
+     - Try to auto-resolve simple conflicts (e.g., both sides added different lines)
+     - For complex conflicts, **use the question tool** to present the conflict and ask how to resolve
+     - Options: "Accept incoming (main)", "Accept current (work)", "Edit manually", "Abort rebase"
+     - If user chooses to edit manually, wait for them to resolve, then continue with `git rebase --continue`
+     - If user aborts, stop the workflow and report status
+  5. **Fast-forward main**: Run `git push . HEAD:main` to update the main branch in-place
+  6. **Push main to remote**: Run `git push origin main`
+   7. **Report success**: Inform the user that the work has been merged to main
+  - Note: Do NOT clean up the worktree - the agent script handles cleanup on startup
 
-### Session Feedback (After Merge)
+### Session Feedback (Before Merge)
 
-After successfully merging to main:
+After committing your work but BEFORE merging to main:
 
 1. **Submit your self-review**: Call `session_record_problem` with:
    - type: "agent_self_review"
@@ -359,14 +357,16 @@ After successfully merging to main:
    - "How did this session go? Any thoughts on what worked well or could be improved?"
    - Record their response using `session_record_problem` with type "user_feedback"
 
-3. **End the session**: Call `session_end(session_id, summary?)` with a brief summary
+3. **Commit the session file**: The session file is automatically updated when you call `session_record_problem` and `session_end`. No additional commit needed - the session data is stored in the existing session file.
+
+4. **End the session**: Call `session_end(session_id, summary?)` with a brief summary
+
+5. **Then ask about merge**: After session feedback is complete, **use the question tool** to ask if the user wants to merge the work to main.
 
 ### Phase 6: Completion
 
 - When all phases are complete, update spec status to "completed"
-- **Offer work completion workflow** (same as step 5g):
-  - **Use the question tool** to ask if the user wants to merge the work to main
-  - If yes, execute the work completion workflow (see step 5g for details)
+- The merge question will be asked after session feedback (see Session Feedback section below)
 - Report final status to user
 
 ### Phase 7: Documentation
