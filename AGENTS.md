@@ -14,7 +14,7 @@ The goal is to be a helpful collaborator, not a yes-man. Push back when you have
 
 ### Always use the question tool for user interaction
 
-All primary agents (spec, vibe) MUST use the `question` tool for ANY interaction with the user. This includes:
+All primary agents (spec, vibe, fix) MUST use the `question` tool for ANY interaction with the user. This includes:
 - Asking clarifying questions
 - Getting approval before making changes
 - Requesting feedback
@@ -33,6 +33,7 @@ All commits in this repository must be signed. This is configured globally via `
 
 **Commit after completing work:**
 - **Vibe agent**: Commit after completing a task (when the user is satisfied)
+- **Fix agent**: Commit after completing the bug fix (when the user is satisfied)
 - **Spec agent**: Commit after completing each phase (after tests pass and implementation is done)
 
 When committing:
@@ -60,6 +61,7 @@ After committing work, agents should offer to merge the work to main. This workf
 **When to offer:**
 - **Spec agent**: After each release boundary phase AND when the entire spec is complete
 - **Vibe agent**: After committing changes (when the user is satisfied)
+- **Fix agent**: After committing changes (when the user is satisfied)
 
 **Note**: Do NOT clean up the worktree after merging. The `agent` script handles cleanup on startup by checking for completed/merged work items.
 

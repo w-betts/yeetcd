@@ -42,6 +42,24 @@
         }
       }
     },
+    "fix": {
+      "mode": "primary",
+      "model": "opencode/big-pickle",
+      "description": "Fix agent - test-driven bug fixing workflow",
+      "prompt": "{file:./.opencode/prompts/fix.md}",
+      "temperature": 0.3,
+      "permission": {
+        "question": "allow",
+        "doc_read": "allow",
+        "edit": {
+          "*": "allow"
+        },
+        "task": {
+          "*": "deny",
+          "test-writer": "allow"
+        }
+      }
+    },
     "document": {
       "mode": "primary",
       "model": "opencode/big-pickle",
