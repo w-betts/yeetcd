@@ -8,6 +8,7 @@ Maps subcommands to agent names and launches opencode with the appropriate agent
 Usage:
     agent spec      - Launch spec agent (4-phase structured workflow)
     agent vibe      - Launch vibe agent (direct implementation workflow)
+    agent fix       - Launch fix agent (TDD bug fixing workflow)
     agent document  - Launch document agent (two-phase documentation workflow)
 """
 
@@ -26,6 +27,7 @@ AGENT_MAP = {
     "spec": "spec",
     "vibe": "vibe",
     "document": "document",
+    "fix": "fix",
 }
 
 # Constants
@@ -75,6 +77,8 @@ class WorkItem:
             return self._get_vibe_status()
         elif self.workflow_type == "document":
             return self._get_document_status()
+        elif self.workflow_type == "fix":
+            return self._get_fix_status()
         else:
             return "unknown"
     
@@ -128,6 +132,11 @@ class WorkItem:
     def _get_document_status(self) -> str:
         """Get status for document workflow."""
         # Document doesn't have structured status, just check if worktree exists
+        return "active"
+    
+    def _get_fix_status(self) -> str:
+        """Get status for fix workflow."""
+        # Fix doesn't have structured status, just check if worktree exists
         return "active"
     
     def is_merged(self) -> bool:
@@ -327,18 +336,18 @@ def prompt_new_or_resume(workflow_type: str) -> Optional[WorkItem]:
     # Filter by workflow type
     matching_work = [w for w in worktrees if w.workflow_type == workflow_type]
     
-    # For vibe workflow, always offer main branch option
-    if workflow_type == "vibe":
+    # For vibe and fix workflows, always offer main branch option
+    if workflow_type in ("vibe", "fix"):
         print("\n" + "="*60)
         print("Work Setup")
         print("="*60)
         print("\nHow would you like to proceed?")
         print("  1. Continue on the main branch (no worktree)")
         if matching_work:
-            print("  2. Resume existing vibe work")
-            print("  3. Start new vibe work")
+            print(f"  2. Resume existing {workflow_type} work")
+            print(f"  3. Start new {workflow_type} work")
         else:
-            print("  2. Start new vibe work")
+            print(f"  2. Start new {workflow_type} work")
         print()
         
         try:
@@ -351,7 +360,7 @@ def prompt_new_or_resume(workflow_type: str) -> Optional[WorkItem]:
                 if matching_work:
                     # Resume existing work
                     print("\n" + "-"*40)
-                    print("Existing Vibe Work")
+                    print(f"Existing {workflow_type.title()} Work")
                     print("-"*40 + "\n")
                     for i, work in enumerate(matching_work, 1):
                         status = work.get_status()
@@ -575,11 +584,13 @@ def print_usage():
     print("Subcommands:", file=sys.stderr)
     print("  spec      - Launch spec agent (4-phase structured workflow)", file=sys.stderr)
     print("  vibe      - Launch vibe agent (direct implementation workflow)", file=sys.stderr)
+    print("  fix       - Launch fix agent (TDD bug fixing workflow)", file=sys.stderr)
     print("  document  - Launch document agent (two-phase documentation workflow)", file=sys.stderr)
     print("", file=sys.stderr)
     print("Examples:", file=sys.stderr)
     print("  agent spec      # Start structured workflow for complex features", file=sys.stderr)
     print("  agent vibe      # Start direct workflow for rapid iteration", file=sys.stderr)
+    print("  agent fix       # Start TDD workflow for bug fixes", file=sys.stderr)
     print("  agent document  # Generate documentation for the codebase", file=sys.stderr)
 
 
