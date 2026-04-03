@@ -10,17 +10,17 @@ import (
 
 // PipelineController orchestrates pipeline assembly and execution
 type PipelineController struct {
-	buildService     build.BuildService
-	sourceExtractor  *build.SourceExtractor
-	executionEngine  engine.ExecutionEngine
+	buildService    build.BuildService
+	sourceExtractor *build.SourceExtractor
+	executionEngine engine.ExecutionEngine
 }
 
 // NewPipelineController creates a new PipelineController
 func NewPipelineController(buildService build.BuildService, sourceExtractor *build.SourceExtractor, engine engine.ExecutionEngine) *PipelineController {
 	return &PipelineController{
-		buildService:     buildService,
-		sourceExtractor:  sourceExtractor,
-		executionEngine:  engine,
+		buildService:    buildService,
+		sourceExtractor: sourceExtractor,
+		executionEngine: engine,
 	}
 }
 
@@ -33,12 +33,20 @@ func (pc *PipelineController) Assemble(ctx context.Context, source build.Source)
 	}
 
 	// Parse protobuf Pipeline messages into Go Pipeline structs
+	// and populate PipelineMetadata with BuiltSourceImage
 	pipelines := make([]*Pipeline, 0, len(buildResult.Pipelines))
-	for _, pbPipeline := range buildResult.Pipelines {
+	for i, pbPipeline := range buildResult.Pipelines {
 		// Convert protobuf to Go struct
 		pipeline, err := FromProtobuf(pbPipeline)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse pipeline: %w", err)
+		}
+
+		// Populate PipelineMetadata with BuiltSourceImage from source build results
+		// The image ID for this pipeline should be in the corresponding SourceBuildResult
+		if i < len(buildResult.SourceBuildResults) {
+			sourceBuildResult := buildResult.SourceBuildResults[i]
+			pipeline.Metadata.BuiltSourceImage = sourceBuildResult.ImageID
 		}
 
 		pipelines = append(pipelines, pipeline)

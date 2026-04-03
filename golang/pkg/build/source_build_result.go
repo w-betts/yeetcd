@@ -6,4 +6,5 @@ import "github.com/yeetcd/yeetcd/pkg/config"
 type SourceBuildResult struct {
 	YeetcdConfig            config.YeetcdConfig
 	OutputDirectoriesParent string
+	ImageID                 string
 }

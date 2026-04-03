@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yeetcd/yeetcd/internal/core/pipeline"
+	"github.com/yeetcd/yeetcd/internal/core/types"
 	"github.com/yeetcd/yeetcd/internal/testutil"
 	"github.com/yeetcd/yeetcd/pkg/build"
 	"github.com/yeetcd/yeetcd/pkg/engine/docker"
@@ -52,7 +53,8 @@ func TestJavaSample_Build(t *testing.T) {
 // TestJavaSample_AssembleAndExecute_Sample tests the basic sample pipeline
 // GIVEN: Real Docker daemon, PipelineController, Source with repository zip
 // WHEN: Assemble(ctx, source) then Execute(ctx, pipeline 'sample', outputHandler) is called
-// THEN: PipelineResult.PipelineStatus equals SUCCESS, events recorded correctly
+// THEN: PipelineResult.PipelineStatus equals SUCCESS, events recorded correctly,
+// and custom work definition was actually executed (not silently skipped due to empty image)
 func TestJavaSample_AssembleAndExecute_Sample(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping E2E test in short mode")
@@ -95,6 +97,11 @@ func TestJavaSample_AssembleAndExecute_Sample(t *testing.T) {
 	}
 	require.NotNil(t, samplePipeline, "sample pipeline should exist")
 
+	// Verify that BuiltSourceImage is populated (this is the key fix - without it custom work fails silently)
+	require.NotEmpty(t, samplePipeline.Metadata.BuiltSourceImage, "Pipeline should have BuiltSourceImage populated")
+
+	t.Logf("Sample pipeline metadata: BuiltSourceImage=%s", samplePipeline.Metadata.BuiltSourceImage)
+
 	// Create output handler
 	outputHandler := pipeline.NewTestPipelineOutputHandler()
 
@@ -109,6 +116,26 @@ func TestJavaSample_AssembleAndExecute_Sample(t *testing.T) {
 	// Verify events
 	events := outputHandler.GetEvents()
 	assert.NotEmpty(t, events, "Should have recorded events")
+
+	// CRITICAL: Verify custom work was actually executed, not silently skipped
+	// This catches the bug where BuiltSourceImage was empty and custom work would fail silently
+	workFinishedEvents := pipeline.GetEventsOfType[pipeline.WorkFinished](outputHandler)
+	require.NotEmpty(t, workFinishedEvents, "Should have WorkFinished events")
+
+	// Check that we have at least 2 work items: containerised-work-definition and custom-work-definition
+	// (The sample pipeline has custom-work-definition depending on containerised-work-definition)
+	assert.GreaterOrEqual(t, len(workFinishedEvents), 2, "Should have at least 2 work items executed")
+
+	// Verify custom-work-definition completed successfully
+	var customWorkFinished *pipeline.WorkFinished
+	for _, e := range workFinishedEvents {
+		if e.Work.Description == "custom-work-definition" {
+			customWorkFinished = &e
+			break
+		}
+	}
+	require.NotNil(t, customWorkFinished, "custom-work-definition should have WorkFinished event")
+	assert.Equal(t, types.WorkStatusSucceeded, customWorkFinished.WorkStatus, "custom-work-definition should have succeeded")
 
 	t.Logf("Pipeline executed successfully with %d events", len(events))
 }

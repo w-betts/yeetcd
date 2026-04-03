@@ -44,13 +44,17 @@ func (d *DockerBuildService) Build(ctx context.Context, source Source) (*BuildRe
 		if err != nil {
 			return nil, fmt.Errorf("failed to build project %s: %w", yeetcdConfig.Name, err)
 		}
-		sourceBuildResults = append(sourceBuildResults, *buildResult)
 
 		// Generate pipeline definitions by running the built container
-		pipelines, err := d.generatePipelines(ctx, yeetcdConfig, buildResult)
+		pipelines, imageID, err := d.generatePipelines(ctx, yeetcdConfig, buildResult)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate pipelines for %s: %w", yeetcdConfig.Name, err)
 		}
+
+		// Store the image ID in the source build result for later use (custom work execution)
+		buildResult.ImageID = imageID
+		sourceBuildResults = append(sourceBuildResults, *buildResult)
+
 		allPipelines = append(allPipelines, pipelines...)
 	}
 
@@ -114,11 +118,12 @@ func (d *DockerBuildService) buildProject(ctx context.Context, extractionDir, pr
 }
 
 // generatePipelines runs the built container to generate protobuf pipeline definitions
-func (d *DockerBuildService) generatePipelines(ctx context.Context, yeetcdConfig config.YeetcdConfig, buildResult *SourceBuildResult) ([]*pb.Pipeline, error) {
+// Returns the pipelines and the image ID (which should NOT be deleted as it's needed for custom work execution)
+func (d *DockerBuildService) generatePipelines(ctx context.Context, yeetcdConfig config.YeetcdConfig, buildResult *SourceBuildResult) ([]*pb.Pipeline, string, error) {
 	// Get the command to generate pipeline definitions
 	generateCmd := yeetcdConfig.Language.GetGeneratePipelineDefinitionsCmd()
 	if generateCmd == nil {
-		return nil, fmt.Errorf("unsupported language: %s", yeetcdConfig.Language)
+		return nil, "", fmt.Errorf("unsupported language: %s", yeetcdConfig.Language)
 	}
 
 	// Build artifact paths for the classpath
@@ -132,17 +137,17 @@ func (d *DockerBuildService) generatePipelines(ctx context.Context, yeetcdConfig
 
 	// Build the image with the compiled artifacts
 	buildImageDef := engine.BuildImageDefinition{
-		Image:              fmt.Sprintf("yeetcd-%s", yeetcdConfig.Name),
-		Tag:                "latest",
-		ImageBase:          imageBase,
-		ArtifactDirectory:  buildResult.OutputDirectoriesParent,
-		ArtifactNames:      artifactNames,
-		Cmd:                strings.Join(generateCmd, " "),
+		Image:             fmt.Sprintf("yeetcd-%s", yeetcdConfig.Name),
+		Tag:               "latest",
+		ImageBase:         imageBase,
+		ArtifactDirectory: buildResult.OutputDirectoriesParent,
+		ArtifactNames:     artifactNames,
+		Cmd:               strings.Join(generateCmd, " "),
 	}
 
 	buildImageResult, err := d.engine.BuildImage(ctx, buildImageDef)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build pipeline generator image: %w", err)
+		return nil, "", fmt.Errorf("failed to build pipeline generator image: %w", err)
 	}
 
 	// Create JobStreams to capture stdout
@@ -158,34 +163,31 @@ func (d *DockerBuildService) generatePipelines(ctx context.Context, yeetcdConfig
 
 	jobResult, err := d.engine.RunJob(ctx, jobDef)
 	if err != nil {
-		return nil, fmt.Errorf("failed to run pipeline generator: %w", err)
+		return nil, "", fmt.Errorf("failed to run pipeline generator: %w", err)
 	}
 
 	if jobResult.ExitCode != 0 {
-		return nil, fmt.Errorf("pipeline generator exited with code %d", jobResult.ExitCode)
+		return nil, "", fmt.Errorf("pipeline generator exited with code %d", jobResult.ExitCode)
 	}
 
 	// Parse the protobuf output from stdout
 	stdout := streams.GetStdOut()
-	
+
 	// Debug: log stdout length and first few bytes
 	fmt.Fprintf(os.Stderr, "DEBUG: stdout length: %d\n", len(stdout))
 	if len(stdout) > 0 {
 		fmt.Fprintf(os.Stderr, "DEBUG: stdout first 100 bytes: %v\n", stdout[:min(100, len(stdout))])
 	}
-	
+
 	pipelines, err := d.parseProtobufPipelines(stdout)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse pipeline definitions: %w", err)
+		return nil, "", fmt.Errorf("failed to parse pipeline definitions: %w", err)
 	}
 
-	// Clean up the image
-	if err := d.engine.RemoveImage(ctx, buildImageResult.ImageID); err != nil {
-		// Log but don't fail
-		fmt.Fprintf(os.Stderr, "Warning: failed to remove image %s: %v\n", buildImageResult.ImageID, err)
-	}
+	// Don't remove the image - it's needed for custom work execution
+	// The image will be cleaned up separately when no longer needed
 
-	return pipelines, nil
+	return pipelines, buildImageResult.ImageID, nil
 }
 
 // parseProtobufPipelines parses protobuf pipeline definitions from the output

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	pb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
 	"github.com/yeetcd/yeetcd/internal/core/types"
 	"github.com/yeetcd/yeetcd/pkg/build"
 	"github.com/yeetcd/yeetcd/pkg/engine"
@@ -52,6 +53,48 @@ func (m *MockBuildService) Build(ctx context.Context, source build.Source) (*bui
 		return m.BuildFunc(ctx, source)
 	}
 	return nil, nil
+}
+
+// TestPipelineController_Assemble_PopulatesBuiltSourceImage tests that Assemble populates BuiltSourceImage in PipelineMetadata
+// Given: A MockBuildService that returns pipelines with source build results containing image IDs
+// When: Assemble(ctx, source) is called
+// Then: Each pipeline's Metadata.BuiltSourceImage is populated with the corresponding image ID from SourceBuildResult
+func TestPipelineController_Assemble_PopulatesBuiltSourceImage(t *testing.T) {
+	ctx := context.Background()
+
+	// Create mock build service that returns pipelines with image IDs
+	mockBuildService := &MockBuildService{
+		BuildFunc: func(ctx context.Context, source build.Source) (*build.BuildResult, error) {
+			// Create mock pipelines and source build results with image IDs
+			pipelines := []*pb.Pipeline{
+				{Name: "pipeline-1"},
+				{Name: "pipeline-2"},
+			}
+			sourceBuildResults := []build.SourceBuildResult{
+				{ImageID: "sha256:abc123"},
+				{ImageID: "sha256:def456"},
+			}
+			return &build.BuildResult{
+				Pipelines:          pipelines,
+				SourceBuildResults: sourceBuildResults,
+			}, nil
+		},
+	}
+
+	// Create pipeline controller
+	controller := NewPipelineController(mockBuildService, mockSourceExtractor, nil)
+
+	// Assemble the pipelines
+	pipelines, err := controller.Assemble(ctx, build.Source{})
+
+	// Verify no error
+	require.NoError(t, err)
+	require.NotNil(t, pipelines)
+	require.Len(t, pipelines, 2)
+
+	// Verify each pipeline has the correct BuiltSourceImage
+	assert.Equal(t, "sha256:abc123", pipelines[0].Metadata.BuiltSourceImage)
+	assert.Equal(t, "sha256:def456", pipelines[1].Metadata.BuiltSourceImage)
 }
 
 // TestPipelineController_Execute_RecordsPipelineStartedEvent tests that Execute records PipelineStarted event
