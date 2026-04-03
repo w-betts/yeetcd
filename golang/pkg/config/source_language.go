@@ -42,12 +42,12 @@ func (s *SourceLanguage) UnmarshalYAML(unmarshal func(interface{}) error) error 
 	if err := unmarshal(&str); err != nil {
 		return err
 	}
-	
+
 	lang, err := SourceLanguageFromString(str)
 	if err != nil {
 		return err
 	}
-	
+
 	*s = lang
 	return nil
 }
@@ -69,5 +69,16 @@ func (s SourceLanguage) GetImageBase() engine.ImageBase {
 		return engine.JAVA
 	default:
 		return -1
+	}
+}
+
+// GetCustomTaskRunnerCmd returns the command to run custom work for this language
+func (s SourceLanguage) GetCustomTaskRunnerCmd(pipelineName, executionID string) []string {
+	switch s {
+	case SourceLanguageJava:
+		// Use sh -c to handle the glob pattern in the classpath
+		return []string{"java", "-cp", "/artifacts/classes:/artifacts/dependency/*", "yeetcd.sdk.GeneratedCustomWorkRunner", pipelineName, executionID}
+	default:
+		return nil
 	}
 }

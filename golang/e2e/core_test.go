@@ -100,7 +100,10 @@ func TestJavaSample_AssembleAndExecute_Sample(t *testing.T) {
 	// Verify that BuiltSourceImage is populated (this is the key fix - without it custom work fails silently)
 	require.NotEmpty(t, samplePipeline.Metadata.BuiltSourceImage, "Pipeline should have BuiltSourceImage populated")
 
-	t.Logf("Sample pipeline metadata: BuiltSourceImage=%s", samplePipeline.Metadata.BuiltSourceImage)
+	// Verify SourceLanguage is populated (without it custom work runs with empty command and exits 2)
+	require.NotEmpty(t, samplePipeline.Metadata.SourceLanguage, "Pipeline should have SourceLanguage populated")
+
+	t.Logf("Sample pipeline metadata: BuiltSourceImage=%s, SourceLanguage=%v", samplePipeline.Metadata.BuiltSourceImage, samplePipeline.Metadata.SourceLanguage)
 
 	// Create output handler
 	outputHandler := pipeline.NewTestPipelineOutputHandler()

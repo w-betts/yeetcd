@@ -9,14 +9,16 @@ import (
 // TestPipelineOutputHandler is a test helper that implements PipelineOutputHandler
 // and records all events for verification
 type TestPipelineOutputHandler struct {
-	events []interface{}
-	mu     sync.RWMutex
+	events     []interface{}
+	mu         sync.RWMutex
+	jobStreams []*engine.JobStreams
 }
 
 // NewTestPipelineOutputHandler creates a new TestPipelineOutputHandler
 func NewTestPipelineOutputHandler() *TestPipelineOutputHandler {
 	return &TestPipelineOutputHandler{
-		events: make([]interface{}, 0),
+		events:     make([]interface{}, 0),
+		jobStreams: make([]*engine.JobStreams, 0),
 	}
 }
 
@@ -29,7 +31,11 @@ func (t *TestPipelineOutputHandler) RecordEvent(event interface{}) {
 
 // NewJobStreams creates new JobStreams for job output capture
 func (t *TestPipelineOutputHandler) NewJobStreams() interface{} {
-	return engine.NewJobStreams(nil, nil)
+	streams := engine.NewJobStreams(nil, nil)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.jobStreams = append(t.jobStreams, streams)
+	return streams
 }
 
 // GetEvents returns all recorded events
@@ -64,4 +70,34 @@ func (t *TestPipelineOutputHandler) Clear() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.events = make([]interface{}, 0)
+	t.jobStreams = make([]*engine.JobStreams, 0)
+}
+
+// GetJobStreams returns all captured JobStreams
+func (t *TestPipelineOutputHandler) GetJobStreams() []*engine.JobStreams {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	result := make([]*engine.JobStreams, len(t.jobStreams))
+	copy(result, t.jobStreams)
+	return result
+}
+
+// GetStdOutByWorkDescription returns the stdout for a specific work by its description
+// This is useful for verifying custom work execution output
+func (t *TestPipelineOutputHandler) GetStdOutByWorkDescription(description string) []byte {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	// Find the WorkStarted event for the given work description
+	for _, event := range t.events {
+		if ws, ok := event.(WorkStarted); ok {
+			if ws.Work.Description == description {
+				if js, ok := ws.JobStreams.(*engine.JobStreams); ok {
+					return js.GetStdOut()
+				}
+			}
+		}
+	}
+
+	return nil
 }

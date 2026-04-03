@@ -154,10 +154,11 @@ func (d *DockerBuildService) generatePipelines(ctx context.Context, yeetcdConfig
 	streams := engine.NewJobStreams(nil, os.Stderr)
 
 	// Run the container to generate pipeline definitions
-	// Pass empty command to use the CMD from the image (which is the class name)
+	// The image has an ENTRYPOINT set up (java -cp ...), so we just pass the class name as CMD
 	jobDef := engine.JobDefinition{
 		Image:      buildImageResult.ImageID,
-		Cmd:        []string{},
+		Cmd:        []string{"yeetcd.sdk.GeneratedPipelineDefinitions"},
+		WorkingDir: "/",
 		JobStreams: streams,
 	}
 
