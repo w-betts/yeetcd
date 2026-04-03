@@ -9,6 +9,7 @@ import (
 	pb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
 	"github.com/yeetcd/yeetcd/internal/core/types"
 	"github.com/yeetcd/yeetcd/pkg/build"
+	"github.com/yeetcd/yeetcd/pkg/config"
 	"github.com/yeetcd/yeetcd/pkg/engine"
 )
 
@@ -71,8 +72,8 @@ func TestPipelineController_Assemble_PopulatesBuiltSourceImage(t *testing.T) {
 				{Name: "pipeline-2"},
 			}
 			sourceBuildResults := []build.SourceBuildResult{
-				{ImageID: "sha256:abc123"},
-				{ImageID: "sha256:def456"},
+				{ImageID: "sha256:abc123", YeetcdConfig: config.YeetcdConfig{Language: config.SourceLanguageJava}},
+				{ImageID: "sha256:def456", YeetcdConfig: config.YeetcdConfig{Language: config.SourceLanguageGo}},
 			}
 			return &build.BuildResult{
 				Pipelines:          pipelines,
@@ -95,6 +96,10 @@ func TestPipelineController_Assemble_PopulatesBuiltSourceImage(t *testing.T) {
 	// Verify each pipeline has the correct BuiltSourceImage
 	assert.Equal(t, "sha256:abc123", pipelines[0].Metadata.BuiltSourceImage)
 	assert.Equal(t, "sha256:def456", pipelines[1].Metadata.BuiltSourceImage)
+
+	// Verify each pipeline has the correct SourceLanguage
+	assert.Equal(t, config.SourceLanguageJava, pipelines[0].Metadata.SourceLanguage)
+	assert.Equal(t, config.SourceLanguageGo, pipelines[1].Metadata.SourceLanguage)
 }
 
 // TestPipelineController_Execute_RecordsPipelineStartedEvent tests that Execute records PipelineStarted event

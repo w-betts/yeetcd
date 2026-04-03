@@ -42,11 +42,12 @@ func (pc *PipelineController) Assemble(ctx context.Context, source build.Source)
 			return nil, fmt.Errorf("failed to parse pipeline: %w", err)
 		}
 
-		// Populate PipelineMetadata with BuiltSourceImage from source build results
+		// Populate PipelineMetadata with BuiltSourceImage and SourceLanguage from source build results
 		// The image ID for this pipeline should be in the corresponding SourceBuildResult
 		if i < len(buildResult.SourceBuildResults) {
 			sourceBuildResult := buildResult.SourceBuildResults[i]
 			pipeline.Metadata.BuiltSourceImage = sourceBuildResult.ImageID
+			pipeline.Metadata.SourceLanguage = sourceBuildResult.YeetcdConfig.Language
 		}
 
 		pipelines = append(pipelines, pipeline)
