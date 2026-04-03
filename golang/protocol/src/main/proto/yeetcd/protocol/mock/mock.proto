@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package yeetcd.protocol.mock;
+
+option go_package = "github.com/yeetcd/yeetcd/internal/core/proto/mock/yeetcd/protocol/mock";
+
+service MockExecutionService {
+  rpc RunWork(MockWorkRequest) returns (MockWorkResponse);
+  rpc BuildImage(MockImageBuildRequest) returns (MockImageBuildResponse);
+}
+
+message MockWorkRequest {
+  string image = 1;
+  repeated string cmd = 2;
+  map<string, string> env_vars = 3;
+  string working_dir = 4;
+  repeated string input_paths = 5;
+  repeated string output_paths = 6;
+}
+
+message MockWorkResponse {
+  int32 exit_code = 1;
+  string stdout = 2;
+  string stderr = 3;
+  map<string, string> output_paths = 4;
+}
+
+message MockImageBuildRequest {
+  string image = 1;
+  string tag = 2;
+  repeated string artifacts = 3;
+  string build_cmd = 4;
+}
+
+message MockImageBuildResponse {
+  bool success = 1;
+  string error = 2;
+  string image_ref = 3;
+}

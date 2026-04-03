@@ -14,6 +14,7 @@
 # Directories
 GOLANG_DIR := golang
 JAVA_SDK_DIR := sdks/java
+GOPATH := $(shell go env GOPATH)
 
 # Binary output
 BINARY_NAME := yeetcd
@@ -98,6 +99,22 @@ build-sample: install-sdk
 test-e2e: install-sdk
 	$(call print_info,"Running E2E tests...")
 	cd $(GOLANG_DIR) && go test -v -race -tags=e2e ./e2e/...
+
+## proto - Generate Go code from protobuf definitions
+.PHONY: proto
+proto:
+	$(call print_info,"Generating protobuf Go code...")
+	@mkdir -p $(GOLANG_DIR)/internal/core/proto/pipeline
+	@mkdir -p $(GOLANG_DIR)/internal/core/proto/mock
+	PATH="$(GOPATH)/bin:$(PATH)" protoc --go_out=$(GOLANG_DIR)/internal/core/proto/pipeline --go_opt=paths=source_relative \
+		--go-grpc_out=$(GOLANG_DIR)/internal/core/proto/pipeline --go-grpc_opt=paths=source_relative \
+		--proto_path=$(GOLANG_DIR)/protocol/src/main/proto \
+		$(GOLANG_DIR)/protocol/src/main/proto/yeetcd/protocol/pipeline/pipeline.proto
+	PATH="$(GOPATH)/bin:$(PATH)" protoc --go_out=$(GOLANG_DIR)/internal/core/proto/mock --go_opt=paths=source_relative \
+		--go-grpc_out=$(GOLANG_DIR)/internal/core/proto/mock --go-grpc_opt=paths=source_relative \
+		--proto_path=$(GOLANG_DIR)/protocol/src/main/proto \
+		$(GOLANG_DIR)/protocol/src/main/proto/yeetcd/protocol/mock/mock.proto
+	$(call print_status,"Protobuf code generated")
 	$(call print_status,"E2E tests passed")
 
 ## clean - Clean all build artifacts

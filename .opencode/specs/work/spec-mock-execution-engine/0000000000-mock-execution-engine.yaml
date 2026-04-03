@@ -1,0 +1,244 @@
+version: 2
+problem_statement: "Add mock execution engine support to the yeetcd CLI and create a new test SDK that enables users to define mock behaviors, verify expectations, and run pipelines against a mock execution engine instead of real Docker containers."
+goals:
+  - "Add --mock-execution-engine-address flag to CLI run command that switches from Docker to gRPC-based mock execution"
+  - "CLI auto-detects compiled classes exist and skips build step"
+  - "CLI accepts classpath to run pipeline generator and custom work"
+  - "Create protobuf definitions for mock execution engine communication (work parameters and responses)"
+  - "Implement gRPC client in CLI for mock execution engine communication"
+  - "Create new yeetcd:test SDK that allows users to define mock behaviors and verify expectations"
+  - "Bundle CLI binaries for multiple platforms (darwin/amd64, darwin/arm64, linux/amd64, linux/arm64) in the test SDK uber JAR"
+  - "Replace existing java-test module with yeetcd:test"
+constraints:
+  - "The mock execution engine must use gRPC with new protobuf messages (different from pipeline proto)"
+  - "The CLI binaries bundled in the test SDK must be the genuine yeetcd binaries (not GraalVM)"
+  - "The test SDK should NOT depend on yeetcd:sdk - works independently with classpath"
+  - "All platform-specific binaries must be bundled in the uber JAR and platform detected at runtime"
+tech_choices:
+  - area: "grpc"
+    choice: "gRPC with Protobuf"
+    rationale: "Reuse existing gRPC infrastructure; new proto needed for mock execution work parameters"
+  - area: "maven"
+    choice: "Maven shade plugin for uber JAR"
+    rationale: "Need to bundle platform-specific CLI binaries in test SDK JAR"
+  - area: "naming"
+    choice: "yeetcd:test"
+    rationale: "Replace java-test module with new test module using yeetcd group ID"
+  - area: "classpath"
+    choice: "CLI accepts classpath and uses it to run pipeline generator + custom work"
+    rationale: "Test SDK provides compiled classes; CLI skips build and runs directly"
+  - area: "auto-detect"
+    choice: "CLI auto-detects compiled classes exist and skips build"
+    rationale: "Works with test SDK without requiring --no-build flag"
+architecture:
+  description: "Mock execution engine architecture with CLI integration and test SDK"
+  components:
+    - name: "MockExecutionEngine (Go)"
+      responsibility: "gRPC client that sends work parameters to mock server instead of running Docker containers"
+      interfaces: ["RunJob(ctx, JobDefinition) -> *JobResult", "BuildImage(ctx, BuildImageDefinition) -> *BuildImageResult"]
+    - name: "MockExecutionProto (Proto)"
+      responsibility: "Define protobuf messages for mock execution engine communication"
+      interfaces: ["MockWorkRequest", "MockWorkResponse", "MockImageBuildRequest", "MockImageBuildResponse"]
+    - name: "TestRunner (Java)"
+      responsibility: "Enable users to define mock behaviors, verify expectations, and run CLI with mock engine"
+      interfaces: ["YeetcdMockRunner.builder()", "defineBehavior()", "verifyExpectations()", "runCLI()"]
+    - name: "CLIBundler (Java)"
+      responsibility: "Bundle CLI binaries for multiple platforms in uber JAR and detect platform at runtime"
+      interfaces: ["getPlatformBinary()", "spawnSubprocess()"]
+test_strategy:
+  approach: "Unit tests for new components, integration tests for CLI-to-mock communication"
+  test_patterns:
+    - language: "go"
+      pattern: "*_test.go"
+    - language: "java"
+      pattern: "*Test.java"
+phases:
+  - name: "Phase 1: Create mock execution protobuf definitions"
+    description: "Define protobuf messages for mock execution engine communication and add gRPC support"
+    status: "in_progress"
+    is_release_boundary: false
+    file_changes:
+      - action: "modify"
+        description: "Add grpc-go and protoc-gen-go dependencies to go.mod"
+        is_test: false
+        path: "golang/go.mod"
+      - action: "create"
+        description: "Create mock.proto with MockWorkRequest, MockWorkResponse, MockImageBuildRequest, MockImageBuildResponse and MockExecutionService gRPC service"
+        is_test: false
+        path: "golang/protocol/src/main/proto/yeetcd/protocol/mock/mock.proto"
+      - action: "create"
+        description: "Generate Go code from mock.proto (MockExecutionService client/server)"
+        is_test: false
+        path: "golang/internal/core/proto/mock/mock.pb.go"
+      - action: "create"
+        description: "Unit tests for mock protobuf serialization/deserialization"
+        is_test: true
+        path: "golang/internal/core/proto/mock/mock_test.go"
+    test_cases:
+      - description: "Verify MockWorkRequest contains all job parameters (image, cmd, env vars, working dir, input/output paths)"
+        type: "unit"
+        target_component: "MockExecutionProto"
+        contracts: ["MockWorkRequest serialization", "MockWorkRequest deserialization"]
+        given_when_then: |
+          GIVEN: a JobDefinition with all fields populated
+          WHEN: converting to MockWorkRequest
+          THEN: all fields are correctly mapped to proto fields
+      - description: "Verify MockWorkResponse correctly returns exit code and output paths"
+        type: "unit"
+        target_component: "MockExecutionProto"
+        contracts: ["MockWorkResponse serialization", "MockWorkResponse deserialization"]
+        given_when_then: |
+          GIVEN: a job execution result with exit code and outputs
+          WHEN: creating MockWorkResponse
+          THEN: response correctly maps to protobuf fields
+      - description: "Verify MockImageBuildRequest contains all build parameters"
+        type: "unit"
+        target_component: "MockExecutionProto"
+        contracts: ["MockImageBuildRequest serialization"]
+        given_when_then: |
+          GIVEN: a BuildImageDefinition with image, tag, artifacts
+          WHEN: converting to MockImageBuildRequest
+          THEN: all parameters are correctly mapped
+      - description: "Verify MockExecutionService gRPC service compiles"
+        type: "unit"
+        target_component: "MockExecutionProto"
+        contracts: ["MockExecutionService.RunWork", "MockExecutionService.BuildImage"]
+        given_when_then: |
+          GIVEN: the mock.proto file
+          WHEN: generating gRPC code
+          THEN: service compiles without errors
+  - name: "Phase 2: Add mock execution engine to CLI"
+    description: "Add --mock-execution-engine-address flag and implement gRPC client, auto-detect skip build"
+    status: "pending"
+    is_release_boundary: true
+    file_changes:
+      - action: "modify"
+        description: "Add --mock-execution-engine-address flag to run command"
+        is_test: false
+        path: "golang/cmd/yeetcd/run.go"
+      - action: "create"
+        description: "Create mock execution engine implementation"
+        is_test: false
+        path: "golang/pkg/engine/mock/mock_execution_engine.go"
+      - action: "modify"
+        description: "Add classpath handling to run command"
+        is_test: false
+        path: "golang/cmd/yeetcd/run.go"
+    test_cases:
+      - description: "CLI accepts --mock-execution-engine-address and uses mock engine instead of Docker"
+        type: "unit"
+        target_component: "CLIRunCommand"
+        contracts: ["runCmd with mock address uses MockExecutionEngine"]
+        given_when_then: |
+          GIVEN: run command with --mock-execution-engine-address
+          WHEN: executing pipeline
+          THEN: uses MockExecutionEngine not DockerExecutionEngine
+      - description: "CLI auto-detects compiled classes and skips build"
+        type: "unit"
+        target_component: "CLIRunCommand"
+        contracts: ["runCmd auto-detects classes and skips build"]
+        given_when_then: |
+          GIVEN: source with pre-compiled classes in artifact paths
+          WHEN: running pipeline
+          THEN: build step is skipped
+  - name: "Phase 3: Create yeetcd:test module structure"
+    description: "Create new test module replacing java-test with mock runner API"
+    status: "pending"
+    is_release_boundary: false
+    file_changes:
+      - action: "create"
+        description: "Create new yeetcd:test module pom.xml"
+        is_test: false
+        path: "sdks/java/test/pom.xml"
+      - action: "create"
+        description: "Create mock server implementation for test SDK"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/MockServer.java"
+    test_cases: []
+  - name: "Phase 4: Bundle CLI binaries in test SDK"
+    description: "Configure maven-shade-plugin to include platform-specific CLI binaries and detect platform at runtime"
+    status: "pending"
+    is_release_boundary: false
+    file_changes:
+      - action: "modify"
+        description: "Add maven-shade-plugin to bundle CLI binaries"
+        is_test: false
+        path: "sdks/java/test/pom.xml"
+      - action: "create"
+        description: "Create platform detection utility"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/PlatformDetector.java"
+    test_cases: []
+  - name: "Phase 5: Implement test SDK mock behavior and verification APIs"
+    description: "Implement YeetcdMockRunner that allows defining behaviors and verifying expectations"
+    status: "pending"
+    is_release_boundary: false
+    file_changes:
+      - action: "create"
+        description: "Create YeetcdMockRunner main class"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/YeetcdMockRunner.java"
+      - action: "create"
+        description: "Create MockBehavior DSL for defining mock responses"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/MockBehavior.java"
+      - action: "create"
+        description: "Create ExpectationVerifier for verifying work executions"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/ExpectationVerifier.java"
+      - action: "create"
+        description: "Create CLISpawner to run CLI with test parameters"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/CLISpawner.java"
+    test_cases:
+      - description: "Test SDK can define mock behaviors and verify expectations"
+        type: "unit"
+        target_component: "YeetcdMockRunner"
+        contracts: ["YeetcdMockRunner.defineBehavior()", "YeetcdMockRunner.verifyExpectations()"]
+        given_when_then: |
+          GIVEN: a YeetcdMockRunner with defined behaviors
+          WHEN: running pipeline with mock engine
+          THEN: mock server responds with defined behaviors and expectations can be verified
+  - name: "Phase 6: Remove old java-test module"
+    description: "Remove the existing java-test module and update parent pom.xml"
+    status: "pending"
+    is_release_boundary: false
+    file_changes:
+      - action: "delete"
+        description: "Delete old test module directory"
+        is_test: false
+        path: "sdks/java/test"
+      - action: "modify"
+        description: "Create fresh test module directory for yeetcd:test"
+        is_test: false
+        path: "sdks/java/test"
+    test_cases: []
+
+addressed_issues:
+  - issue: "No gRPC infrastructure exists in the codebase"
+    resolution: "fixed"
+    resolution_note: "Added grpc-go dependency to go.mod in Phase 1 file_changes"
+    timestamp: "2026-04-02T22:15:00Z"
+  - issue: "Communication direction unclear - CLI as client or server"
+    resolution: "clarified"
+    resolution_note: "CLI is the gRPC client that connects to mock server embedded in test JVM"
+    timestamp: "2026-04-02T22:15:00Z"
+  - issue: "Missing proto generation workflow"
+    resolution: "fixed"
+    resolution_note: "Will generate mock.pb.go with protoc and commit to repo, same as pipeline.proto"
+    timestamp: "2026-04-02T22:15:00Z"
+  - issue: "Conflicting test SDK requirements - should not depend on SDK"
+    resolution: "clarified"
+    resolution_note: "Test SDK works with classpath, does NOT depend on SDK. Verification uses raw work parameters from mock server, not SDK types"
+    timestamp: "2026-04-02T22:15:00Z"
+  - issue: "Empty phases 2-6 - no file_changes"
+    resolution: "fixed"
+    resolution_note: "Added file_changes and test_cases for Phases 2-6 based on clarified architecture"
+    timestamp: "2026-04-02T22:15:00Z"
+
+status: "planned"
+review:
+  status: "passed"
+  reviewer: "user"
+  timestamp: "2026-04-02T22:20:00Z"
+  feedback: "Spec approved by user after clarifying review issues"
