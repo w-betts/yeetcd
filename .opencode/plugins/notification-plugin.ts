@@ -26,9 +26,6 @@ const DEFAULT_SOUND_MAC = '/System/Library/Sounds/Ping.aiff';
 const NOTIFICATION_TITLE = 'OpenCode';
 const NOTIFICATION_MESSAGE = 'Agent requires your attention';
 
-// Delay for question tool notifications (in milliseconds)
-const QUESTION_DELAY_MS = 10000;
-
 /**
  * Detect the current platform
  */
@@ -152,7 +149,7 @@ async function playNotification(options?: {
  * Plays a sound/notification when:
  * - Session goes idle (agent finished responding) - only for primary sessions
  * - Permission is requested
- * - Question tool is invoked (with 5-second delay)
+ * - Question tool is invoked
  */
 export const NotificationPlugin: Plugin = async (input) => {
   return {
@@ -189,13 +186,15 @@ export const NotificationPlugin: Plugin = async (input) => {
       });
     },
 
-    // Play notification when question tool is invoked (with 10-second delay)
+    // Play notification when question tool is invoked (non-blocking via setTimeout)
     'tool.execute.before': async (input, output) => {
       if (input.tool === 'question') {
-        await playNotification({
-          message: 'Question tool invoked - awaiting your response',
-          delay: QUESTION_DELAY_MS,
-        });
+        // Use setTimeout to not block the question from appearing
+        setTimeout(() => {
+          playNotification({
+            message: 'Question tool invoked - awaiting your response',
+          });
+        }, 0);
       }
     },
   };
