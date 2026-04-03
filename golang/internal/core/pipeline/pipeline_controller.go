@@ -42,6 +42,9 @@ func (pc *PipelineController) Assemble(ctx context.Context, source build.Source)
 			return nil, fmt.Errorf("failed to parse pipeline: %w", err)
 		}
 
+		// Populate PipelineMetadata with pipeline name
+		pipeline.Metadata.PipelineName = pipeline.Name
+
 		// Populate PipelineMetadata with BuiltSourceImage and SourceLanguage from source build results
 		// The image ID for this pipeline should be in the corresponding SourceBuildResult
 		if i < len(buildResult.SourceBuildResults) {

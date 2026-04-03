@@ -13,10 +13,14 @@ import (
 
 // MockSourceLanguage implements SourceLanguage interface for testing
 type MockSourceLanguage struct {
-	CustomTaskRunnerCmd []string
+	CustomTaskRunnerCmd  []string
+	CapturedPipelineName string
+	CapturedTaskName     string
 }
 
 func (m *MockSourceLanguage) GetCustomTaskRunnerCmd(pipelineName, taskName string) []string {
+	m.CapturedPipelineName = pipelineName
+	m.CapturedTaskName = taskName
 	return m.CustomTaskRunnerCmd
 }
 
@@ -38,9 +42,9 @@ func TestNativeWorkDefinition_Execute_UsesBuiltSourceImage(t *testing.T) {
 	handler := NewTestPipelineOutputHandler()
 	tracker := NewWorkResultTracker()
 	metadata := PipelineMetadata{
-		PipelineName:      "test-pipeline",
-		BuiltSourceImage:  "built-image:latest",
-		SourceLanguage:    &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner", "cmd"}},
+		PipelineName:     "test-pipeline",
+		BuiltSourceImage: "built-image:latest",
+		SourceLanguage:   &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner", "cmd"}},
 	}
 
 	nativeDef := &NativeWorkDefinition{
@@ -79,9 +83,9 @@ func TestNativeWorkDefinition_Execute_UsesCustomTaskRunnerCmd(t *testing.T) {
 	handler := NewTestPipelineOutputHandler()
 	tracker := NewWorkResultTracker()
 	metadata := PipelineMetadata{
-		PipelineName:      "test-pipeline",
-		BuiltSourceImage:  "built-image:latest",
-		SourceLanguage:    &MockSourceLanguage{CustomTaskRunnerCmd: []string{"custom-runner", "arg"}},
+		PipelineName:     "test-pipeline",
+		BuiltSourceImage: "built-image:latest",
+		SourceLanguage:   &MockSourceLanguage{CustomTaskRunnerCmd: []string{"custom-runner", "arg"}},
 	}
 
 	nativeDef := &NativeWorkDefinition{
@@ -102,6 +106,47 @@ func TestNativeWorkDefinition_Execute_UsesCustomTaskRunnerCmd(t *testing.T) {
 	assert.Equal(t, []string{"custom-runner", "arg"}, capturedCmd)
 }
 
+// TestNativeWorkDefinition_Execute_PassesPipelineNameToCustomTaskRunnerCmd tests that Execute passes the pipeline name to GetCustomTaskRunnerCmd
+// Given: NativeWorkDefinition with ExecutionID="test-execution-id", MockSourceLanguage, metadata with PipelineName="my-pipeline"
+// When: nativeDef.Execute(ctx, work, engine, metadata, tracker, handler) is called
+// Then: MockSourceLanguage.GetCustomTaskRunnerCmd is called with pipelineName="my-pipeline" and taskName="test-execution-id"
+func TestNativeWorkDefinition_Execute_PassesPipelineNameToCustomTaskRunnerCmd(t *testing.T) {
+	ctx := context.Background()
+
+	mockEngine := &MockExecutionEngine{
+		RunJobFunc: func(ctx context.Context, def engine.JobDefinition) (*engine.JobResult, error) {
+			return &engine.JobResult{ExitCode: 0}, nil
+		},
+	}
+
+	handler := NewTestPipelineOutputHandler()
+	tracker := NewWorkResultTracker()
+	mockLang := &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner", "cmd"}}
+	metadata := PipelineMetadata{
+		PipelineName:     "my-pipeline",
+		BuiltSourceImage: "built-image:latest",
+		SourceLanguage:   mockLang,
+	}
+
+	nativeDef := &NativeWorkDefinition{
+		ExecutionID: "test-execution-id",
+	}
+
+	work := Work{
+		ID:             "native-work",
+		Description:    "Native Work",
+		WorkContext:    make(WorkContext),
+		WorkDefinition: nativeDef,
+	}
+
+	result, err := nativeDef.Execute(ctx, work, make(WorkContext), mockEngine, metadata, tracker, handler)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, "my-pipeline", mockLang.CapturedPipelineName)
+	assert.Equal(t, "test-execution-id", mockLang.CapturedTaskName)
+}
+
 // TestNativeWorkDefinition_Execute_PassesWorkContextAsEnvironment tests that Execute passes work context as environment variables
 // Given: Work with mergedContext={"KEY": "value", "FOO": "bar"}, NativeWorkDefinition
 // When: nativeDef.Execute(ctx, work, mergedContext, engine, metadata, tracker, handler) is called
@@ -120,9 +165,9 @@ func TestNativeWorkDefinition_Execute_PassesWorkContextAsEnvironment(t *testing.
 	handler := NewTestPipelineOutputHandler()
 	tracker := NewWorkResultTracker()
 	metadata := PipelineMetadata{
-		PipelineName:      "test-pipeline",
-		BuiltSourceImage:  "built-image:latest",
-		SourceLanguage:    &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
+		PipelineName:     "test-pipeline",
+		BuiltSourceImage: "built-image:latest",
+		SourceLanguage:   &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
 	}
 
 	nativeDef := &NativeWorkDefinition{
@@ -165,9 +210,9 @@ func TestNativeWorkDefinition_Execute_PassesOutputPathsToJobDefinition(t *testin
 	handler := NewTestPipelineOutputHandler()
 	tracker := NewWorkResultTracker()
 	metadata := PipelineMetadata{
-		PipelineName:      "test-pipeline",
-		BuiltSourceImage:  "built-image:latest",
-		SourceLanguage:    &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
+		PipelineName:     "test-pipeline",
+		BuiltSourceImage: "built-image:latest",
+		SourceLanguage:   &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
 	}
 
 	nativeDef := &NativeWorkDefinition{
@@ -175,9 +220,9 @@ func TestNativeWorkDefinition_Execute_PassesOutputPathsToJobDefinition(t *testin
 	}
 
 	work := Work{
-		ID:          "native-work",
-		Description: "Native Work",
-		WorkContext: make(WorkContext),
+		ID:             "native-work",
+		Description:    "Native Work",
+		WorkContext:    make(WorkContext),
 		WorkDefinition: nativeDef,
 		OutputPaths: []WorkOutputPath{
 			{Name: "output", Path: "/var/output"},
@@ -210,9 +255,9 @@ func TestNativeWorkDefinition_Execute_MapsExitCode0ToSuccess(t *testing.T) {
 	handler := NewTestPipelineOutputHandler()
 	tracker := NewWorkResultTracker()
 	metadata := PipelineMetadata{
-		PipelineName:      "test-pipeline",
-		BuiltSourceImage:  "built-image:latest",
-		SourceLanguage:    &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
+		PipelineName:     "test-pipeline",
+		BuiltSourceImage: "built-image:latest",
+		SourceLanguage:   &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
 	}
 
 	nativeDef := &NativeWorkDefinition{
@@ -249,9 +294,9 @@ func TestNativeWorkDefinition_Execute_MapsNonZeroExitCodeToFailure(t *testing.T)
 	handler := NewTestPipelineOutputHandler()
 	tracker := NewWorkResultTracker()
 	metadata := PipelineMetadata{
-		PipelineName:      "test-pipeline",
-		BuiltSourceImage:  "built-image:latest",
-		SourceLanguage:    &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
+		PipelineName:     "test-pipeline",
+		BuiltSourceImage: "built-image:latest",
+		SourceLanguage:   &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
 	}
 
 	nativeDef := &NativeWorkDefinition{
@@ -288,9 +333,9 @@ func TestNativeWorkDefinition_Execute_ReturnsErrorWhenRunJobFails(t *testing.T) 
 	handler := NewTestPipelineOutputHandler()
 	tracker := NewWorkResultTracker()
 	metadata := PipelineMetadata{
-		PipelineName:      "test-pipeline",
-		BuiltSourceImage:  "built-image:latest",
-		SourceLanguage:    &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
+		PipelineName:     "test-pipeline",
+		BuiltSourceImage: "built-image:latest",
+		SourceLanguage:   &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
 	}
 
 	nativeDef := &NativeWorkDefinition{
@@ -328,9 +373,9 @@ func TestNativeWorkDefinition_Execute_RecordsWorkStartedEvent(t *testing.T) {
 	handler := NewTestPipelineOutputHandler()
 	tracker := NewWorkResultTracker()
 	metadata := PipelineMetadata{
-		PipelineName:      "test-pipeline",
-		BuiltSourceImage:  "built-image:latest",
-		SourceLanguage:    &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
+		PipelineName:     "test-pipeline",
+		BuiltSourceImage: "built-image:latest",
+		SourceLanguage:   &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
 	}
 
 	nativeDef := &NativeWorkDefinition{
@@ -373,9 +418,9 @@ func TestNativeWorkDefinition_Execute_PassesJobStreamsToRunJob(t *testing.T) {
 	handler := NewTestPipelineOutputHandler()
 	tracker := NewWorkResultTracker()
 	metadata := PipelineMetadata{
-		PipelineName:      "test-pipeline",
-		BuiltSourceImage:  "built-image:latest",
-		SourceLanguage:    &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
+		PipelineName:     "test-pipeline",
+		BuiltSourceImage: "built-image:latest",
+		SourceLanguage:   &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
 	}
 
 	nativeDef := &NativeWorkDefinition{
@@ -414,9 +459,9 @@ func TestNativeWorkDefinition_Execute_PassesPreviousWorkMountInputs(t *testing.T
 	handler := NewTestPipelineOutputHandler()
 	tracker := NewWorkResultTracker()
 	metadata := PipelineMetadata{
-		PipelineName:      "test-pipeline",
-		BuiltSourceImage:  "built-image:latest",
-		SourceLanguage:    &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
+		PipelineName:     "test-pipeline",
+		BuiltSourceImage: "built-image:latest",
+		SourceLanguage:   &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
 	}
 
 	// First, execute work A to populate tracker with results
@@ -444,9 +489,9 @@ func TestNativeWorkDefinition_Execute_PassesPreviousWorkMountInputs(t *testing.T
 	}
 
 	workB := Work{
-		ID:          "work-b",
-		Description: "Work B",
-		WorkContext: make(WorkContext),
+		ID:             "work-b",
+		Description:    "Work B",
+		WorkContext:    make(WorkContext),
 		WorkDefinition: nativeDef,
 		PreviousWork: []PreviousWork{
 			{
@@ -483,9 +528,9 @@ func TestNativeWorkDefinition_Execute_AddsPreviousWorkStdOutToContext(t *testing
 	handler := NewTestPipelineOutputHandler()
 	tracker := NewWorkResultTracker()
 	metadata := PipelineMetadata{
-		PipelineName:      "test-pipeline",
-		BuiltSourceImage:  "built-image:latest",
-		SourceLanguage:    &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
+		PipelineName:     "test-pipeline",
+		BuiltSourceImage: "built-image:latest",
+		SourceLanguage:   &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
 	}
 
 	// First, execute work A to populate tracker with results
@@ -510,9 +555,9 @@ func TestNativeWorkDefinition_Execute_AddsPreviousWorkStdOutToContext(t *testing
 	}
 
 	workB := Work{
-		ID:          "work-b",
-		Description: "Work B",
-		WorkContext: make(WorkContext),
+		ID:             "work-b",
+		Description:    "Work B",
+		WorkContext:    make(WorkContext),
 		WorkDefinition: nativeDef,
 		PreviousWork: []PreviousWork{
 			{
@@ -548,9 +593,9 @@ func TestNativeWorkDefinition_Execute_ReturnsOutputDirectoriesParent(t *testing.
 	handler := NewTestPipelineOutputHandler()
 	tracker := NewWorkResultTracker()
 	metadata := PipelineMetadata{
-		PipelineName:      "test-pipeline",
-		BuiltSourceImage:  "built-image:latest",
-		SourceLanguage:    &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
+		PipelineName:     "test-pipeline",
+		BuiltSourceImage: "built-image:latest",
+		SourceLanguage:   &MockSourceLanguage{CustomTaskRunnerCmd: []string{"runner"}},
 	}
 
 	nativeDef := &NativeWorkDefinition{
@@ -589,9 +634,9 @@ func TestNativeWorkDefinition_Execute_HandlesNilSourceLanguage(t *testing.T) {
 	handler := NewTestPipelineOutputHandler()
 	tracker := NewWorkResultTracker()
 	metadata := PipelineMetadata{
-		PipelineName:      "test-pipeline",
-		BuiltSourceImage:  "built-image:latest",
-		SourceLanguage:    nil, // nil source language
+		PipelineName:     "test-pipeline",
+		BuiltSourceImage: "built-image:latest",
+		SourceLanguage:   nil, // nil source language
 	}
 
 	nativeDef := &NativeWorkDefinition{

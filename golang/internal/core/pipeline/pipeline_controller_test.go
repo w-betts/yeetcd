@@ -102,6 +102,48 @@ func TestPipelineController_Assemble_PopulatesBuiltSourceImage(t *testing.T) {
 	assert.Equal(t, config.SourceLanguageGo, pipelines[1].Metadata.SourceLanguage)
 }
 
+// TestPipelineController_Assemble_PopulatesPipelineName tests that Assemble populates PipelineName in PipelineMetadata
+// Given: A MockBuildService that returns pipelines with names
+// When: Assemble(ctx, source) is called
+// Then: Each pipeline's Metadata.PipelineName is populated with the pipeline name
+func TestPipelineController_Assemble_PopulatesPipelineName(t *testing.T) {
+	ctx := context.Background()
+
+	// Create mock build service that returns pipelines with names
+	mockBuildService := &MockBuildService{
+		BuildFunc: func(ctx context.Context, source build.Source) (*build.BuildResult, error) {
+			// Create mock pipelines with names
+			pipelines := []*pb.Pipeline{
+				{Name: "my-pipeline"},
+				{Name: "another-pipeline"},
+			}
+			sourceBuildResults := []build.SourceBuildResult{
+				{ImageID: "sha256:abc123", YeetcdConfig: config.YeetcdConfig{Language: config.SourceLanguageJava}},
+				{ImageID: "sha256:def456", YeetcdConfig: config.YeetcdConfig{Language: config.SourceLanguageJava}},
+			}
+			return &build.BuildResult{
+				Pipelines:          pipelines,
+				SourceBuildResults: sourceBuildResults,
+			}, nil
+		},
+	}
+
+	// Create pipeline controller
+	controller := NewPipelineController(mockBuildService, mockSourceExtractor, nil)
+
+	// Assemble the pipelines
+	pipelines, err := controller.Assemble(ctx, build.Source{})
+
+	// Verify no error
+	require.NoError(t, err)
+	require.NotNil(t, pipelines)
+	require.Len(t, pipelines, 2)
+
+	// Verify each pipeline has the correct PipelineName in metadata
+	assert.Equal(t, "my-pipeline", pipelines[0].Metadata.PipelineName)
+	assert.Equal(t, "another-pipeline", pipelines[1].Metadata.PipelineName)
+}
+
 // TestPipelineController_Execute_RecordsPipelineStartedEvent tests that Execute records PipelineStarted event
 // Given: A Pipeline with final work, MockExecutionEngine, TestPipelineOutputHandler
 // When: Execute(ctx, pipeline, handler) is called
