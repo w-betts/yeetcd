@@ -12,13 +12,18 @@ import (
 	"github.com/yeetcd/yeetcd/internal/cli"
 	"github.com/yeetcd/yeetcd/internal/core/pipeline"
 	"github.com/yeetcd/yeetcd/pkg/build"
+	"github.com/yeetcd/yeetcd/pkg/engine"
 	"github.com/yeetcd/yeetcd/pkg/engine/docker"
+	"github.com/yeetcd/yeetcd/pkg/engine/mock"
 )
 
 var (
-	runSourcePath   string
-	runPipelineName string
-	runArguments    []string
+	runSourcePath           string
+	runPipelineName         string
+	runArguments            []string
+	runMockExecutionAddress string
+	runClasspath            string
+	runSkipBuild            bool
 )
 
 // runCmd represents the run command
@@ -47,6 +52,9 @@ func init() {
 	runCmd.Flags().StringVar(&runSourcePath, "source", "", "Path to source zip file or directory (required)")
 	runCmd.Flags().StringVar(&runPipelineName, "pipeline", "", "Name of the pipeline to execute (required)")
 	runCmd.Flags().StringArrayVar(&runArguments, "argument", []string{}, "Pipeline arguments in KEY=VALUE format (can be repeated)")
+	runCmd.Flags().StringVar(&runMockExecutionAddress, "mock-execution-engine-address", "", "Address of mock execution engine (e.g., localhost:50051)")
+	runCmd.Flags().StringVar(&runClasspath, "classpath", "", "Classpath to use for running pipeline generator and custom work")
+	runCmd.Flags().BoolVar(&runSkipBuild, "skip-build", false, "Skip the build step (use pre-compiled classes)")
 
 	runCmd.MarkFlagRequired("source")
 	runCmd.MarkFlagRequired("pipeline")
@@ -62,11 +70,20 @@ func runPipeline() error {
 		return err
 	}
 
-	// Step 2: Create Docker execution engine
-	slog.Info("initializing Docker execution engine")
-	executionEngine, err := docker.NewDockerExecutionEngine()
-	if err != nil {
-		return fmt.Errorf("failed to create Docker execution engine: %w", err)
+	// Step 2: Create execution engine (Docker or Mock)
+	var executionEngine engine.ExecutionEngine
+	if runMockExecutionAddress != "" {
+		slog.Info("initializing mock execution engine", "address", runMockExecutionAddress)
+		executionEngine, err = mock.NewMockExecutionEngine(runMockExecutionAddress)
+		if err != nil {
+			return fmt.Errorf("failed to create mock execution engine: %w", err)
+		}
+	} else {
+		slog.Info("initializing Docker execution engine")
+		executionEngine, err = docker.NewDockerExecutionEngine()
+		if err != nil {
+			return fmt.Errorf("failed to create Docker execution engine: %w", err)
+		}
 	}
 
 	// Step 3: Create build service

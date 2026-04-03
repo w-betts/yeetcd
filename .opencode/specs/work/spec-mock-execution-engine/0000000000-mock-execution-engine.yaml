@@ -143,76 +143,213 @@ phases:
           THEN: build step is skipped
   - name: "Phase 3: Create yeetcd:test module structure"
     description: "Create new test module replacing java-test with mock runner API"
-    status: "pending"
+    status: "in_progress"
     is_release_boundary: false
     file_changes:
-      - action: "create"
-        description: "Create new yeetcd:test module pom.xml"
+      - action: "modify"
+        description: "Update test module pom.xml: add grpc, proto-java dependencies for MockServer; remove yeetcd:sdk dependency per spec requirements"
         is_test: false
         path: "sdks/java/test/pom.xml"
       - action: "create"
-        description: "Create mock server implementation for test SDK"
+        description: "Create MockServer.java - implements gRPC MockExecutionService, runs embedded in test JVM, accepts behavior definitions and returns mock responses"
         is_test: false
         path: "sdks/java/test/src/main/java/yeetcd/test/MockServer.java"
-    test_cases: []
+    test_cases:
+      - description: "MockServer starts embedded gRPC server and can register mock behaviors"
+        type: "unit"
+        target_component: "MockServer"
+        contracts: ["MockServer.start()", "MockServer.stop()", "MockServer.registerBehavior()", "MockExecutionServiceGrpc.MockExecutionServiceImplBase"]
+        given_when_then: |
+          GIVEN: a MockServer instance
+          WHEN: start() is called and behaviors are registered
+          THEN: gRPC server accepts connections and responds to RunWork requests with registered behaviors
+      - description: "MockServer tracks work executions for expectation verification"
+        type: "unit"
+        target_component: "MockServer"
+        contracts: ["MockServer.registerBehavior()", "MockServer.getExecutedWork()"]
+        given_when_then: |
+          GIVEN: MockServer with registered behaviors
+          WHEN: work is executed through mock engine
+          THEN: executions are tracked and can be retrieved for verification
+      - description: "MockServer correctly parses MockWorkRequest proto and returns MockWorkResponse"
+        type: "unit"
+        target_component: "MockServer"
+        contracts: ["MockWorkRequest deserialization", "MockServer.onRunWork()"]
+        given_when_then: |
+          GIVEN: a MockWorkRequest with image, cmd, env vars
+          WHEN: request is received by MockServer
+          THEN: request is parsed and matched against registered behaviors to return appropriate response
   - name: "Phase 4: Bundle CLI binaries in test SDK"
     description: "Configure maven-shade-plugin to include platform-specific CLI binaries and detect platform at runtime"
     status: "pending"
     is_release_boundary: false
     file_changes:
       - action: "modify"
-        description: "Add maven-shade-plugin to bundle CLI binaries"
+        description: "Add maven-shade-plugin to test pom.xml with resource transformers to include CLI binaries from src/main/resources/cli/ directory into uber JAR, maintaining directory structure. Also add grpc-netty-shaded and grpc-protobuf dependencies required for gRPC communication in test SDK."
         is_test: false
         path: "sdks/java/test/pom.xml"
       - action: "create"
-        description: "Create platform detection utility"
+        description: "Create PlatformDetector utility class that detects OS (darwin/linux) and architecture (amd64/arm64) at runtime using System.getProperties. Returns a normalized platform string like 'darwin-amd64' or 'linux-arm64' used to select the correct CLI binary from bundled resources."
         is_test: false
         path: "sdks/java/test/src/main/java/yeetcd/test/PlatformDetector.java"
-    test_cases: []
+    test_cases:
+      - description: "PlatformDetector correctly detects operating system (darwin vs linux) using System.getProperty('os.name')"
+        type: "unit"
+        target_component: "PlatformDetector"
+        contracts: ["PlatformDetector.getOS()", "PlatformDetector.getArch()", "PlatformDetector.getPlatform()"]
+        given_when_then: |
+          GIVEN: JVM running on Linux
+          WHEN: PlatformDetector.getOS() is called
+          THEN: returns 'linux'
+          GIVEN: JVM running on macOS
+          WHEN: PlatformDetector.getOS() is called
+          THEN: returns 'darwin'
+      - description: "PlatformDetector correctly detects CPU architecture (amd64 vs arm64) using System.getProperty('os.arch')"
+        type: "unit"
+        target_component: "PlatformDetector"
+        contracts: ["PlatformDetector.getArch()"]
+        given_when_then: |
+          GIVEN: JVM running on x86_64
+          WHEN: PlatformDetector.getArch() is called
+          THEN: returns 'amd64'
+          GIVEN: JVM running on aarch64
+          WHEN: PlatformDetector.getArch() is called
+          THEN: returns 'arm64'
+      - description: "PlatformDetector returns combined platform string (e.g., 'darwin-arm64', 'linux-amd64') for binary lookup"
+        type: "unit"
+        target_component: "PlatformDetector"
+        contracts: ["PlatformDetector.getPlatform()"]
+        given_when_then: |
+          GIVEN: JVM on macOS ARM (Apple Silicon)
+          WHEN: PlatformDetector.getPlatform() is called
+          THEN: returns 'darwin-arm64'
+          GIVEN: JVM on Linux x86_64
+          WHEN: PlatformDetector.getPlatform() is called
+          THEN: returns 'linux-amd64'
   - name: "Phase 5: Implement test SDK mock behavior and verification APIs"
     description: "Implement YeetcdMockRunner that allows defining behaviors and verifying expectations"
-    status: "pending"
+    status: "in_progress"
     is_release_boundary: false
     file_changes:
       - action: "create"
-        description: "Create YeetcdMockRunner main class"
+        description: "Create YeetcdMockRunner main class that orchestrates mock server lifecycle, behavior registration, CLI spawning, and expectation verification. Provides builder pattern with methods: startMockServer(), defineBehavior(), runCLI(), verifyExpectations()."
         is_test: false
         path: "sdks/java/test/src/main/java/yeetcd/test/YeetcdMockRunner.java"
       - action: "create"
-        description: "Create MockBehavior DSL for defining mock responses"
+        description: "Create MockBehavior DSL for defining mock responses. Supports matching work by image, command, env vars. Returns configured responses (exitCode, stdout, stderr). Uses builder pattern."
         is_test: false
         path: "sdks/java/test/src/main/java/yeetcd/test/MockBehavior.java"
       - action: "create"
-        description: "Create ExpectationVerifier for verifying work executions"
+        description: "Create WorkExecution record to capture work execution details from mock server (image, cmd, env vars, exit code, stdout). Used for expectation verification."
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/WorkExecution.java"
+      - action: "create"
+        description: "Create ExpectationVerifier for verifying work executions match expected behaviors. Provides methods: assertExecuted(), assertExecutedCount(), assertNotExecuted(), getExecutedWork()."
         is_test: false
         path: "sdks/java/test/src/main/java/yeetcd/test/ExpectationVerifier.java"
       - action: "create"
-        description: "Create CLISpawner to run CLI with test parameters"
+        description: "Create CLISpawner to run CLI with classpath and mock server address. Detects platform-specific CLI binary from classpath resources, spawns subprocess with YEETCD_MOCK_ADDRESS env var."
         is_test: false
         path: "sdks/java/test/src/main/java/yeetcd/test/CLISpawner.java"
     test_cases:
-      - description: "Test SDK can define mock behaviors and verify expectations"
+      - description: "YeetcdMockRunner orchestrates mock server lifecycle, behavior registration, CLI execution, and expectation verification"
         type: "unit"
         target_component: "YeetcdMockRunner"
-        contracts: ["YeetcdMockRunner.defineBehavior()", "YeetcdMockRunner.verifyExpectations()"]
+        contracts: ["YeetcdMockRunner.builder()", "YeetcdMockRunner.startMockServer()", "YeetcdMockRunner.defineBehavior()", "YeetcdMockRunner.runCLI()", "YeetcdMockRunner.verifyExpectations()"]
         given_when_then: |
-          GIVEN: a YeetcdMockRunner with defined behaviors
-          WHEN: running pipeline with mock engine
-          THEN: mock server responds with defined behaviors and expectations can be verified
+          GIVEN: YeetcdMockRunner with behaviors defined
+          WHEN: startMockServer() starts embedded server, runCLI() spawns CLI with mock address, verifyExpectations() checks executions
+          THEN: CLI connects to mock server, mock returns defined behaviors, expectations can be verified
+      - description: "MockBehavior DSL allows defining mock responses matched by work parameters"
+        type: "unit"
+        target_component: "MockBehavior"
+        contracts: ["MockBehavior.matching()", "MockBehavior.exitCode()", "MockBehavior.stdout()", "MockBehaviorBuilder.build()"]
+        given_when_then: |
+          GIVEN: MockBehavior with matching criteria (image='nginx', cmd=['echo hello'])
+          WHEN: mock server receives work matching criteria
+          THEN: returns configured exitCode=0, stdout='hello'
+      - description: "WorkExecution captures raw work execution parameters from mock server for verification"
+        type: "unit"
+        target_component: "WorkExecution"
+        contracts: ["WorkExecution.getImage()", "WorkExecution.getCmd()", "WorkExecution.getEnvVars()", "WorkExecution.getExitCode()", "WorkExecution.getStdOut()"]
+        given_when_then: |
+          GIVEN: work executed through mock server
+          WHEN: mock server records execution
+          THEN: WorkExecution contains image, cmd, env vars, exit code, stdout
+      - description: "ExpectationVerifier verifies work executions match expected behaviors"
+        type: "unit"
+        target_component: "ExpectationVerifier"
+        contracts: ["ExpectationVerifier.assertExecuted()", "ExpectationVerifier.assertExecutedCount()", "ExpectationVerifier.assertNotExecuted()", "ExpectationVerifier.getExecutedWork()"]
+        given_when_then: |
+          GIVEN: executions tracked by mock server
+          WHEN: verify expectations with matching criteria
+          THEN: assertions pass if executions match criteria
+      - description: "CLISpawner runs CLI binary with classpath and mock server address environment variable"
+        type: "unit"
+        target_component: "CLISpawner"
+        contracts: ["CLISpawner.spawn()", "CLISpawner.getPlatformBinary()", "CLISpawner.withClasspath()", "CLISpawner.withMockAddress()"]
+        given_when_then: |
+          GIVEN: CLISpawner with classpath and mock server address
+          WHEN: spawn() is called
+          THEN: CLI binary is extracted for platform, subprocess is started with YEETCD_MOCK_ADDRESS env var
   - name: "Phase 6: Remove old java-test module"
     description: "Remove the existing java-test module and update parent pom.xml"
-    status: "pending"
+    status: "in_progress"
     is_release_boundary: false
     file_changes:
-      - action: "delete"
-        description: "Delete old test module directory"
-        is_test: false
-        path: "sdks/java/test"
       - action: "modify"
-        description: "Create fresh test module directory for yeetcd:test"
+        description: "Update test module pom.xml: remove yeetcd:sdk dependency (per spec constraint - test SDK works independently with classpath), ensure grpc-netty-shaded and grpc-protobuf dependencies exist for MockServer communication, ensure mock proto-java generated classes are available"
         is_test: false
-        path: "sdks/java/test"
-    test_cases: []
+        path: "sdks/java/test/pom.xml"
+      - action: "create"
+        description: "Create YeetcdMockRunnerTest.java - unit tests for YeetcdMockRunner including mock server lifecycle, behavior registration, and expectation verification"
+        is_test: true
+        path: "sdks/java/test/src/test/java/yeetcd/test/YeetcdMockRunnerTest.java"
+      - action: "create"
+        description: "Create MockBehaviorTest.java - unit tests for MockBehavior DSL including matching logic and response configuration"
+        is_test: true
+        path: "sdks/java/test/src/test/java/yeetcd/test/MockBehaviorTest.java"
+      - action: "create"
+        description: "Create ExpectationVerifierTest.java - unit tests for ExpectationVerifier including assertExecuted, assertExecutedCount, assertNotExecuted"
+        is_test: true
+        path: "sdks/java/test/src/test/java/yeetcd/test/ExpectationVerifierTest.java"
+      - action: "create"
+        description: "Create CLISpawnerTest.java - unit tests for CLISpawner including platform detection, binary extraction, and process spawning"
+        is_test: true
+        path: "sdks/java/test/src/test/java/yeetcd/test/CLISpawnerTest.java"
+    test_cases:
+      - description: "YeetcdMockRunner integrates with embedded MockServer, registers behaviors, spawns CLI, and verifies expectations"
+        type: "unit"
+        target_component: "YeetcdMockRunner"
+        contracts: ["YeetcdMockRunner.builder()", "YeetcdMockRunner.startMockServer()", "YeetcdMockRunner.defineBehavior()", "YeetcdMockRunner.runCLI()", "YeetcdMockRunner.verifyExpectations()"]
+        given_when_then: |
+          GIVEN: YeetcdMockRunner with defined behaviors
+          WHEN: startMockServer() starts embedded gRPC server, CLI is spawned with mock address
+          THEN: CLI connects to mock server and returns expected results
+      - description: "MockBehavior correctly matches work by image, command, and environment variables"
+        type: "unit"
+        target_component: "MockBehavior"
+        contracts: ["MockBehavior.matching()", "MockBehavior.exitCode()", "MockBehavior.stdout()"]
+        given_when_then: |
+          GIVEN: MockBehavior with image='nginx' and cmd=['echo hello']
+          WHEN: work is executed with matching image and cmd
+          THEN: returns configured exitCode=0 and stdout='hello'
+      - description: "ExpectationVerifier correctly asserts work was executed, executed N times, or not executed"
+        type: "unit"
+        target_component: "ExpectationVerifier"
+        contracts: ["ExpectationVerifier.assertExecuted()", "ExpectationVerifier.assertExecutedCount()", "ExpectationVerifier.assertNotExecuted()"]
+        given_when_then: |
+          GIVEN: WorkExecution records from mock server
+          WHEN: verify expectations with matching criteria
+          THEN: assertions pass/fail correctly based on execution history
+      - description: "CLISpawner extracts correct platform binary and spawns CLI with mock address"
+        type: "unit"
+        target_component: "CLISpawner"
+        contracts: ["CLISpawner.getPlatformBinary()", "CLISpawner.spawn()"]
+        given_when_then: |
+          GIVEN: PlatformDetector returns 'darwin-arm64'
+          WHEN: CLISpawner.spawn() is called
+          THEN: extracts yeetcd-darwin-arm64 binary and starts process with YEETCD_MOCK_ADDRESS env var
 
 addressed_issues:
   - issue: "No gRPC infrastructure exists in the codebase"
