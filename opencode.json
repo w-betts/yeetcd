@@ -3,7 +3,6 @@
   "agent": {
     "spec": {
       "mode": "primary",
-      "model": "opencode/big-pickle",
       "description": "Spec agent - orchestrates phase-based workflow for complex features requiring planning and architecture",
       "prompt": "{file:./.opencode/prompts/spec.md}",
       "temperature": 0.3,
@@ -22,7 +21,6 @@
     },
     "vibe": {
       "mode": "primary",
-      "model": "opencode/big-pickle",
       "description": "Vibe agent - direct implementation workflow for rapid iteration and simpler tasks",
       "prompt": "{file:./.opencode/prompts/vibe.md}",
       "temperature": 0.3,
@@ -44,7 +42,6 @@
     },
     "fix": {
       "mode": "primary",
-      "model": "opencode/big-pickle",
       "description": "Fix agent - test-driven bug fixing workflow",
       "prompt": "{file:./.opencode/prompts/fix.md}",
       "temperature": 0.3,
@@ -62,7 +59,6 @@
     },
     "document": {
       "mode": "primary",
-      "model": "opencode/big-pickle",
       "description": "Document agent - orchestrates two-phase documentation workflow for keeping code docs in sync",
       "prompt": "{file:./.opencode/prompts/document.md}",
       "temperature": 0.3,
@@ -170,7 +166,6 @@
     },
     "improve": {
       "mode": "primary",
-      "model": "opencode/big-pickle",
       "description": "Improve agent - analyzes recorded session problems and proposes workflow improvements",
       "prompt": "{file:./.opencode/prompts/improve.md}",
       "temperature": 0.3,

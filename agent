@@ -32,7 +32,8 @@ AGENT_MAP = {
     "improve": "improve",
 }
 
-# Paid model override (used when --paid flag is passed)
+# Model configuration
+DEFAULT_MODEL = "opencode/big-pickle"
 PAID_MODEL = "opencode/minimax-m2.5"
 
 # Constants
@@ -137,11 +138,14 @@ def launch_improve_agent(workflow_types: str, paid: bool = False) -> None:
     # Build the opencode command
     cmd = ["opencode", "--agent", "improve", "--prompt", f"Analyze problems for workflows: {workflow_types}"]
     
-    # Add paid model override if requested
+    # Always pass the model - default to big-pickle, or use paid model if requested
+    model = PAID_MODEL if paid else DEFAULT_MODEL
+    cmd.extend(["--model", model])
     if paid:
-        cmd.extend(["--model", PAID_MODEL])
         print(f"Using paid model: {PAID_MODEL}")
-        print()
+    else:
+        print(f"Using model: {DEFAULT_MODEL}")
+    print()
     
     # Launch opencode
     try:
@@ -680,11 +684,14 @@ def launch_agent(work: Optional[WorkItem], agent_name: str, paid: bool = False) 
     # Build the opencode command
     cmd = ["opencode", "--agent", agent_name]
     
-    # Add paid model override if requested
+    # Always pass the model - default to big-pickle, or use paid model if requested
+    model = PAID_MODEL if paid else DEFAULT_MODEL
+    cmd.extend(["--model", model])
     if paid:
-        cmd.extend(["--model", PAID_MODEL])
         print(f"Using paid model: {PAID_MODEL}")
-        print()
+    else:
+        print(f"Using model: {DEFAULT_MODEL}")
+    print()
     
     # Add default prompt for document agent
     if agent_name == "document":
