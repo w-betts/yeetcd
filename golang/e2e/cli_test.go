@@ -101,7 +101,8 @@ func TestCLI_ListShowsPipelines(t *testing.T) {
 // TestCLI_RunExecutesPipeline tests that 'yeetcd run' executes a pipeline
 // GIVEN: Real Docker daemon, java-sample project zip, built yeetcd CLI binary
 // WHEN: 'yeetcd run --source <zip> --pipeline sample' is executed
-// THEN: CLI exits with code 0, output contains 'Pipeline completed: SUCCESS'
+// THEN: CLI exits with code 0, output contains 'Pipeline completed: SUCCESS',
+// and work items show SUCCESS status (not just that pipeline runs)
 func TestCLI_RunExecutesPipeline(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping E2E test in short mode")
@@ -137,14 +138,34 @@ func TestCLI_RunExecutesPipeline(t *testing.T) {
 	t.Logf("CLI output:\n%s", output)
 	t.Logf("Exit code: %d", exitCode)
 
-	// CLI should succeed - just verify exit code
-	assert.Equal(t, 0, exitCode, "CLI should exit with code 0")
+	// CLI should succeed
+	assert.Equal(t, 0, exitCode, "CLI should exit with code 0 when pipeline succeeds")
+
+	// CRITICAL: Verify that work items actually succeeded, not just that pipeline ran
+	// The sample pipeline has containerised-work-definition and custom-work-definition
+	// Both should show status=2 (SUCCESS), not status=3 (FAILURE)
+
+	// Check for work finished events - both should show success
+	assert.True(t, strings.Contains(output, `description=containerised-work-definition`),
+		"Output should contain containerised-work-definition")
+	assert.True(t, strings.Contains(output, `description=custom-work-definition`),
+		"Output should contain custom-work-definition")
+
+	// Verify no work shows failure status (status=3)
+	// Count occurrences of status=3 (FAILURE) in output
+	failureCount := strings.Count(output, "status=3")
+	assert.Equal(t, 0, failureCount, "No work items should have failed (status=3)")
+
+	// Verify pipeline shows success status (status=0)
+	assert.True(t, strings.Contains(output, "status=0") || strings.Contains(output, "pipeline finished"),
+		"Pipeline should show success status")
 }
 
 // TestCLI_RunWithArguments tests that 'yeetcd run' passes arguments to pipeline
 // GIVEN: Real Docker daemon, java-sample project zip, built yeetcd CLI binary
 // WHEN: 'yeetcd run --source <zip> --pipeline sampleWithParameters --argument PARAMETER_NAME=other' is executed
-// THEN: CLI exits with code 0, pipeline receives PARAMETER_NAME=other argument
+// THEN: CLI exits with code 0, pipeline receives PARAMETER_NAME=other argument,
+// and work items show SUCCESS status
 func TestCLI_RunWithArguments(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping E2E test in short mode")
@@ -184,6 +205,10 @@ func TestCLI_RunWithArguments(t *testing.T) {
 	t.Logf("CLI output:\n%s", output)
 	t.Logf("Exit code: %d", exitCode)
 
-	// CLI should succeed - just verify exit code
-	assert.Equal(t, 0, exitCode, "CLI should exit with code 0")
+	// CLI should succeed when pipeline succeeds
+	assert.Equal(t, 0, exitCode, "CLI should exit with code 0 when pipeline succeeds")
+
+	// Verify no work shows failure status
+	failureCount := strings.Count(output, "status=3")
+	assert.Equal(t, 0, failureCount, "No work items should have failed (status=3)")
 }
