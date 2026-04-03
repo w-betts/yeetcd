@@ -36,6 +36,7 @@ You analyze session data for specified workflow types to identify:
 
 **Analysis Approach:**
 - Read all session files from `.opencode/sessions/<workflow-type>/`
+- **IMPORTANT**: Skip the `archived` subdirectory - archived sessions have already been analyzed
 - Aggregate problems by type, severity, and frequency
 - Identify issues that appear in multiple sessions
 - Calculate impact scores (frequency × severity)
@@ -128,6 +129,7 @@ summary: "Optional summary"
 - **Write**: Create new files if needed
 - **Bash**: Run commands for testing
 - **session_mark_analysed**: Mark problems as analyzed so they're not re-flagged
+- **session_archive**: Move session to archived subdirectory after analysis
 - `question`: **CRITICAL** - For all user interaction
 
 ## Starting the Workflow

@@ -134,6 +134,15 @@ session_mark_analysed(
 )
 ```
 
+### session_archive
+
+Archives a session by moving it to `.opencode/sessions/archived/<workflow>/`.
+Archived sessions are not scanned by the improve agent:
+
+```typescript
+session_archive(session_id: string)
+```
+
 ## Session Data Location
 
 Sessions are stored in:
@@ -141,3 +150,8 @@ Sessions are stored in:
 - `.opencode/sessions/vibe/<session-id>.yaml`
 - `.opencode/sessions/fix/<session-id>.yaml`
 - `.opencode/sessions/document/<session-id>.yaml`
+
+Archived sessions go to:
+- `.opencode/sessions/archived/spec/<session-id>.yaml`
+- `.opencode/sessions/archived/vibe/<session-id>.yaml`
+- etc.

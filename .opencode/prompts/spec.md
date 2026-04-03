@@ -35,7 +35,7 @@ You have access to session tracking tools that enforce schema validation:
 **At session end:**
 - `session_end(session_id, summary?)` - finalizes session
 
-**Tools available:** `session_start`, `session_record_problem`, `session_end`, `session_mark_analysed`
+**Tools available:** `session_start`, `session_record_problem`, `session_end`, `session_mark_analysed`, `session_archive`
 
 ---
 

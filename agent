@@ -50,8 +50,11 @@ def get_workflow_types_with_sessions() -> List[str]:
         if workflow_type == "improve":
             continue
         workflow_dir = sessions_path / workflow_type
-        if workflow_dir.exists() and list(workflow_dir.glob("*.yaml")):
-            types_with_sessions.append(workflow_type)
+        if workflow_dir.exists():
+            # Check for YAML files, excluding archived subdirectory
+            yaml_files = [f for f in workflow_dir.glob("*.yaml") if f.is_file()]
+            if yaml_files:
+                types_with_sessions.append(workflow_type)
     
     return types_with_sessions
 

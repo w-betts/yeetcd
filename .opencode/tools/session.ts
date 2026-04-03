@@ -441,3 +441,67 @@ Updated indices: ${updated.join(", ")}
 ${invalid.length > 0 ? `Invalid indices (skipped): ${invalid.join(", ")}` : ""}`
   },
 })
+
+export const session_archive = tool({
+  description:
+    "Archive a session by moving it to an archived subdirectory. " +
+    "Archived sessions are not scanned by the improve agent. " +
+    "Call this after analyzing and addressing issues, or when the session is no longer needed for analysis.",
+  args: {
+    session_id: tool.schema
+      .string()
+      .describe("Session ID to archive"),
+  },
+  async execute(args, context) {
+    // Find session file
+    const sessionsBase = sessionsDir(context.worktree)
+
+    let sessionFile: string | null = null
+    let workflowType: string | null = null
+    const workflows = ["spec", "vibe", "fix", "document"]
+
+    for (const wf of workflows) {
+      const wfDir = path.join(sessionsBase, wf)
+      if (fs.existsSync(wfDir)) {
+        const candidate = path.join(wfDir, `${args.session_id}.yaml`)
+        if (fs.existsSync(candidate)) {
+          sessionFile = candidate
+          workflowType = wf
+          break
+        }
+      }
+    }
+
+    if (!sessionFile) {
+      return `ERROR: Session not found: ${args.session_id}`
+    }
+
+    // Create archived directory
+    const archivedDir = path.join(sessionsBase, "archived", workflowType!)
+    fs.mkdirSync(archivedDir, { recursive: true })
+
+    // Move file
+    const filename = path.basename(sessionFile)
+    const archivedPath = path.join(archivedDir, filename)
+
+    // Check if already exists in archive
+    if (fs.existsSync(archivedPath)) {
+      // Remove the original
+      fs.unlinkSync(sessionFile)
+      return `Session already archived (found in archive). Cleaned up duplicate.
+
+Session: ${args.session_id}
+Archived: ${archivedPath}`
+    }
+
+    fs.renameSync(sessionFile, archivedPath)
+
+    return `Session archived successfully.
+
+Session: ${args.session_id}
+Original: ${sessionFile}
+Archived: ${archivedPath}
+
+This session will no longer be scanned by the improve agent.`
+  },
+})
