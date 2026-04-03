@@ -76,8 +76,9 @@ func (s SourceLanguage) GetImageBase() engine.ImageBase {
 func (s SourceLanguage) GetCustomTaskRunnerCmd(pipelineName, executionID string) []string {
 	switch s {
 	case SourceLanguageJava:
-		// Use sh -c to handle the glob pattern in the classpath
-		return []string{"java", "-cp", "/artifacts/classes:/artifacts/dependency/*", "yeetcd.sdk.GeneratedCustomWorkRunner", pipelineName, executionID}
+		// The ENTRYPOINT in Dockerfile sets up java -cp <classpath>
+		// We just need to provide the main class and arguments
+		return []string{"yeetcd.sdk.GeneratedCustomWorkRunner", pipelineName, executionID}
 	default:
 		return nil
 	}

@@ -51,7 +51,7 @@ func (d *DockerBuildService) Build(ctx context.Context, source Source) (*BuildRe
 			return nil, fmt.Errorf("failed to generate pipelines for %s: %w", yeetcdConfig.Name, err)
 		}
 
-		// Store the image ID in the source build result for later use (custom work execution)
+		// Store the image ID in the source build result for custom work execution
 		buildResult.ImageID = imageID
 		sourceBuildResults = append(sourceBuildResults, *buildResult)
 
@@ -118,7 +118,7 @@ func (d *DockerBuildService) buildProject(ctx context.Context, extractionDir, pr
 }
 
 // generatePipelines runs the built container to generate protobuf pipeline definitions
-// Returns the pipelines and the image ID (which should NOT be deleted as it's needed for custom work execution)
+// Returns pipelines and image ID (which is needed for custom work execution)
 func (d *DockerBuildService) generatePipelines(ctx context.Context, yeetcdConfig config.YeetcdConfig, buildResult *SourceBuildResult) ([]*pb.Pipeline, string, error) {
 	// Get the command to generate pipeline definitions
 	generateCmd := yeetcdConfig.Language.GetGeneratePipelineDefinitionsCmd()
@@ -154,11 +154,10 @@ func (d *DockerBuildService) generatePipelines(ctx context.Context, yeetcdConfig
 	streams := engine.NewJobStreams(nil, os.Stderr)
 
 	// Run the container to generate pipeline definitions
-	// The image has an ENTRYPOINT set up (java -cp ...), so we just pass the class name as CMD
+	// Pass empty command to use the CMD from the image (which is the class name)
 	jobDef := engine.JobDefinition{
 		Image:      buildImageResult.ImageID,
-		Cmd:        []string{"yeetcd.sdk.GeneratedPipelineDefinitions"},
-		WorkingDir: "/",
+		Cmd:        []string{},
 		JobStreams: streams,
 	}
 
