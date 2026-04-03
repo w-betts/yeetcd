@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -147,6 +148,7 @@ func TestJavaSample_AssembleAndExecute_Sample(t *testing.T) {
 // GIVEN: Real Docker daemon, PipelineController, Source with repository zip
 // WHEN: Execute(ctx, pipeline 'sampleCompound', outputHandler) is called
 // THEN: PipelineResult.PipelineStatus equals SUCCESS, events show compound work execution
+// and all nested work items (containerised + custom) from both sample() calls actually execute
 func TestJavaSample_AssembleAndExecute_Compound(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping E2E test in short mode")
@@ -188,6 +190,14 @@ func TestJavaSample_AssembleAndExecute_Compound(t *testing.T) {
 	}
 	require.NotNil(t, compoundPipeline, "sampleCompound pipeline should exist")
 
+	// CRITICAL: Verify that BuiltSourceImage is populated (without it custom work fails silently)
+	require.NotEmpty(t, compoundPipeline.Metadata.BuiltSourceImage, "Pipeline should have BuiltSourceImage populated")
+
+	// Verify SourceLanguage is populated
+	require.NotEmpty(t, compoundPipeline.Metadata.SourceLanguage, "Pipeline should have SourceLanguage populated")
+
+	t.Logf("Compound pipeline metadata: BuiltSourceImage=%s, SourceLanguage=%v", compoundPipeline.Metadata.BuiltSourceImage, compoundPipeline.Metadata.SourceLanguage)
+
 	// Create output handler
 	outputHandler := pipeline.NewTestPipelineOutputHandler()
 
@@ -199,13 +209,44 @@ func TestJavaSample_AssembleAndExecute_Compound(t *testing.T) {
 	// Verify status
 	assert.Equal(t, pipeline.PipelineSuccess, result.PipelineStatus(), "Pipeline should succeed")
 
-	t.Logf("Compound pipeline executed successfully")
+	// CRITICAL: Verify work was actually executed, not silently skipped
+	events := outputHandler.GetEvents()
+	assert.NotEmpty(t, events, "Should have recorded events")
+
+	workFinishedEvents := pipeline.GetEventsOfType[pipeline.WorkFinished](outputHandler)
+	require.NotEmpty(t, workFinishedEvents, "Should have WorkFinished events")
+
+	// sampleCompound calls sample() twice as compound work
+	// Each sample() has: containerised-work-definition + custom-work-definition
+	// So we should have at least 4 work items executed (2 containerised + 2 custom)
+	// Plus the compound wrapper works
+	assert.GreaterOrEqual(t, len(workFinishedEvents), 4, "Should have at least 4 work items executed (2 from each sample() call)")
+
+	// Verify all work items succeeded (no failures)
+	for _, e := range workFinishedEvents {
+		assert.NotEqual(t, types.WorkStatusFailed, e.WorkStatus,
+			"Work %s should not have failed", e.Work.Description)
+	}
+
+	// Verify custom-work-definition from both sample() calls executed
+	customWorkCount := 0
+	for _, e := range workFinishedEvents {
+		if e.Work.Description == "custom-work-definition" {
+			customWorkCount++
+			assert.Equal(t, types.WorkStatusSucceeded, e.WorkStatus,
+				"custom-work-definition should have succeeded")
+		}
+	}
+	assert.Equal(t, 2, customWorkCount, "Should have 2 custom-work-definition executions (one from each sample() call)")
+
+	t.Logf("Compound pipeline executed successfully with %d work items", len(workFinishedEvents))
 }
 
 // TestJavaSample_AssembleAndExecute_WorkContext tests the work context pipeline
 // GIVEN: Real Docker daemon, PipelineController, Source with repository zip
 // WHEN: Execute(ctx, pipeline 'sampleWithWorkContext', outputHandler) is called
 // THEN: PipelineResult.PipelineStatus equals SUCCESS, work receives merged context
+// and verifies both PIPELINE_WORK_CONTEXT and WORK_WORK_CONTEXT are correctly passed
 func TestJavaSample_AssembleAndExecute_WorkContext(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping E2E test in short mode")
@@ -247,6 +288,14 @@ func TestJavaSample_AssembleAndExecute_WorkContext(t *testing.T) {
 	}
 	require.NotNil(t, workContextPipeline, "sampleWithWorkContext pipeline should exist")
 
+	// CRITICAL: Verify that BuiltSourceImage is populated (without it custom work fails silently)
+	require.NotEmpty(t, workContextPipeline.Metadata.BuiltSourceImage, "Pipeline should have BuiltSourceImage populated")
+
+	// Verify SourceLanguage is populated
+	require.NotEmpty(t, workContextPipeline.Metadata.SourceLanguage, "Pipeline should have SourceLanguage populated")
+
+	t.Logf("Work context pipeline metadata: BuiltSourceImage=%s, SourceLanguage=%v", workContextPipeline.Metadata.BuiltSourceImage, workContextPipeline.Metadata.SourceLanguage)
+
 	// Create output handler
 	outputHandler := pipeline.NewTestPipelineOutputHandler()
 
@@ -258,13 +307,47 @@ func TestJavaSample_AssembleAndExecute_WorkContext(t *testing.T) {
 	// Verify status
 	assert.Equal(t, pipeline.PipelineSuccess, result.PipelineStatus(), "Pipeline should succeed")
 
-	t.Logf("Work context pipeline executed successfully")
+	// CRITICAL: Verify work was actually executed, not silently skipped
+	events := outputHandler.GetEvents()
+	assert.NotEmpty(t, events, "Should have recorded events")
+
+	workFinishedEvents := pipeline.GetEventsOfType[pipeline.WorkFinished](outputHandler)
+	require.NotEmpty(t, workFinishedEvents, "Should have WorkFinished events")
+
+	// Verify custom work executed successfully
+	var customWorkFinished *pipeline.WorkFinished
+	for _, e := range workFinishedEvents {
+		if e.Work.Description == "containerised-work-definition" {
+			customWorkFinished = &e
+			break
+		}
+	}
+	require.NotNil(t, customWorkFinished, "containerised-work-definition should have WorkFinished event")
+	assert.Equal(t, types.WorkStatusSucceeded, customWorkFinished.WorkStatus, "containerised-work-definition should have succeeded")
+
+	// Verify the work output shows the context values were received correctly
+	// The Java code prints: "PIPELINE_WORK_CONTEXT has value 'pipelineWorkContext'" and "WORK_WORK_CONTEXT has value 'workWorkContext'"
+	// We need to check the work output
+	workStdOut := outputHandler.GetStdOutByWorkDescription("containerised-work-definition")
+	require.NotEmpty(t, workStdOut, "Should have work stdout")
+
+	output := string(workStdOut)
+	t.Logf("Work output: %s", output)
+
+	// The Java code prints these when context is correctly received
+	foundPipelineContextLog := strings.Contains(output, "PIPELINE_WORK_CONTEXT has value 'pipelineWorkContext'")
+	foundWorkContextLog := strings.Contains(output, "WORK_WORK_CONTEXT has value 'workWorkContext'")
+	assert.True(t, foundPipelineContextLog, "Should have PIPELINE_WORK_CONTEXT log showing correct value was received")
+	assert.True(t, foundWorkContextLog, "Should have WORK_WORK_CONTEXT log showing correct value was received")
+
+	t.Logf("Work context pipeline executed successfully with correct context values")
 }
 
 // TestJavaSample_AssembleAndExecute_WithParameters tests the parameters pipeline
 // GIVEN: Real Docker daemon, PipelineController, Source with repository zip
 // WHEN: Execute(ctx, pipeline 'sampleWithParameters'.WithArguments({'PARAMETER_NAME': 'other'}), outputHandler) is called
 // THEN: PipelineResult.PipelineStatus equals SUCCESS, work receives PARAMETER_NAME=other env var
+// and verifies the parameter value was correctly passed and validated
 func TestJavaSample_AssembleAndExecute_WithParameters(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping E2E test in short mode")
@@ -306,6 +389,14 @@ func TestJavaSample_AssembleAndExecute_WithParameters(t *testing.T) {
 	}
 	require.NotNil(t, paramsPipeline, "sampleWithParameters pipeline should exist")
 
+	// CRITICAL: Verify that BuiltSourceImage is populated (without it custom work fails silently)
+	require.NotEmpty(t, paramsPipeline.Metadata.BuiltSourceImage, "Pipeline should have BuiltSourceImage populated")
+
+	// Verify SourceLanguage is populated
+	require.NotEmpty(t, paramsPipeline.Metadata.SourceLanguage, "Pipeline should have SourceLanguage populated")
+
+	t.Logf("Parameters pipeline metadata: BuiltSourceImage=%s, SourceLanguage=%v", paramsPipeline.Metadata.BuiltSourceImage, paramsPipeline.Metadata.SourceLanguage)
+
 	// Apply arguments
 	args := pipeline.ArgumentsOf("PARAMETER_NAME", "other")
 	paramsPipeline, err = paramsPipeline.WithArguments(args)
@@ -322,6 +413,36 @@ func TestJavaSample_AssembleAndExecute_WithParameters(t *testing.T) {
 	// Verify status
 	assert.Equal(t, pipeline.PipelineSuccess, result.PipelineStatus(), "Pipeline should succeed")
 
+	// CRITICAL: Verify work was actually executed, not silently skipped
+	events := outputHandler.GetEvents()
+	assert.NotEmpty(t, events, "Should have recorded events")
+
+	workFinishedEvents := pipeline.GetEventsOfType[pipeline.WorkFinished](outputHandler)
+	require.NotEmpty(t, workFinishedEvents, "Should have WorkFinished events")
+
+	// Verify custom work executed successfully
+	var customWorkFinished *pipeline.WorkFinished
+	for _, e := range workFinishedEvents {
+		if e.Work.Description == "containerised-work-definition" {
+			customWorkFinished = &e
+			break
+		}
+	}
+	require.NotNil(t, customWorkFinished, "containerised-work-definition should have WorkFinished event")
+	assert.Equal(t, types.WorkStatusSucceeded, customWorkFinished.WorkStatus, "containerised-work-definition should have succeeded")
+
+	// Verify the work output shows the parameter value was received correctly
+	// The Java code prints: "PARAMETER_NAME has value 'other'" when parameter is correctly passed
+	workStdOut := outputHandler.GetStdOutByWorkDescription("containerised-work-definition")
+	require.NotEmpty(t, workStdOut, "Should have work stdout")
+
+	output := string(workStdOut)
+	t.Logf("Work output: %s", output)
+
+	// The Java code prints this when parameter is correctly received
+	foundParamLog := strings.Contains(output, "PARAMETER_NAME has value 'other'")
+	assert.True(t, foundParamLog, "Should have PARAMETER_NAME log showing correct value 'other' was received")
+
 	t.Logf("Parameters pipeline executed successfully with PARAMETER_NAME=other")
 }
 
@@ -329,6 +450,7 @@ func TestJavaSample_AssembleAndExecute_WithParameters(t *testing.T) {
 // GIVEN: Real Docker daemon, PipelineController, Source with repository zip
 // WHEN: Execute(ctx, pipeline 'sampleWithWorkOutputs', outputHandler) is called
 // THEN: PipelineResult.PipelineStatus equals SUCCESS, work validates outputs match expected values
+// and verifies that file outputs and stdout are correctly passed between works
 func TestJavaSample_AssembleAndExecute_WithWorkOutputs(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping E2E test in short mode")
@@ -370,6 +492,14 @@ func TestJavaSample_AssembleAndExecute_WithWorkOutputs(t *testing.T) {
 	}
 	require.NotNil(t, outputsPipeline, "sampleWithWorkOutputs pipeline should exist")
 
+	// CRITICAL: Verify that BuiltSourceImage is populated (without it custom work fails silently)
+	require.NotEmpty(t, outputsPipeline.Metadata.BuiltSourceImage, "Pipeline should have BuiltSourceImage populated")
+
+	// Verify SourceLanguage is populated
+	require.NotEmpty(t, outputsPipeline.Metadata.SourceLanguage, "Pipeline should have SourceLanguage populated")
+
+	t.Logf("Work outputs pipeline metadata: BuiltSourceImage=%s, SourceLanguage=%v", outputsPipeline.Metadata.BuiltSourceImage, outputsPipeline.Metadata.SourceLanguage)
+
 	// Create output handler
 	outputHandler := pipeline.NewTestPipelineOutputHandler()
 
@@ -381,7 +511,56 @@ func TestJavaSample_AssembleAndExecute_WithWorkOutputs(t *testing.T) {
 	// Verify status
 	assert.Equal(t, pipeline.PipelineSuccess, result.PipelineStatus(), "Pipeline should succeed")
 
-	t.Logf("Work outputs pipeline executed successfully")
+	// CRITICAL: Verify work was actually executed, not silently skipped
+	events := outputHandler.GetEvents()
+	assert.NotEmpty(t, events, "Should have recorded events")
+
+	workFinishedEvents := pipeline.GetEventsOfType[pipeline.WorkFinished](outputHandler)
+	require.NotEmpty(t, workFinishedEvents, "Should have WorkFinished events")
+
+	// sampleWithWorkOutputs has 2 custom works: generate-outputs and consume-outputs
+	assert.GreaterOrEqual(t, len(workFinishedEvents), 2, "Should have at least 2 work items executed")
+
+	// Verify both works succeeded
+	for _, e := range workFinishedEvents {
+		assert.NotEqual(t, types.WorkStatusFailed, e.WorkStatus,
+			"Work %s should not have failed", e.Work.Description)
+	}
+
+	// Verify generate-outputs work executed (produces the output)
+	var generateWorkFinished *pipeline.WorkFinished
+	var consumeWorkFinished *pipeline.WorkFinished
+	for _, e := range workFinishedEvents {
+		if e.Work.Description == "generate-outputs" {
+			generateWorkFinished = &e
+		}
+		if e.Work.Description == "consume-outputs" {
+			consumeWorkFinished = &e
+		}
+	}
+	require.NotNil(t, generateWorkFinished, "generate-outputs should have WorkFinished event")
+	require.NotNil(t, consumeWorkFinished, "consume-outputs should have WorkFinished event")
+
+	assert.Equal(t, types.WorkStatusSucceeded, generateWorkFinished.WorkStatus, "generate-outputs should have succeeded")
+	assert.Equal(t, types.WorkStatusSucceeded, consumeWorkFinished.WorkStatus, "consume-outputs should have succeeded")
+
+	// Verify the consume-outputs work received the correct stdout from generate-outputs
+	// The Java code prints: "Work stdout has value 'stdOutOutput'" when stdout is correctly received
+	consumeStdOut := outputHandler.GetStdOutByWorkDescription("consume-outputs")
+	require.NotEmpty(t, consumeStdOut, "Should have consume-outputs stdout")
+
+	consumeOutput := string(consumeStdOut)
+	t.Logf("Consume outputs work output: %s", consumeOutput)
+
+	// The Java code prints this when stdout is correctly received from previous work
+	foundStdOutLog := strings.Contains(consumeOutput, "Work stdout has value 'stdOutOutput'")
+	assert.True(t, foundStdOutLog, "Should have stdout log showing correct value was received from previous work")
+
+	// The Java code also prints: "Work file output has value 'expected output'" when file output is correctly received
+	foundFileOutputLog := strings.Contains(consumeOutput, "Work file output has value 'expected output'")
+	assert.True(t, foundFileOutputLog, "Should have file output log showing correct value was received from previous work")
+
+	t.Logf("Work outputs pipeline executed successfully with correct file and stdout outputs")
 }
 
 // TestJavaSample_AssembleAndExecute_WithConditions tests the conditions pipeline
@@ -428,6 +607,14 @@ func TestJavaSample_AssembleAndExecute_WithConditions(t *testing.T) {
 		}
 	}
 	require.NotNil(t, conditionsPipeline, "sampleWithConditions pipeline should exist")
+
+	// CRITICAL: Verify that BuiltSourceImage is populated (without it custom work fails silently)
+	require.NotEmpty(t, conditionsPipeline.Metadata.BuiltSourceImage, "Pipeline should have BuiltSourceImage populated")
+
+	// Verify SourceLanguage is populated
+	require.NotEmpty(t, conditionsPipeline.Metadata.SourceLanguage, "Pipeline should have SourceLanguage populated")
+
+	t.Logf("Conditions pipeline metadata: BuiltSourceImage=%s, SourceLanguage=%v", conditionsPipeline.Metadata.BuiltSourceImage, conditionsPipeline.Metadata.SourceLanguage)
 
 	// Create output handler
 	outputHandler := pipeline.NewTestPipelineOutputHandler()
