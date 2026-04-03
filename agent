@@ -10,6 +10,7 @@ Usage:
     agent vibe      - Launch vibe agent (direct implementation workflow)
     agent fix       - Launch fix agent (TDD bug fixing workflow)
     agent document  - Launch document agent (two-phase documentation workflow)
+    agent improve   - Analyze recorded problems and suggest workflow improvements
 """
 
 import os
@@ -28,12 +29,117 @@ AGENT_MAP = {
     "vibe": "vibe",
     "document": "document",
     "fix": "fix",
+    "improve": "improve",
 }
 
 # Constants
 WORK_BRANCH_PREFIX = "work/"
 WORKTREE_DIR = ".worktrees"
 SPECS_DIR = ".opencode/specs"
+SESSIONS_DIR = ".opencode/sessions"
+
+
+def get_workflow_types_with_sessions() -> List[str]:
+    """Get list of workflow types that have recorded sessions."""
+    sessions_path = Path(SESSIONS_DIR)
+    if not sessions_path.exists():
+        return []
+    
+    types_with_sessions = []
+    for workflow_type in AGENT_MAP.keys():
+        if workflow_type == "improve":
+            continue
+        workflow_dir = sessions_path / workflow_type
+        if workflow_dir.exists() and list(workflow_dir.glob("*.yaml")):
+            types_with_sessions.append(workflow_type)
+    
+    return types_with_sessions
+
+
+def handle_improve_subcommand() -> None:
+    """Handle the improve subcommand - analyze problems and suggest improvements."""
+    # Find workflow types with sessions
+    available_types = get_workflow_types_with_sessions()
+    
+    print("\n" + "="*60)
+    print("Agent Improvement Analysis")
+    print("="*60)
+    print("\nThis will analyze recorded problems and suggest workflow improvements.")
+    print()
+    
+    if not available_types:
+        print("No recorded sessions found.")
+        print("Run agent commands (spec, vibe, fix, document) first to generate session data.")
+        print()
+        print_usage_improve()
+        return
+    
+    print("Workflow types with recorded sessions:")
+    print("  a. All workflow types")
+    for i, workflow_type in enumerate(available_types, 1):
+        print(f"  {i}. {workflow_type}")
+    print()
+    
+    try:
+        choice = clean_input("Select workflow to analyze [a/1-{0}]: ".format(len(available_types)))
+        
+        selected_types = []
+        if choice.lower() == 'a':
+            selected_types = available_types
+        else:
+            try:
+                index = int(choice) - 1
+                if 0 <= index < len(available_types):
+                    selected_types = [available_types[index]]
+                else:
+                    print("Invalid selection.")
+                    return
+            except ValueError:
+                print("Invalid input.")
+                return
+        
+        # Build the workflow types string for the agent
+        workflow_types_arg = ",".join(selected_types)
+        
+        # Launch improve agent
+        print(f"\nAnalyzing sessions for: {workflow_types_arg}")
+        print()
+        launch_improve_agent(workflow_types_arg)
+        
+    except KeyboardInterrupt:
+        print("\nCancelled.")
+
+
+def print_usage_improve():
+    """Print usage information for improve subcommand."""
+    print("Usage: agent improve", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Analyze recorded problems and suggest workflow improvements.", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("This command:", file=sys.stderr)
+    print("  1. Finds all recorded session data from .opencode/sessions/", file=sys.stderr)
+    print("  2. Analyzes problems to identify recurring issues", file=sys.stderr)
+    print("  3. Proposes incremental improvements to address significant issues", file=sys.stderr)
+    print("  4. Discusses analysis and solutions with you (vibe-style)", file=sys.stderr)
+
+
+def launch_improve_agent(workflow_types: str) -> None:
+    """Launch the improve agent."""
+    print(f"\nLaunching improve agent for workflow types: {workflow_types}")
+    print()
+    
+    # Build the opencode command
+    cmd = ["opencode", "--agent", "improve", "--prompt", f"Analyze problems for workflows: {workflow_types}"]
+    
+    # Launch opencode
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error: opencode exited with code {e.returncode}", file=sys.stderr)
+        sys.exit(e.returncode)
+    except FileNotFoundError:
+        print("Error: opencode command not found. Please install opencode.", file=sys.stderr)
+        sys.exit(1)
 
 
 class WorkItem:
@@ -586,12 +692,14 @@ def print_usage():
     print("  vibe      - Launch vibe agent (direct implementation workflow)", file=sys.stderr)
     print("  fix       - Launch fix agent (TDD bug fixing workflow)", file=sys.stderr)
     print("  document  - Launch document agent (two-phase documentation workflow)", file=sys.stderr)
+    print("  improve   - Analyze problems and suggest workflow improvements", file=sys.stderr)
     print("", file=sys.stderr)
     print("Examples:", file=sys.stderr)
     print("  agent spec      # Start structured workflow for complex features", file=sys.stderr)
     print("  agent vibe      # Start direct workflow for rapid iteration", file=sys.stderr)
     print("  agent fix       # Start TDD workflow for bug fixes", file=sys.stderr)
     print("  agent document  # Generate documentation for the codebase", file=sys.stderr)
+    print("  agent improve   # Analyze recorded problems and suggest improvements", file=sys.stderr)
 
 
 def main():
@@ -607,6 +715,11 @@ def main():
         print(f"Error: Invalid subcommand '{subcommand}'.", file=sys.stderr)
         print_usage()
         sys.exit(1)
+
+    # Special handling for improve subcommand
+    if subcommand == "improve":
+        handle_improve_subcommand()
+        sys.exit(0)
 
     agent_name = AGENT_MAP[subcommand]
     workflow_type = subcommand

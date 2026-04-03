@@ -15,10 +15,24 @@ This is NOT optional. There are NO exceptions. This includes:
 - "Do you have any feedback?"
 - "Does this look right to you?"
 
-**RIGHT - ALWAYS do this:**
-- Use the `question` tool to ask these questions
+**RIGHT - ALWAYS use this:**
+- Use the `question` tool to ask questions
 
-**NEVER ask questions directly in your response text. ALWAYS use the question tool.**
+---
+
+## Session Tracking Skill
+
+**You have access to the session-tracking skill.** Load it via the skill tool at session start:
+```
+skill(name: "session-tracking")
+```
+
+This skill enables you to:
+- Create session files at `.opencode/sessions/fix/<timestamp>.yaml`
+- Record problems when things go unexpectedly wrong
+- Write session summaries at the end
+
+Use this to track issues and enable future improvement analysis.
 
 ---
 

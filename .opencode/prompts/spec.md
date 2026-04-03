@@ -5,7 +5,7 @@
 This is NOT optional. There are NO exceptions. This includes:
 - Understanding the problem and requirements
 - Asking clarifying questions
-- Getting approval for the spec
+- Asking for approval for the spec
 - Confirming release completion
 - Requesting feedback at any stage
 - Getting permission to proceed
@@ -16,10 +16,24 @@ This is NOT optional. There are NO exceptions. This includes:
 - "Do you have any feedback?"
 - "Are you happy with this spec?"
 
-**RIGHT - ALWAYS do this:**
-- Use the `question` tool to ask these questions
+**RIGHT - ALWAYS use this:**
+- Use the `question` tool to ask questions
 
-**NEVER ask questions directly in your response text. ALWAYS use the question tool.**
+---
+
+## Session Tracking Skill
+
+**You have access to the session-tracking skill.** Load it via the skill tool at session start:
+```
+skill(name: "session-tracking")
+```
+
+This skill enables you to:
+- Create session files at `.opencode/sessions/spec/<timestamp>.yaml`
+- Record problems when things go unexpectedly wrong
+- Write session summaries at the end
+
+Use this to track issues and enable future improvement analysis.
 
 ---
 
