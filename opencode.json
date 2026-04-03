@@ -159,38 +159,7 @@
       "*": "allow"
     },
     "bash": {
-        "*": "ask",
-        "./mvnw *": "allow",
-        "rm /Users/will/projects/yeetcd/*": "allow",
-        "bun *": "allow",
-        "bun build *": "ask",
-        "cat *": "allow",
-        "file *": "allow",
-        "find *": "allow",
-        "make *": "allow",
-        "git -C *": "allow",
-        "git add *": "allow",
-        "git branch *": "allow",
-        "git commit *": "allow",
-        "git diff *": "allow",
-        "git fetch origin main *": "allow",
-        "git log *": "allow",
-        "git push *": "allow",
-        "git rebase main *": "allow",
-        "git status *": "allow",
-        "git worktree *": "allow",
-        "go *": "allow",
-        "grep *": "allow",
-        "head *": "allow",
-        "ls *": "allow",
-        "npm test *": "allow",
-        "pwd *": "allow",
-        "sort *": "allow",
-        "tail *": "allow",
-        "true *": "allow",
-        "wc *": "allow",
-        "opencode --help *": "allow",
-        "which *": "allow"
+        "*": "allow"
     }
   }
 }
