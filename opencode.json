@@ -190,6 +190,18 @@
     "./.opencode/plugins/notification-plugin.ts",
     "./.opencode/tools/session.ts"
   ],
+  "provider": {
+    "opencode": {
+      "models": {
+        "minimax-m2.5": {
+          "limit": {
+            "context": 64000,
+            "output": 16384
+          }
+        }
+      }
+    }
+  },
   "permission": {
     "edit": {
       "*": "allow"
