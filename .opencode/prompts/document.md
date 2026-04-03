@@ -223,9 +223,13 @@ After committing your work but BEFORE merging to main:
    - "How did this session go? Any thoughts on what worked well or could be improved?"
    - Record their response using `session_record_problem` with type "user_feedback"
 
-3. **Commit the session file**: The session file is automatically updated when you call `session_record_problem` and `session_end`. No additional commit needed - the session data is stored in the existing session file.
+3. **End the session**: Call `session_end(session_id, summary?)` with a brief summary
 
-4. **End the session**: Call `session_end(session_id, summary?)` with a brief summary
+4. **Commit the session file**: The session file has been updated with your self-review and user feedback. You MUST commit it:
+   1. Run `git status` to see the session file
+   2. Run `git diff .opencode/sessions/document/` to review the session changes
+   3. Stage the session file: `git add .opencode/sessions/document/<session-id>.yaml`
+   4. Commit with message: `git commit -m "document: record session feedback for <brief summary>"`
 
 5. **Then ask about merge**: After session feedback is complete, **use the question tool** to ask if the user wants to merge the work to main.
 
