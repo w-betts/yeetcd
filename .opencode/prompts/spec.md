@@ -21,19 +21,25 @@ This is NOT optional. There are NO exceptions. This includes:
 
 ---
 
-## Session Tracking Tools
+**🚀 START HERE**: Call `session_start(workflow_type: "spec")` immediately to begin tracking this session.
 
-You have access to session tracking tools that enforce schema validation:
+---
 
-**At session start:**
-- `session_start(workflow_type: "spec")` - creates session file
-- Returns session_id for use in subsequent calls
+## Session Tracking (MANDATORY)
+
+You MUST use session tracking tools for EVERY session, even if there are no problems. This helps the improve agent learn from sessions.
+
+**At session start (first thing you do):**
+- Call `session_start(workflow_type: "spec")` - creates session file
+- Store the returned session_id for use in subsequent calls
 
 **When problems occur:**
-- `session_record_problem(session_id, type, description, context, severity)` - records issues
+- Call `session_record_problem(session_id, type, description, context, severity)` - records issues
+- Types: "tool_failure", "misunderstanding", "workflow_friction", "assumption_wrong", "user_feedback_negative", "regression"
+- Severity: "critical", "high", "medium", "low"
 
 **At session end:**
-- `session_end(session_id, summary?)` - finalizes session
+- Call `session_end(session_id, summary?)` - finalizes session
 
 **Tools available:** `session_start`, `session_record_problem`, `session_end`, `session_mark_analysed`, `session_archive`
 
@@ -336,8 +342,24 @@ For each chunk within the phase:
        - If user aborts, stop the workflow and report status
     5. **Fast-forward main**: Run `git push . HEAD:main` to update the main branch in-place
     6. **Push main to remote**: Run `git push origin main`
-    7. **Report success**: Inform the user that the work has been merged to main
-  - Note: Do NOT clean up the worktree - the agent script handles cleanup on startup
+     7. **Report success**: Inform the user that the work has been merged to main
+   - Note: Do NOT clean up the worktree - the agent script handles cleanup on startup
+
+### Session Feedback (After Merge)
+
+After successfully merging to main:
+
+1. **Submit your self-review**: Call `session_record_problem` with:
+   - type: "agent_self_review"
+   - description: Brief summary of how the session went (what worked well, what was challenging)
+   - context: { "workflow_type": "spec", "task_summary": "..." }
+   - severity: "low" (this is for learning, not a problem)
+
+2. **Get user feedback**: **Use the question tool** to ask:
+   - "How did this session go? Any thoughts on what worked well or could be improved?"
+   - Record their response using `session_record_problem` with type "user_feedback"
+
+3. **End the session**: Call `session_end(session_id, summary?)` with a brief summary
 
 ### Phase 6: Completion
 
