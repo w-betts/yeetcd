@@ -32,6 +32,9 @@ AGENT_MAP = {
     "improve": "improve",
 }
 
+# Paid model override (used when --paid flag is passed)
+PAID_MODEL = "opencode/minimax-m2.5"
+
 # Constants
 WORK_BRANCH_PREFIX = "work/"
 WORKTREE_DIR = ".worktrees"
@@ -59,7 +62,7 @@ def get_workflow_types_with_sessions() -> List[str]:
     return types_with_sessions
 
 
-def handle_improve_subcommand() -> None:
+def handle_improve_subcommand(paid: bool = False) -> None:
     """Handle the improve subcommand - analyze problems and suggest improvements."""
     # Find workflow types with sessions
     available_types = get_workflow_types_with_sessions()
@@ -107,7 +110,7 @@ def handle_improve_subcommand() -> None:
         # Launch improve agent
         print(f"\nAnalyzing sessions for: {workflow_types_arg}")
         print()
-        launch_improve_agent(workflow_types_arg)
+        launch_improve_agent(workflow_types_arg, paid)
         
     except KeyboardInterrupt:
         print("\nCancelled.")
@@ -126,13 +129,19 @@ def print_usage_improve():
     print("  4. Discusses analysis and solutions with you (vibe-style)", file=sys.stderr)
 
 
-def launch_improve_agent(workflow_types: str) -> None:
+def launch_improve_agent(workflow_types: str, paid: bool = False) -> None:
     """Launch the improve agent."""
     print(f"\nLaunching improve agent for workflow types: {workflow_types}")
     print()
     
     # Build the opencode command
     cmd = ["opencode", "--agent", "improve", "--prompt", f"Analyze problems for workflows: {workflow_types}"]
+    
+    # Add paid model override if requested
+    if paid:
+        cmd.extend(["--model", PAID_MODEL])
+        print(f"Using paid model: {PAID_MODEL}")
+        print()
     
     # Launch opencode
     try:
@@ -650,7 +659,7 @@ def create_worktree(branch_name: str) -> Optional[WorkItem]:
         return None
 
 
-def launch_agent(work: Optional[WorkItem], agent_name: str) -> None:
+def launch_agent(work: Optional[WorkItem], agent_name: str, paid: bool = False) -> None:
     """Launch opencode in the worktree directory or current directory."""
     if work is None:
         # Working on main branch
@@ -671,6 +680,12 @@ def launch_agent(work: Optional[WorkItem], agent_name: str) -> None:
     # Build the opencode command
     cmd = ["opencode", "--agent", agent_name]
     
+    # Add paid model override if requested
+    if paid:
+        cmd.extend(["--model", PAID_MODEL])
+        print(f"Using paid model: {PAID_MODEL}")
+        print()
+    
     # Add default prompt for document agent
     if agent_name == "document":
         cmd.extend(["--prompt", "Run the documentation workflow for this project."])
@@ -688,7 +703,10 @@ def launch_agent(work: Optional[WorkItem], agent_name: str) -> None:
 
 def print_usage():
     """Print usage information."""
-    print("Usage: agent <subcommand>", file=sys.stderr)
+    print("Usage: agent [options] <subcommand>", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Options:", file=sys.stderr)
+    print("  --paid    Use paid model (opencode/minimax-m2.5) instead of free models", file=sys.stderr)
     print("", file=sys.stderr)
     print("Subcommands:", file=sys.stderr)
     print("  spec      - Launch spec agent (4-phase structured workflow)", file=sys.stderr)
@@ -698,21 +716,31 @@ def print_usage():
     print("  improve   - Analyze problems and suggest workflow improvements", file=sys.stderr)
     print("", file=sys.stderr)
     print("Examples:", file=sys.stderr)
-    print("  agent spec      # Start structured workflow for complex features", file=sys.stderr)
-    print("  agent vibe      # Start direct workflow for rapid iteration", file=sys.stderr)
-    print("  agent fix       # Start TDD workflow for bug fixes", file=sys.stderr)
-    print("  agent document  # Generate documentation for the codebase", file=sys.stderr)
-    print("  agent improve   # Analyze recorded problems and suggest improvements", file=sys.stderr)
+    print("  agent spec              # Start structured workflow for complex features", file=sys.stderr)
+    print("  agent --paid vibe       # Start direct workflow with paid model", file=sys.stderr)
+    print("  agent fix               # Start TDD workflow for bug fixes", file=sys.stderr)
+    print("  agent --paid document  # Generate documentation with paid model", file=sys.stderr)
+    print("  agent improve           # Analyze recorded problems and suggest improvements", file=sys.stderr)
 
 
 def main():
     """Main entry point for the agent wrapper script."""
-    if len(sys.argv) < 2:
+    # Parse for --paid flag before subcommand
+    paid = False
+    remaining_args = []
+    
+    for arg in sys.argv[1:]:
+        if arg == "--paid":
+            paid = True
+        else:
+            remaining_args.append(arg)
+    
+    if len(remaining_args) < 1:
         print("Error: No subcommand provided.", file=sys.stderr)
         print_usage()
         sys.exit(1)
 
-    subcommand = sys.argv[1]
+    subcommand = remaining_args[0]
 
     if subcommand not in AGENT_MAP:
         print(f"Error: Invalid subcommand '{subcommand}'.", file=sys.stderr)
@@ -721,7 +749,7 @@ def main():
 
     # Special handling for improve subcommand
     if subcommand == "improve":
-        handle_improve_subcommand()
+        handle_improve_subcommand(paid)
         sys.exit(0)
 
     agent_name = AGENT_MAP[subcommand]
@@ -737,7 +765,7 @@ def main():
         sys.exit(1)
     
     # Launch agent in worktree (or current directory for main branch)
-    launch_agent(work, agent_name)
+    launch_agent(work, agent_name, paid)
 
 
 if __name__ == "__main__":
