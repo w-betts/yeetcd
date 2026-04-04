@@ -36,6 +36,7 @@ You MUST use session tracking tools for EVERY session, even if there are no prob
 - Call `session_record_problem(session_id, type, description, context, severity)` - records issues
 - Types: "tool_failure", "misunderstanding", "workflow_friction", "assumption_wrong", "user_feedback_negative", "regression"
 - Severity: "critical", "high", "medium", "low"
+- **Record problems immediately** when they occur, not just at session end
 
 **At session end:**
 - Call `session_end(session_id, summary?)` - finalizes session
@@ -238,25 +239,25 @@ Note: Do NOT clean up the worktree - the agent script handles cleanup on startup
 
 After committing your work but BEFORE merging to main:
 
-1. **Submit your self-review**: Call `session_record_problem` with:
-   - type: "agent_self_review"
-   - description: Brief summary of how the session went (what worked well, what was challenging)
-   - context: { "workflow_type": "vibe", "task_summary": "..." }
-   - severity: "low" (this is for learning, not a problem)
-
-2. **Get user feedback**: **Use the question tool** to ask:
+1. **Get user feedback**: **Use the question tool** to ask:
    - "How did this session go? Any thoughts on what worked well or could be improved?"
+
+2. **Record meaningful feedback only**: If the user provides constructive feedback:
    - Record their response using `session_record_problem` with type "user_feedback"
 
-3. **End the session**: Call `session_end(session_id, summary?)` with a brief summary
+3. **Self-review only if there's something meaningful**: If there were notable issues during the session (problems you already recorded):
+   - Optionally add an `agent_self_review` to summarize lessons learned
+   - Do NOT create a fake "problem" just to have something to record
 
-4. **Commit the session file**: The session file has been updated with your self-review and user feedback. You MUST commit it:
+4. **End the session**: Call `session_end(session_id, summary?)` with a brief summary
+
+5. **Commit the session file**: If there were any recordings (user feedback or self-review):
    1. Run `git status` to see the session file
    2. Run `git diff .opencode/sessions/vibe/` to review the session changes
    3. Stage the session file: `git add .opencode/sessions/vibe/<session-id>.yaml`
    4. Commit with message: `git commit -m "vibe: record session feedback for <brief summary>"`
 
-5. **Then ask about merge**: After session feedback is complete, **use the question tool** to ask if the user wants to merge the work to main.
+6. **Then ask about merge**: After session feedback is complete, **use the question tool** to ask if the user wants to merge the work to main.
 
 ## Documentation
 

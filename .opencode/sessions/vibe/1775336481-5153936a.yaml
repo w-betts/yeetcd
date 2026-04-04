@@ -1,0 +1,14 @@
+session_id: "1775336481-5153936a"
+workflow_type: "vibe"
+started_at: "2026-04-04T21:01:21.407Z"
+branch: "work/vibe-dont-review-when-no-problems"
+problems:
+  - type: "agent_self_review"
+    description: "Fixed the agent prompts to: 1) record problems immediately when they occur, 2) not record fake agent_self_review problems when session went well"
+    context:
+      workflow_type: "vibe"
+      task_summary: "Fix session recording to not record fake problems when nothing went wrong"
+    timestamp: "2026-04-04T21:03:14.458Z"
+    severity: "low"
+ended_at: "2026-04-04T21:03:18.961Z"
+summary: "Fixed session recording in agent prompts (vibe, spec, fix, document) - agents now record problems immediately when they occur, and only record user feedback or optional self-reviews at session end (not fake problems when nothing went wrong)"
