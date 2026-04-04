@@ -68,3 +68,34 @@ func TestJobStreams_WriterInterfaces(t *testing.T) {
 	var _ io.Writer = js.StdoutWriter()
 	var _ io.Writer = js.StderrWriter()
 }
+
+func TestNewJobStreams_ExternalWriterCreatesInternalBuffer(t *testing.T) {
+	// This test verifies the fix for the bug where external non-buffer writers
+	// (like *os.File) were passed but internal buffers were not created,
+	// causing GetStdOut/GetStdErr to panic with nil pointer dereference.
+
+	externalStdout := &bytes.Buffer{}
+	externalStderr := &bytes.Buffer{}
+
+	js := NewJobStreams(externalStdout, externalStderr)
+
+	// Write to the writers via StdoutWriter/StderrWriter
+	js.StdoutWriter().Write([]byte("stdout from external"))
+	js.StderrWriter().Write([]byte("stderr from external"))
+
+	// Verify internal buffers captured the output (GetStdOut/GetStdErr should work)
+	if string(js.GetStdOut()) != "stdout from external" {
+		t.Errorf("GetStdOut() = %q, want %q", string(js.GetStdOut()), "stdout from external")
+	}
+	if string(js.GetStdErr()) != "stderr from external" {
+		t.Errorf("GetStdErr() = %q, want %q", string(js.GetStdErr()), "stderr from external")
+	}
+
+	// Verify external writers also received the output
+	if externalStdout.String() != "stdout from external" {
+		t.Errorf("external stdout = %q, want %q", externalStdout.String(), "stdout from external")
+	}
+	if externalStderr.String() != "stderr from external" {
+		t.Errorf("external stderr = %q, want %q", externalStderr.String(), "stderr from external")
+	}
+}

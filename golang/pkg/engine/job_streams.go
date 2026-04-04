@@ -17,21 +17,29 @@ type JobStreams struct {
 
 // NewJobStreams creates new JobStreams with the provided writers.
 // If nil writers are passed, internal buffers are used.
+// If external writers are passed, internal buffers are also created to capture
+// output for GetStdOut/GetStdErr methods - the external writer still receives
+// the output via the writer interface.
 func NewJobStreams(stdout, stderr io.Writer) *JobStreams {
-	var stdoutBuf, stderrBuf *bytes.Buffer
+	// Always create internal buffers to ensure GetStdOut/GetStdErr work correctly
+	// even when external writers (like *os.File) are provided
+	stdoutBuf := bytes.NewBuffer(nil)
+	stderrBuf := bytes.NewBuffer(nil)
 
+	// If nil was passed, use internal buffer as the writer
+	// Otherwise, wrap with a tee writer so both internal buffer and external writer receive output
 	if stdout == nil {
-		stdoutBuf = bytes.NewBuffer(nil)
 		stdout = stdoutBuf
-	} else if buf, ok := stdout.(*bytes.Buffer); ok {
-		stdoutBuf = buf
+	} else {
+		// Tee: write to both internal buffer and external writer
+		stdout = io.MultiWriter(stdoutBuf, stdout)
 	}
 
 	if stderr == nil {
-		stderrBuf = bytes.NewBuffer(nil)
 		stderr = stderrBuf
-	} else if buf, ok := stderr.(*bytes.Buffer); ok {
-		stderrBuf = buf
+	} else {
+		// Tee: write to both internal buffer and external writer
+		stderr = io.MultiWriter(stderrBuf, stderr)
 	}
 
 	return &JobStreams{
