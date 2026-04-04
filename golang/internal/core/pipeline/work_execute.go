@@ -16,9 +16,20 @@ func (w *Work) Execute(ctx context.Context, containingContext types.WorkContext,
 	return tracker.GetOrExecute(*w, func() (*types.WorkResult, error) {
 		// Step 1: Recursively execute all previous work dependencies
 		for _, prevWork := range w.PreviousWork {
-			_, err := prevWork.Work.Execute(ctx, containingContext, engine, metadata, tracker, handler)
+			prevResult, err := prevWork.Work.Execute(ctx, containingContext, engine, metadata, tracker, handler)
 			if err != nil {
 				return nil, fmt.Errorf("failed to execute previous work %s: %w", prevWork.Work.ID, err)
+			}
+			// If previous work was skipped, skip this work as well
+			if prevResult != nil && prevResult.WorkStatus == types.SKIPPED {
+				result := &types.WorkResult{
+					WorkStatus: types.SKIPPED,
+				}
+				handler.RecordEvent(WorkFinished{
+					Work:       *w,
+					WorkStatus: types.SKIPPED,
+				})
+				return result, nil
 			}
 		}
 
@@ -26,30 +37,37 @@ func (w *Work) Execute(ctx context.Context, containingContext types.WorkContext,
 		if w.Condition != nil {
 			cond, ok := w.Condition.(types.ConditionEvaluator)
 			if ok {
-				// Build work context for condition evaluation
-				workContext := w.WorkContext.MergeInto(containingContext)
+				// If the work has no previous work dependencies, we can't evaluate PreviousWorkStatusCondition
+				// In this case, skip condition evaluation (the condition would be the default previousWorkStatusCondition)
+				if len(w.PreviousWork) == 0 {
+					// Work has no dependencies, skip condition check
+					// (This handles the default condition from Java SDK)
+				} else {
+					// Build work context for condition evaluation
+					workContext := w.WorkContext.MergeInto(containingContext)
 
-				// Add previous work stdout as context if configured
-				prevWorkStdOutContext := w.PreviousWorkStdOutAsWorkContext(tracker)
-				for k, v := range prevWorkStdOutContext {
-					workContext[k] = v
-				}
-
-				shouldExecute, err := cond.Evaluate(workContext, tracker)
-				if err != nil {
-					return nil, fmt.Errorf("failed to evaluate condition: %w", err)
-				}
-
-				if !shouldExecute {
-					// Condition not met, skip this work
-					result := &types.WorkResult{
-						WorkStatus: types.SKIPPED,
+					// Add previous work stdout as context if configured
+					prevWorkStdOutContext := w.PreviousWorkStdOutAsWorkContext(tracker)
+					for k, v := range prevWorkStdOutContext {
+						workContext[k] = v
 					}
-					handler.RecordEvent(WorkFinished{
-						Work:       *w,
-						WorkStatus: types.SKIPPED,
-					})
-					return result, nil
+
+					shouldExecute, err := cond.Evaluate(workContext, tracker)
+					if err != nil {
+						return nil, fmt.Errorf("failed to evaluate condition: %w", err)
+					}
+
+					if !shouldExecute {
+						// Condition not met, skip this work
+						result := &types.WorkResult{
+							WorkStatus: types.SKIPPED,
+						}
+						handler.RecordEvent(WorkFinished{
+							Work:       *w,
+							WorkStatus: types.SKIPPED,
+						})
+						return result, nil
+					}
 				}
 			}
 		}

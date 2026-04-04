@@ -53,7 +53,18 @@ func (d *DockerBuildService) Build(ctx context.Context, source Source) (*BuildRe
 
 		// Store the image ID in the source build result for custom work execution
 		buildResult.ImageID = imageID
-		sourceBuildResults = append(sourceBuildResults, *buildResult)
+
+		// CRITICAL FIX: Create a separate SourceBuildResult for each pipeline
+		// This ensures a 1:1 mapping between pipelines and source build results
+		// so that the pipeline controller can correctly match them by index
+		// If there are no pipelines, still add one entry for the project
+		if len(pipelines) == 0 {
+			sourceBuildResults = append(sourceBuildResults, *buildResult)
+		} else {
+			for range pipelines {
+				sourceBuildResults = append(sourceBuildResults, *buildResult)
+			}
+		}
 
 		allPipelines = append(allPipelines, pipelines...)
 	}

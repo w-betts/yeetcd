@@ -74,9 +74,9 @@ func (pc *PipelineController) Execute(ctx context.Context, pipeline *Pipeline, h
 	for _, work := range pipeline.FinalWork {
 		_, err := work.Execute(ctx, pipeline.WorkContext, pc.executionEngine, pipeline.Metadata, tracker, handler)
 		if err != nil {
-			// Continue execution even if one work fails
+			// Log the error but continue execution
 			// The work result will be recorded in the tracker
-			_ = err
+			fmt.Printf("ERROR: Work execution failed: %v\n", err)
 		}
 	}
 

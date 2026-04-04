@@ -627,7 +627,33 @@ func TestJavaSample_AssembleAndExecute_WithConditions(t *testing.T) {
 	// Verify status
 	assert.Equal(t, pipeline.PipelineSuccess, result.PipelineStatus(), "Pipeline should succeed")
 
-	t.Logf("Conditions pipeline executed successfully")
+	// CRITICAL: Verify work was actually executed, not silently skipped
+	events := outputHandler.GetEvents()
+	assert.NotEmpty(t, events, "Should have recorded events")
+
+	workFinishedEvents := pipeline.GetEventsOfType[pipeline.WorkFinished](outputHandler)
+	require.NotEmpty(t, workFinishedEvents, "Should have WorkFinished events")
+
+	// Verify at least some work items succeeded (the unconditional work should have run)
+	// The sampleWithConditions pipeline has:
+	// - unconditionalWork (with condition that matches) - should run
+	// - conditionalWork (with condition that doesn't match) - should be skipped
+	// - workDependentOnConditionalWork (depends on conditionalWork) - should be skipped
+	assert.GreaterOrEqual(t, len(workFinishedEvents), 1, "Should have at least 1 work item executed")
+
+	// Verify unconditional work ran successfully (it has context key="value" which matches condition)
+	var unconditionalWorkFinished *pipeline.WorkFinished
+	for _, e := range workFinishedEvents {
+		if e.Work.Description == "conditional-work-definition" && e.WorkStatus != types.WorkStatusSkipped {
+			// This is the first work (unconditional work with key="value")
+			unconditionalWorkFinished = &e
+			break
+		}
+	}
+	require.NotNil(t, unconditionalWorkFinished, "unconditional work should have run")
+	assert.Equal(t, types.WorkStatusSucceeded, unconditionalWorkFinished.WorkStatus, "unconditional work should have succeeded")
+
+	t.Logf("Conditions pipeline executed successfully with %d work items", len(workFinishedEvents))
 }
 
 // TestJavaSample_AssembleAndExecute_DynamicWork tests the dynamic work pipeline
@@ -691,5 +717,28 @@ func TestJavaSample_AssembleAndExecute_DynamicWork(t *testing.T) {
 	// Verify status
 	assert.Equal(t, pipeline.PipelineSuccess, result.PipelineStatus(), "Pipeline should succeed")
 
-	t.Logf("Dynamic work pipeline executed successfully with WORK_COUNT=2")
+	// CRITICAL: Verify BuiltSourceImage is populated (without it custom work fails silently)
+	require.NotEmpty(t, dynamicPipeline.Metadata.BuiltSourceImage, "Pipeline should have BuiltSourceImage populated")
+
+	// Verify SourceLanguage is populated
+	require.NotEmpty(t, dynamicPipeline.Metadata.SourceLanguage, "Pipeline should have SourceLanguage populated")
+
+	// CRITICAL: Verify work was actually executed, not silently skipped
+	events := outputHandler.GetEvents()
+	assert.NotEmpty(t, events, "Should have recorded events")
+
+	workFinishedEvents := pipeline.GetEventsOfType[pipeline.WorkFinished](outputHandler)
+	require.NotEmpty(t, workFinishedEvents, "Should have WorkFinished events")
+
+	// Dynamic work generates WORK_COUNT (2) child works
+	// Each generated work should have executed
+	assert.GreaterOrEqual(t, len(workFinishedEvents), 2, "Should have at least 2 work items executed (dynamic work generated 2)")
+
+	// Verify all generated works succeeded
+	for _, e := range workFinishedEvents {
+		assert.NotEqual(t, types.WorkStatusFailed, e.WorkStatus,
+			"Work %s should not have failed", e.Work.Description)
+	}
+
+	t.Logf("Dynamic work pipeline executed successfully with WORK_COUNT=2, %d work items", len(workFinishedEvents))
 }
