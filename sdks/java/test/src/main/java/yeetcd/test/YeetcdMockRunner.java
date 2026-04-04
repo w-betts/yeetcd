@@ -20,6 +20,7 @@ public class YeetcdMockRunner {
     private final List<MockBehavior> behaviors = new ArrayList<>();
     private final List<WorkExecution> executions = new ArrayList<>();
     private Process cliProcess;
+    private CLISpawner cliSpawner;
     private String classpath;
     private String sourcePath;
     private String pipelineName;
@@ -63,12 +64,12 @@ public class YeetcdMockRunner {
         String mockAddress = "localhost:" + mockServer.getPort();
         
         // Spawn CLI
-        CLISpawner spawner = CLISpawner.builder()
+        cliSpawner = CLISpawner.builder()
                 .classpath(classpath)
                 .mockAddress(mockAddress)
                 .build();
         
-        cliProcess = spawner.spawn();
+        cliProcess = cliSpawner.spawn();
         
         // Wait for CLI to complete
         int exitCode = cliProcess.waitFor();
@@ -125,6 +126,11 @@ public class YeetcdMockRunner {
     public void close() throws InterruptedException {
         if (cliProcess != null && cliProcess.isAlive()) {
             cliProcess.destroy();
+        }
+        
+        // Cleanup the CLI spawner (deletes extracted temp files)
+        if (cliSpawner != null) {
+            cliSpawner.cleanup();
         }
         
         if (mockServer != null) {

@@ -14,6 +14,7 @@ public class CLISpawner {
 
     private final String classpath;
     private final String mockAddress;
+    private String extractedBinaryPath;
 
     private CLISpawner(Builder builder) {
         this.classpath = builder.classpath;
@@ -35,7 +36,12 @@ public class CLISpawner {
         String binaryPath = findBinaryInClasspath(binaryName);
         
         if (binaryPath == null) {
-            throw new IOException("CLI binary not found in classpath: " + binaryName);
+            throw new IOException("CLI binary not found: " + binaryName);
+        }
+        
+        // If it's a classpath resource, extract to temp file
+        if (binaryPath.startsWith("/cli/")) {
+            binaryPath = extractBinaryToTempFile(binaryName);
         }
         
         // Build command
@@ -61,7 +67,7 @@ public class CLISpawner {
     /**
      * Finds the binary in classpath resources.
      */
-    private String findBinaryInClasspath(String binaryName) {
+    public String findBinaryInClasspath(String binaryName) {
         // Check if the binary exists as a resource
         String resourcePath = "/cli/" + binaryName;
         
@@ -79,6 +85,54 @@ public class CLISpawner {
         }
         
         return null;
+    }
+    
+    /**
+     * Extracts the binary from classpath resources to a temp file.
+     * 
+     * @param binaryName the name of the binary to extract
+     * @return the path to the extracted temp file
+     * @throws IOException if binary cannot be found or extracted
+     */
+    public String extractBinaryToTempFile(String binaryName) throws IOException {
+        String resourcePath = "/cli/" + binaryName;
+        
+        // Check if resource exists
+        java.net.URL resource = getClass().getResource(resourcePath);
+        if (resource == null) {
+            throw new IOException("CLI binary not found in classpath: " + binaryName);
+        }
+        
+        // Extract to temp file
+        try (InputStream is = resource.openStream()) {
+            File tempFile = File.createTempFile("yeetcd-", "-" + binaryName);
+            // Don't use deleteOnExit - we'll manage cleanup explicitly
+            // tempFile.deleteOnExit();
+            
+            java.nio.file.Files.copy(is, tempFile.toPath(), 
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            
+            // Set executable permissions
+            tempFile.setExecutable(true);
+            
+            // Store the extracted path for cleanup
+            this.extractedBinaryPath = tempFile.getAbsolutePath();
+            
+            return tempFile.getAbsolutePath();
+        }
+    }
+    
+    /**
+     * Cleans up extracted temp files.
+     */
+    public void cleanup() {
+        if (extractedBinaryPath != null) {
+            File tempFile = new File(extractedBinaryPath);
+            if (tempFile.exists()) {
+                tempFile.delete();
+            }
+            extractedBinaryPath = null;
+        }
     }
 
     /**
