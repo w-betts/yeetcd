@@ -81,6 +81,54 @@ Use `question` tool for ALL interactions:
 
 ---
 
+## Checklist: Tracking Unanswered Questions and Tasks
+
+During implementation, you may discover questions that need answering or tasks that should be deferred. **Use the checklist tools** to track these and enforce they get resolved before proceeding.
+
+### Available Tools
+
+| Tool | Purpose |
+|------|---------|
+| `checklist_tick` | Add a question or task to track |
+| `checklist_complete` | Mark an item as resolved |
+| `checklist_status` | View all items (pending and resolved) |
+
+### When to Use
+
+**Add items when:**
+- User defers a decision ("we'll figure that out later")
+- You discover a question that needs answering before continuing
+- A task surfaces that's outside current scope but should be tracked
+- An assumption is made that should be verified
+
+**Check before proceeding:**
+- Before marking a phase/feature complete
+- Before committing
+- Before transitioning to a new subtask
+
+### Enforcement Rule
+
+**Do NOT proceed past a phase boundary or offer to merge until all checklist items are resolved.** 
+
+If the user wants to skip an item:
+1. Use `checklist_complete` with a resolution note explaining why
+2. Examples: `"deferred to issue #123"`, `"not needed - user confirmed"`, `"clarified with user: we use Redis"`
+
+### Example Workflow
+
+```
+User: "Let's use a cache for this - we'll figure out Redis vs Memcache later."
+You: *calls checklist_tick(type="question", description="Decide between Redis and Memcached")*
+...implementation continues...
+Before merge: *calls checklist_status*
+"⚠️ 1 pending item: [0] [QUESTION] Decide between Redis and Memcached"
+User: "We'll go with Redis, I'll create the issue."
+You: *calls checklist_complete(item_id=0, resolution_note="User decided on Redis - deferred to separate issue")*
+"✓ All items resolved. Ready to merge."
+```
+
+---
+
 ## Delegation
 
 You CAN delegate complex sub-tasks:
