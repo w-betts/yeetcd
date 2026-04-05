@@ -1,0 +1,546 @@
+# Spec (updated)
+# Updated: 2026-04-04T23:59:32.438Z
+
+version: 2
+addressed_issues:
+  - issue: "CLISpawner Implementation Gap - findBinaryInClasspath() returns classpath resource path that ProcessBuilder cannot execute"
+    resolution: "fixed"
+    resolution_note: "Phase 3 will implement extract to temp file with executable permissions"
+    timestamp: "2026-04-04T22:56:25.704Z"
+  - issue: "CLISpawner Implementation Gap - findBinaryInClasspath() returns classpath resource path that ProcessBuilder cannot execute"
+    resolution: "deferred"
+    resolution_note: "Phase 3 will implement extract to temp file with executable permissions - not yet implemented"
+    timestamp: "2026-04-04T22:57:10.854Z"
+architecture:
+  components:
+    - interfaces:
+        - "startMockServer()"
+        - "defineBehavior()"
+        - "runCLI()"
+        - "verifyExpectations()"
+      name: "YeetcdMockRunner"
+      responsibility: "Main entry point orchestrating mock server lifecycle, behavior registration, CLI spawning, and expectation verification"
+    - interfaces:
+        - "start()"
+        - "stop()"
+        - "registerBehavior()"
+        - "getExecutedWork()"
+      name: "MockServer"
+      responsibility: "Embedded gRPC server implementing MockExecutionService for intercepting work execution"
+    - interfaces:
+        - "spawn()"
+      name: "CLISpawner"
+      responsibility: "Spawns yeetcd binary with mock server address configured via environment variable"
+    - interfaces:
+        - "getOS()"
+        - "getArch()"
+        - "getPlatform()"
+        - "getBinaryName()"
+      name: "PlatformDetector"
+      responsibility: "Runtime detection of OS and architecture for selecting correct binary"
+    - interfaces:
+        - "matches()"
+      name: "FakeWorkMatcher"
+      responsibility: "Matches work executions to behavior definitions"
+    - interfaces:
+        - "verify()"
+      name: "ExpectationVerifier"
+      responsibility: "Verifies recorded executions match expected behaviors"
+  description: "Java Test SDK using embedded mock gRPC server with spawned yeetcd binary. The test SDK bundles platform-specific yeetcd binaries, auto-detects the current OS, spawns the binary with YEETCD_MOCK_ADDRESS environment variable, allowing users to define mock behaviors and verify execution sequences."
+constraints:
+  - "Must build yeetcd before Java SDKs to avoid circular dependency"
+  - "Binary must be executable and bundled in test JAR"
+  - "Mock server runs embedded in test JVM"
+  - "Tests in java-sample must use the test SDK"
+goals:
+  - "Remove FakePipelineRunner completely from java-test module"
+  - "Bundle yeetcd binaries for darwin-amd64, darwin-arm64, linux-amd64, linux-arm64 in test JAR"
+  - "Auto-detect OS and run appropriate binary with mock server address"
+  - "Add tests to java-sample using the test SDK"
+  - "Configure build order: build yeetcd → build protocol → build sdk → build test → build sample → test"
+phases:
+  - description: "Build yeetcd binary for multiple platforms (darwin-amd64, darwin-arm64, linux-amd64, linux-arm64). Cross-compile Go code for each target."
+    file_changes:
+      - action: "modify"
+        description: "Add cross-compilation targets for all four platforms (darwin-amd64, darwin-arm64, linux-amd64, linux-arm64). Create bin/cli/ directory for multi-platform binaries. Add build-all target to build all platforms at once."
+        is_test: false
+        path: "Makefile"
+    is_release_boundary: true
+    name: "Phase 1: Build Multi-Platform Yeetcd Binaries"
+    status: "completed"
+    test_cases:
+      - description: "Test build target creates binary for current platform"
+        given_when_then: "GIVEN: Go toolchain installed and golang/cmd/yeetcd exists
+
+          WHEN: make build is executed
+
+          THEN: bin/yeetcd binary is created for the current platform"
+        target_component: "Makefile"
+        type: "unit"
+        contracts:
+          - "make build"
+      - description: "Test build-all target creates binaries for all platforms"
+        given_when_then: "GIVEN: Go toolchain installed and golang/cmd/yeetcd exists
+
+          WHEN: make build-all is executed
+
+          THEN: bin/cli/yeetcd-darwin-amd64, bin/cli/yeetcd-darwin-arm64, bin/cli/yeetcd-linux-amd64, bin/cli/yeetcd-linux-arm64 binaries are created"
+        target_component: "Makefile"
+        type: "unit"
+        contracts:
+          - "make build-all"
+      - description: "Test platform-specific build target creates correctly named binary"
+        given_when_then: "GIVEN: Go toolchain installed
+
+          WHEN: make build-darwin-arm64 is executed
+
+          THEN: bin/cli/yeetcd-darwin-arm64 binary is created"
+        target_component: "Makefile"
+        type: "unit"
+        contracts:
+          - "make build-darwin-arm64"
+      - description: "Test built binary is executable and prints version"
+        given_when_then: "GIVEN: make build has been executed
+
+          WHEN: bin/yeetcd --version is executed
+
+          THEN: version information is printed to stdout"
+        target_component: "Binary"
+        type: "unit"
+        contracts:
+          - "bin/yeetcd --version"
+      - description: "Test platform detection returns correct OS"
+        given_when_then: "GIVEN: running on darwin or linux
+
+          WHEN: PlatformDetector.getOS() is called
+
+          THEN: returns 'darwin' or 'linux' matching the current OS"
+        target_component: "PlatformDetector"
+        type: "unit"
+        contracts:
+          - "PlatformDetector.getOS()"
+      - description: "Test architecture detection returns correct arch"
+        given_when_then: "GIVEN: running on x86_64 or arm64
+
+          WHEN: PlatformDetector.getArch() is called
+
+          THEN: returns 'amd64' or 'arm64' matching the current architecture"
+        target_component: "PlatformDetector"
+        type: "unit"
+        contracts:
+          - "PlatformDetector.getArch()"
+    chunks: []
+  - description: "Configure java-test pom.xml to bundle binaries in resources/cli directory. Add maven-shade-plugin configuration to include CLI binaries in uber JAR."
+    file_changes:
+      - action: "modify"
+        description: "Add copy-cli-binaries target to copy built CLI binaries from bin/cli/ to sdks/java/test/src/main/resources/cli/ for Maven shading"
+        is_test: false
+        path: "Makefile"
+      - action: "create"
+        description: "Create resources/cli directory to hold CLI binaries for Maven shading (binaries will be copied here by Makefile target)"
+        is_test: false
+        path: "sdks/java/test/src/main/resources/cli"
+    is_release_boundary: false
+    name: "Phase 2: Configure Test Module to Bundle Binaries"
+    status: "completed"
+    test_cases:
+      - description: "Test copy-cli-binaries copies all platform binaries to resources"
+        given_when_then: "GIVEN: bin/cli/ directory contains yeetcd-darwin-amd64, yeetcd-darwin-arm64, yeetcd-linux-amd64, yeetcd-linux-arm64
+
+          WHEN: make copy-cli-binaries is executed
+
+          THEN: All four binaries are copied to sdks/java/test/src/main/resources/cli/ with same names"
+        target_component: "Makefile"
+        type: "unit"
+        contracts:
+          - "make copy-cli-binaries"
+      - description: "Test CLI binaries are bundled in test module uber JAR"
+        given_when_then: "GIVEN: Binaries exist in sdks/java/test/src/main/resources/cli/
+
+          WHEN: mvn package is run on the test module
+
+          THEN: The uber JAR contains cli/ directory with all platform binaries"
+        target_component: "maven-shade-plugin"
+        type: "integration"
+        contracts:
+          - "mvn package -pl test"
+      - description: "Test YeetcdMockRunner can load binary from classpath"
+        given_when_then: "GIVEN: Test module uber JAR contains cli/yeetcd-{platform} binaries
+
+          WHEN: CLISpawner.spawn() is called
+
+          THEN: Binary is found in classpath and can be executed"
+        target_component: "CLISpawner"
+        type: "unit"
+        contracts:
+          - "CLISpawner.findBinaryInClasspath()"
+    chunks: []
+  - description: "Update CLISpawner to properly extract binary from classpath resources and execute it. Fix binary path resolution and execution."
+    file_changes:
+      - action: "modify"
+        description: "Update CLISpawner to extract binary from classpath resources to a temp file, set executable permissions, and return the temp file path. Add extractBinaryToTempFile() method, extractedBinaryPath field, and cleanup() method."
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/CLISpawner.java"
+      - action: "modify"
+        description: "Update YeetcdMockRunner.close() to call CLISpawner.cleanup() after destroying the CLI process."
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/YeetcdMockRunner.java"
+      - action: "create"
+        description: "Create CLISpawnerTest.java with unit tests for binary extraction, executable permissions, cleanup, and environment variable handling."
+        is_test: true
+        path: "sdks/java/test/src/test/java/yeetcd/test/CLISpawnerTest.java"
+    is_release_boundary: false
+    name: "Phase 3: Fix CLISpawner Binary Execution"
+    status: "completed"
+    test_cases:
+      - description: "Test that spawn() extracts binary from classpath resources to a temp file"
+        given_when_then: "GIVEN: CLI binary exists in classpath at /cli/yeetcd-{platform}
+
+          WHEN: spawn() is called
+
+          THEN: Binary is extracted to a temp file and executed successfully"
+        target_component: "CLISpawner.spawn()"
+        type: "unit"
+        contracts:
+          - "CLISpawner.spawn()"
+          - "CLISpawner.extractBinaryToTempFile()"
+      - description: "Test that spawn() throws IOException when binary not found in classpath or working directory"
+        given_when_then: "GIVEN: No CLI binary exists anywhere (classpath or working directory)
+
+          WHEN: spawn() is called
+
+          THEN: IOException is thrown with message containing 'CLI binary not found'"
+        target_component: "CLISpawner.spawn()"
+        type: "unit"
+        contracts:
+          - "CLISpawner.spawn()"
+      - description: "Test that extracted binary has executable permissions"
+        given_when_then: "GIVEN: CLI binary exists in classpath
+
+          WHEN: extractBinaryToTempFile() is called
+
+          THEN: The returned temp file has executable permissions set"
+        target_component: "CLISpawner.extractBinaryToTempFile()"
+        type: "unit"
+        contracts:
+          - "CLISpawner.extractBinaryToTempFile()"
+      - description: "Test that spawn() falls back to working directory binary when classpath resource not found"
+        given_when_then: "GIVEN: Binary exists at bin/{binaryName} in working directory but not in classpath
+
+          WHEN: spawn() is called
+
+          THEN: Binary from working directory is executed"
+        target_component: "CLISpawner.spawn()"
+        type: "unit"
+        contracts:
+          - "CLISpawner.spawn()"
+          - "CLISpawner.findBinaryInClasspath()"
+      - description: "Test that cleanup() deletes the extracted temp file"
+        given_when_then: "GIVEN: spawn() has been called and temp file was created
+
+          WHEN: cleanup() is called
+
+          THEN: The extracted temp file is deleted"
+        target_component: "CLISpawner.cleanup()"
+        type: "unit"
+        contracts:
+          - "CLISpawner.cleanup()"
+      - description: "Test that spawn() sets YEETCD_MOCK_ADDRESS environment variable"
+        given_when_then: "GIVEN: CLISpawner configured with mockAddress 'localhost:50051'
+
+          WHEN: spawn() is called
+
+          THEN: The spawned process has YEETCD_MOCK_ADDRESS=localhost:50051 in its environment"
+        target_component: "CLISpawner.spawn()"
+        type: "unit"
+        contracts:
+          - "CLISpawner.spawn()"
+      - description: "Test CLISpawner extracts binary from classpath and executes it"
+        given_when_then: "GIVEN: CLISpawner configured with mockAddress
+
+          WHEN: spawn() is called with binary in classpath
+
+          THEN: Binary is extracted and executed"
+        target_component: "CLISpawner"
+        type: "unit"
+        contracts:
+          - "CLISpawner.spawn()"
+          - "CLISpawner.extractBinaryToTempFile()"
+      - description: "Test CLISpawner throws IOException when binary not found"
+        given_when_then: "GIVEN: No binary exists anywhere
+
+          WHEN: spawn() is called
+
+          THEN: IOException is thrown"
+        target_component: "CLISpawner"
+        type: "unit"
+        contracts:
+          - "CLISpawner.spawn()"
+      - description: "Test CLISpawner cleanup removes temp file"
+        given_when_then: "GIVEN: spawn() has been called
+
+          WHEN: cleanup() is called
+
+          THEN: Temp file is deleted"
+        target_component: "CLISpawner"
+        type: "unit"
+        contracts:
+          - "CLISpawner.cleanup()"
+      - description: "Test CLISpawner sets environment variables correctly"
+        given_when_then: "GIVEN: CLISpawner with mockAddress configured
+
+          WHEN: spawn() is called
+
+          THEN: YEETCD_MOCK_ADDRESS is set in process environment"
+        target_component: "CLISpawner"
+        type: "unit"
+        contracts:
+          - "CLISpawner.spawn()"
+    chunks: []
+  - description: "Remove FakePipelineRunner and related fake classes from java-test module. Keep only YeetcdMockRunner, MockServer, CLISpawner, PlatformDetector, MockBehavior, ExpectationVerifier, and supporting classes."
+    file_changes:
+      - action: "delete"
+        description: "Remove FakePipelineRunner.java - old in-memory fake execution runner to be replaced by YeetcdMockRunner"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/FakePipelineRunner.java"
+      - action: "delete"
+        description: "Remove FakePipelineRun.java - input to FakePipelineRunner"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/FakePipelineRun.java"
+      - action: "delete"
+        description: "Remove FakePipelineRunResult.java - result from FakePipelineRunner"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/FakePipelineRunResult.java"
+      - action: "delete"
+        description: "Remove FakePipelineStatus.java - status enum for FakePipelineRunResult"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/FakePipelineStatus.java"
+      - action: "delete"
+        description: "Remove FakeWorkExecution.java - base class for work execution fakes"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/FakeWorkExecution.java"
+      - action: "delete"
+        description: "Remove FakeSimpleWorkExecution.java - simple work execution implementation"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/FakeSimpleWorkExecution.java"
+      - action: "delete"
+        description: "Remove FakeCompoundWorkExecution.java - compound work execution implementation"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/FakeCompoundWorkExecution.java"
+      - action: "delete"
+        description: "Remove FakeWorkStatus.java - work status enum"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/FakeWorkStatus.java"
+      - action: "delete"
+        description: "Remove FakeWorkResult.java - result from work execution"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/FakeWorkResult.java"
+      - action: "delete"
+        description: "Remove FakeWorkMatcher.java - fake matcher (different from WorkExecution matching)"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/FakeWorkMatcher.java"
+      - action: "delete"
+        description: "Remove FakeWorkMatcherResult.java - result from FakeWorkMatcher"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/FakeWorkMatcherResult.java"
+      - action: "delete"
+        description: "Remove FakeWorkExecutionStage.java - execution stage enum"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/FakeWorkExecutionStage.java"
+      - action: "delete"
+        description: "Remove FakePipelineRunnerTest.java - tests for removed FakePipelineRunner"
+        is_test: true
+        path: "sdks/java/test/src/test/java/yeetcd/test/FakePipelineRunnerTest.java"
+    is_release_boundary: false
+    name: "Phase 4: Remove FakePipelineRunner Classes"
+    status: "completed"
+    test_cases: []
+    chunks:
+      - name: "Remove FakePipelineRunner and related classes"
+        description: "Remove all Fake* classes and FakePipelineRunnerTest from java-test module to complete the rationalization. Keep only YeetcdMockRunner-based test SDK."
+        status: "pending"
+        file_changes:
+          - action: "delete"
+            description: "Remove FakePipelineRunner.java - old in-memory fake execution runner"
+            is_test: false
+            path: "sdks/java/test/src/main/java/yeetcd/test/FakePipelineRunner.java"
+          - action: "delete"
+            description: "Remove FakePipelineRun.java - input to FakePipelineRunner"
+            is_test: false
+            path: "sdks/java/test/src/main/java/yeetcd/test/FakePipelineRun.java"
+          - action: "delete"
+            description: "Remove FakePipelineRunResult.java"
+            is_test: false
+            path: "sdks/java/test/src/main/java/yeetcd/test/FakePipelineRunResult.java"
+          - action: "delete"
+            description: "Remove FakePipelineStatus.java"
+            is_test: false
+            path: "sdks/java/test/src/main/java/yeetcd/test/FakePipelineStatus.java"
+          - action: "delete"
+            description: "Remove FakeWorkExecution.java"
+            is_test: false
+            path: "sdks/java/test/src/main/java/yeetcd/test/FakeWorkExecution.java"
+          - action: "delete"
+            description: "Remove FakeSimpleWorkExecution.java"
+            is_test: false
+            path: "sdks/java/test/src/main/java/yeetcd/test/FakeSimpleWorkExecution.java"
+          - action: "delete"
+            description: "Remove FakeCompoundWorkExecution.java"
+            is_test: false
+            path: "sdks/java/test/src/main/java/yeetcd/test/FakeCompoundWorkExecution.java"
+          - action: "delete"
+            description: "Remove FakeWorkStatus.java"
+            is_test: false
+            path: "sdks/java/test/src/main/java/yeetcd/test/FakeWorkStatus.java"
+          - action: "delete"
+            description: "Remove FakeWorkResult.java"
+            is_test: false
+            path: "sdks/java/test/src/main/java/yeetcd/test/FakeWorkResult.java"
+          - action: "delete"
+            description: "Remove FakeWorkMatcher.java"
+            is_test: false
+            path: "sdks/java/test/src/main/java/yeetcd/test/FakeWorkMatcher.java"
+          - action: "delete"
+            description: "Remove FakeWorkMatcherResult.java"
+            is_test: false
+            path: "sdks/java/test/src/main/java/yeetcd/test/FakeWorkMatcherResult.java"
+          - action: "delete"
+            description: "Remove FakeWorkExecutionStage.java"
+            is_test: false
+            path: "sdks/java/test/src/main/java/yeetcd/test/FakeWorkExecutionStage.java"
+          - action: "delete"
+            description: "Remove FakePipelineRunnerTest.java"
+            is_test: true
+            path: "sdks/java/test/src/test/java/yeetcd/test/FakePipelineRunnerTest.java"
+        test_cases: []
+  - description: "Add test classes to java-sample demonstrating use of YeetcdMockRunner to test sample pipelines. Create integration tests that spawn the mock server, define behaviors, run CLI, and verify execution sequence."
+    file_changes:
+      - action: "create"
+        description: "Create test class for sample pipelines"
+        is_test: true
+        path: "sdks/java/sample/src/test/java/yeetcd/javasample/SamplePipelineTest.java"
+    is_release_boundary: true
+    name: "Phase 5: Add Tests to Java Sample"
+    status: "completed"
+    test_cases:
+      - description: "Test sample pipeline execution with mock server"
+        given_when_then: "GIVEN: a sample pipeline definition
+
+          WHEN: YeetcdMockRunner is used to run pipeline with mock behaviors
+
+          THEN: expectations are verified successfully"
+        target_component: "YeetcdMockRunner"
+        type: "integration"
+        contracts:
+          - "YeetcdMockRunner.builder()"
+    chunks: []
+  - description: "Configure Makefile with proper build order: (1) build yeetcd binaries, (2) mvn compile protocol, (3) mvn compile sdk, (4) mvn install test (bundling binaries), (5) mvn compile sample, (6) mvn test sample. Add new targets for e2e testing."
+    file_changes:
+      - action: "modify"
+        description: "Add build-all target to build yeetcd binaries for all platforms (darwin-amd64, darwin-arm64, linux-amd64, linux-arm64) in bin/cli/ directory"
+        is_test: false
+        path: "Makefile"
+      - action: "modify"
+        description: "Add copy-cli-binaries target to copy built CLI binaries from bin/cli/ to sdks/java/test/src/main/resources/cli/"
+        is_test: false
+        path: "Makefile"
+      - action: "modify"
+        description: "Add build-java target that builds protocol, sdk, and test modules in order"
+        is_test: false
+        path: "Makefile"
+      - action: "modify"
+        description: "Add build-sample target that builds sample using installed SDK"
+        is_test: false
+        path: "Makefile"
+      - action: "modify"
+        description: "Add test-sample target to run sample module tests"
+        is_test: false
+        path: "Makefile"
+      - action: "modify"
+        description: "Add test-all target that builds everything and runs all tests (Go and Java)"
+        is_test: false
+        path: "Makefile"
+    is_release_boundary: false
+    name: "Phase 6: Configure Build Order in Makefile"
+    status: "completed"
+    test_cases:
+      - contracts:
+          - "Makefile build-all"
+          - "Makefile copy-cli-binaries"
+        description: "Test build-all creates all platform binaries and copy-cli-binaries copies them to resources"
+        given_when_then: "GIVEN: Go toolchain installed and golang/cmd/yeetcd exists
+
+          WHEN: make build-all and make copy-cli-binaries are executed
+
+          THEN: All four binaries exist in bin/cli/ and are copied to sdks/java/test/src/main/resources/cli/"
+        target_component: "Makefile targets"
+        type: "unit"
+      - contracts:
+          - "Makefile build-java"
+        description: "Test build-java compiles protocol, sdk, and test modules in order"
+        given_when_then: "GIVEN: Java Maven wrapper exists in sdks/java
+
+          WHEN: make build-java is executed
+
+          THEN: protocol, sdk, and test modules compile successfully"
+        target_component: "Makefile targets"
+        type: "unit"
+      - contracts:
+          - "Makefile build-sample"
+        description: "Test build-sample builds the sample module using installed SDK"
+        given_when_then: "GIVEN: SDK installed to local Maven repo
+
+          WHEN: make build-sample is executed
+
+          THEN: Sample module compiles successfully"
+        target_component: "Makefile targets"
+        type: "unit"
+      - contracts:
+          - "Makefile test-sample"
+        description: "Test test-sample runs tests in the sample module"
+        given_when_then: "GIVEN: Sample module built
+
+          WHEN: make test-sample is executed
+
+          THEN: Sample module tests run successfully"
+        target_component: "Makefile targets"
+        type: "integration"
+      - contracts:
+          - "Makefile test-all"
+        description: "Test test-all builds everything and runs all tests"
+        given_when_then: "GIVEN: Go and Java toolchains installed
+
+          WHEN: make test-all is executed
+
+          THEN: All tests pass (Go and Java)"
+        target_component: "Makefile targets"
+        type: "integration"
+    chunks: []
+problem_statement: "The java-test SDK currently contains two testing solutions that need to be rationalized: (1) FakePipelineRunner - older in-memory fake execution, (2) YeetcdMockRunner - newer approach spawning actual yeetcd binary with mock server. We need to remove the old solution, ensure binaries are bundled for multiple platforms, and add tests to java-sample."
+review:
+  status: "passed"
+  reviewer: "orchestrator"
+  timestamp: "2026-04-04T22:57:36.249Z"
+  feedback: "Issues identified in review were either planned phases or have been addressed. Proceeding with implementation."
+status: "completed"
+tech_choices:
+  - area: "build"
+    choice: "Go cross-compilation"
+    rationale: "Build yeetcd binary for multiple platforms using GOOS/GOARCH"
+  - area: "packaging"
+    choice: "Maven Shade Plugin"
+    rationale: "Bundle CLI binaries in test JAR uber-jar for distribution"
+  - area: "mocking"
+    choice: "Embedded gRPC MockServer"
+    rationale: "MockExecutionService intercepts work execution requests"
+  - area: "testing"
+    choice: "Integration tests in java-sample"
+    rationale: "Demonstrate testing sample pipelines with test SDK"
+  - area: "publishing"
+    choice: "Local Maven repository"
+    rationale: "Install to .m2 for local development only"
+test_strategy:
+  approach: "Unit tests for PlatformDetector, integration tests for YeetcdMockRunner in java-sample"
+  test_patterns:
+    - language: "java"
+      pattern: "*Test.java"
