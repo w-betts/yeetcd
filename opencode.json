@@ -179,12 +179,49 @@
         "write": "allow",
         "bash": "allow"
       }
+    },
+    "spectree": {
+      "mode": "primary",
+      "description": "Spectree agent - recursive spec workflow for problem decomposition",
+      "prompt": "{file:./.opencode/prompts/spectree.md}",
+      "temperature": 0.3,
+      "permission": {
+        "question": "allow",
+        "doc_read": "allow",
+        "task": {
+          "*": "deny",
+          "node": "allow",
+          "test-writer": "allow",
+          "implementer": "allow",
+          "reviewer": "allow"
+        }
+      }
+    },
+    "node": {
+      "mode": "subagent",
+      "model": "opencode/big-pickle",
+      "hidden": false,
+      "prompt": "{file:./.opencode/prompts/node.md}",
+      "temperature": 0.3,
+      "permission": {
+        "question": "allow",
+        "doc_read": "allow",
+        "edit": {
+          "*": "deny",
+          ".opencode/agent_id": "allow"
+        },
+        "task": {
+          "*": "deny",
+          "node": "allow"
+        }
+      }
     }
   },
   "plugin": [
     "./.opencode/plugins/notification-plugin.ts",
     "./.opencode/tools/session.ts",
-    "./.opencode/tools/checklist.ts"
+    "./.opencode/tools/checklist.ts",
+    "./.opencode/tools/spectree.ts"
   ],
   "provider": {
     "opencode": {

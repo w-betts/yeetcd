@@ -1,0 +1,607 @@
+# Spec (updated)
+# Updated: 2026-04-06T21:06:32.964Z
+
+version: 2
+addressed_issues: []
+architecture:
+  components:
+    - interfaces:
+        - "spectree_write - create new spectree spec file"
+      name: "spectree_tools"
+      responsibility: "New tool family for recursive spec management"
+    - interfaces:
+        - "spectree_read - read spectree spec file"
+      name: "spectree_tools"
+      responsibility: "New tool family for recursive spec management"
+    - interfaces:
+        - "spectree_update - update nodes in spectree spec"
+      name: "spectree_tools"
+      responsibility: "New tool family for recursive spec management"
+    - interfaces:
+        - "spectree_get_my_node - get current agent's node from spec"
+      name: "spectree_tools"
+      responsibility: "New tool family for recursive spec management"
+    - interfaces:
+        - "spectree_get_leaves - get ordered list of leaf nodes"
+      name: "spectree_tools"
+      responsibility: "New tool family for recursive spec management"
+    - interfaces:
+        - "./agent spectree"
+      name: "agent_entry"
+      responsibility: "New entry point in agent wrapper script"
+    - interfaces:
+        - "spectree.md"
+      name: "agent_prompt"
+      responsibility: "Primary agent prompt for spectree workflow"
+    - interfaces:
+        - "subagent"
+      name: "node_agent"
+      responsibility: "Spawned for each sub-problem node"
+    - interfaces:
+        - "test-writer"
+      name: "test_writer_agent"
+      responsibility: "Writes tests for a leaf node"
+    - interfaces:
+        - "implementer"
+      responsibility: "Implements code for a leaf node"
+      name: "implementer_agent"
+    - interfaces:
+        - "reviewer"
+      responsibility: "Adversarial review of leaf implementation"
+      name: "reviewer_agent"
+  description: "Spectree is a recursive problem decomposition workflow that breaks down problems by spawning subagents. Each node in the spec tree represents a sub-problem. The workflow explores problems breadth-first, records all decisions in a recursive YAML spec, and implements leaves in depth-first order."
+constraints:
+  - "Agent can only edit its own node in the spec - enforced by tool"
+  - "Breadth-first exploration at each level - all branches at level N must be explored before going deeper"
+  - "Leaves implemented in depth-first order (left-to-right)"
+  - "Each leaf requires: test strategy, test cases with user feedback, implementation details, code review"
+  - "Commits happen after each leaf's tests pass and code review passes"
+  - "Merge to main happens after all leaves complete"
+  - "No release boundaries in this workflow"
+goals:
+  - "Create new ./agent spectree entry point"
+  - "Create spectree tool family for recursive spec management"
+  - "Implement recursive spec file structure in YAML"
+  - "Implement breadth-first problem exploration with user interaction"
+  - "Implement leaf-level test strategy and test case definition"
+  - "Implement leaf-level implementation with code review"
+  - "Implement depth-first leaf implementation order"
+  - "Implement per-leaf commit and final merge"
+phases:
+  - chunks:
+      - description: "Add spectree to agent entry point"
+        file_changes:
+          - action: "modify"
+            description: "Add 'spectree' to AGENT_MAP dictionary"
+            is_test: false
+            path: "agent"
+          - action: "modify"
+            description: "Add spectree entry to print_usage()"
+            is_test: false
+            path: "agent"
+          - action: "modify"
+            description: "Handle spectree workflow type in prompt_new_or_resume (like spec, always requires worktree)"
+            is_test: false
+            path: "agent"
+          - action: "modify"
+            description: "Add _get_spectree_status() method to WorkItem class"
+            is_test: false
+            path: "agent"
+          - action: "modify"
+            description: "Add spectree to get_workflow_types_with_sessions()"
+            is_test: false
+            path: "agent"
+        name: "Chunk 1: Add spectree entry point to agent script"
+        status: "completed"
+        test_cases:
+          - contracts:
+              - "agent script"
+            description: "Running ./agent spectree launches the spectree workflow"
+            given_when_then: "GIVEN agent script with spectree entry, WHEN user runs './agent spectree', THEN spectree agent is launched in a new worktree"
+            target_component: "agent script"
+            type: "unit"
+          - contracts:
+              - "agent script"
+            description: "Spectree workflow type is handled correctly in prompt_new_or_resume"
+            given_when_then: "GIVEN prompt_new_or_resume is called with 'spectree', WHEN user selects new work, THEN worktree is created (no main branch option)"
+            target_component: "agent script"
+            type: "unit"
+          - contracts:
+              - "agent script"
+            description: "WorkItem._get_spectree_status() returns correct status"
+            given_when_then: "GIVEN WorkItem for spectree workflow, WHEN get_status() is called, THEN _get_spectree_status() is invoked"
+            target_component: "agent script"
+            type: "unit"
+      - description: "Add spectree agent to opencode.json"
+        file_changes:
+          - action: "modify"
+            description: "Add spectree agent configuration to opencode.json"
+            is_test: false
+            path: "opencode.json"
+        name: "Chunk 2: Configure spectree agent in opencode.json"
+        status: "completed"
+        test_cases:
+          - contracts:
+              - "opencode.json"
+            description: "Spectree agent is properly configured in opencode.json"
+            given_when_then: "GIVEN opencode.json, WHEN spectree agent config is added, THEN agent can be launched with --agent spectree"
+            target_component: "opencode.json"
+            type: "unit"
+          - contracts:
+              - "opencode.json"
+            description: "Spectree has correct mode (primary) and prompt path"
+            given_when_then: "GIVEN opencode.json has spectree config, WHEN parsed, THEN mode is 'primary' and prompt references spectree.md"
+            target_component: "opencode.json"
+            type: "unit"
+      - description: "Create spectree primary agent prompt"
+        file_changes:
+          - action: "create"
+            description: "Create .opencode/prompts/spectree.md with the primary agent prompt"
+            is_test: false
+            path: ".opencode/prompts/spectree.md"
+        name: "Chunk 3: Create spectree primary agent prompt"
+        status: "completed"
+        test_cases:
+          - contracts:
+              - "spectree.md prompt"
+            description: "Spectree prompt file exists and has orchestrator-style content"
+            given_when_then: "GIVEN spectree.md exists, WHEN agent reads it, THEN it contains instructions for recursive problem decomposition"
+            target_component: "spectree.md"
+            type: "unit"
+          - contracts:
+              - "spectree.md prompt"
+            description: "Spectree prompt defines breadth-first exploration behavior"
+            given_when_then: "GIVEN spectree.md content, WHEN parsed, THEN it describes breadth-first problem exploration with subagent spawning"
+            target_component: "spectree.md"
+            type: "unit"
+    description: "Set up the spectree entry point in agent script and opencode.json, create primary agent prompt"
+    file_changes: []
+    is_release_boundary: false
+    name: "Phase 1: Entry point and basic configuration"
+    status: "completed"
+    test_cases: []
+  - chunks:
+      - description: "Create spectree tools TypeScript file"
+        file_changes:
+          - action: "create"
+            description: "Create .opencode/tools/spectree.ts with tool implementations"
+            is_test: false
+            path: ".opencode/tools/spectree.ts"
+        name: "Chunk 1: Create spectree tool implementations"
+        status: "completed"
+        test_cases:
+          - contracts:
+              - "spectree.ts"
+            description: "Spectree tools file exists and exports required functions"
+            given_when_then: "GIVEN spectree.ts file, WHEN tools are loaded, THEN spectree_write, spectree_read, spectree_update, spectree_get_my_node, spectree_get_leaves functions are available"
+            target_component: "spectree.ts"
+            type: "unit"
+          - contracts:
+              - "spectree.ts"
+            description: "Spectree tools file contains schema definitions for spec structure"
+            given_when_then: "GIVEN spectree.ts, WHEN schema is parsed, THEN NodeSchema and SpectreeSpecSchema are defined"
+            target_component: "spectree.ts"
+            type: "unit"
+          - contracts:
+              - "spectree.ts"
+            description: "Spectree tools file is valid TypeScript"
+            given_when_then: "GIVEN spectree.ts, WHEN compiled, THEN no TypeScript errors"
+            target_component: "spectree.ts"
+            type: "unit"
+      - description: "Add spectree tools to opencode.json plugins"
+        file_changes:
+          - action: "modify"
+            description: "Add spectree.ts to plugins array in opencode.json"
+            is_test: false
+            path: "opencode.json"
+        name: "Chunk 2: Register spectree tools in opencode.json"
+        status: "completed"
+        test_cases:
+          - contracts:
+              - "opencode.json"
+            description: "Spectree tools are loaded as plugins"
+            given_when_then: "GIVEN opencode.json with spectree.ts in plugins, WHEN opencode starts, THEN spectree tools are available"
+            target_component: "opencode.json"
+            type: "unit"
+    description: "Create the spectree tool family for recursive spec management"
+    file_changes: []
+    is_release_boundary: false
+    name: "Phase 2: Create spectree tool family"
+    status: "completed"
+    test_cases: []
+  - chunks:
+      - description: "Define spectree node schema"
+        file_changes:
+          - action: "modify"
+            description: "Add NodeSchema to spectree.ts defining node structure"
+            is_test: false
+            path: ".opencode/tools/spectree.ts"
+          - action: "modify"
+            description: "Add SpectreeSpecSchema to spectree.ts for full spec structure"
+            is_test: false
+            path: ".opencode/tools/spectree.ts"
+        name: "Chunk 1: Define spectree schema"
+        status: "pending"
+        test_cases:
+          - contracts:
+              - "spectree.ts schema"
+            description: "Spectree schema is properly defined with all required fields"
+            given_when_then: "GIVEN spectree schema definitions, WHEN validated, THEN all nodes have id, title, description, children, interaction_log, tests, test_status, file_changes, impl_status, reviews"
+            target_component: "spectree.ts"
+            type: "unit"
+      - description: "Implement spectree_write tool"
+        file_changes:
+          - action: "modify"
+            description: "Implement spectree_write function in spectree.ts"
+            is_test: false
+            path: ".opencode/tools/spectree.ts"
+        name: "Chunk 2: Implement spectree_write"
+        status: "completed"
+        test_cases:
+          - contracts:
+              - "spectree_write"
+            description: "spectree_write creates a new spectree spec file"
+            given_when_then: "GIVEN title and root node, WHEN spectree_write is called, THEN spectree.yaml file is created in spectree/ directory"
+            target_component: "spectree_write"
+            type: "unit"
+      - description: "Implement spectree_read tool"
+        file_changes:
+          - action: "modify"
+            description: "Implement spectree_read function in spectree.ts"
+            is_test: false
+            path: ".opencode/tools/spectree.ts"
+        name: "Chunk 3: Implement spectree_read"
+        status: "completed"
+        test_cases:
+          - contracts:
+              - "spectree_read"
+            description: "spectree_read returns the full spectree spec or a specific node"
+            given_when_then: "GIVEN spectree spec exists, WHEN spectree_read is called, THEN full spec or specified node is returned"
+            target_component: "spectree_read"
+            type: "unit"
+      - description: "Implement spectree_update tool"
+        file_changes:
+          - action: "modify"
+            description: "Implement spectree_update function in spectree.ts"
+            is_test: false
+            path: ".opencode/tools/spectree.ts"
+        name: "Chunk 4: Implement spectree_update"
+        status: "completed"
+        test_cases:
+          - contracts:
+              - "spectree_update"
+            description: "spectree_update modifies a node in the spectree spec"
+            given_when_then: "GIVEN node_id and updates, WHEN spectree_update is called with agent's own node_id, THEN node is updated in spec"
+            target_component: "spectree_update"
+            type: "unit"
+      - description: "Implement spectree_get_my_node tool"
+        file_changes:
+          - action: "modify"
+            description: "Implement spectree_get_my_node function in spectree.ts"
+            is_test: false
+            path: ".opencode/tools/spectree.ts"
+        name: "Chunk 5: Implement spectree_get_my_node"
+        status: "completed"
+        test_cases:
+          - contracts:
+              - "spectree_get_my_node"
+            description: "spectree_get_my_node returns the current agent's node based on agent_id file"
+            given_when_then: "GIVEN agent has written its ID to .opencode/agent_id, WHEN spectree_get_my_node is called, THEN the node matching that ID is returned"
+            target_component: "spectree_get_my_node"
+            type: "unit"
+      - description: "Implement spectree_get_leaves tool"
+        file_changes:
+          - action: "modify"
+            description: "Implement spectree_get_leaves function in spectree.ts"
+            is_test: false
+            path: ".opencode/tools/spectree.ts"
+        name: "Chunk 6: Implement spectree_get_leaves"
+        status: "completed"
+        test_cases:
+          - contracts:
+              - "spectree_get_leaves"
+            description: "spectree_get_leaves returns leaves in depth-first order"
+            given_when_then: "GIVEN spectree spec exists, WHEN spectree_get_leaves is called, THEN returns array of leaf nodes in depth-first (left-to-right) order"
+            target_component: "spectree_get_leaves"
+            type: "unit"
+    description: "Implement spectree schema and all tool functions"
+    file_changes: []
+    is_release_boundary: false
+    name: "Phase 3: Implement spectree tools and schema"
+    status: "completed"
+    test_cases: []
+  - chunks:
+      - description: "Create node_agent subagent prompt"
+        file_changes:
+          - action: "create"
+            description: "Create .opencode/prompts/node.md for subagent that handles individual nodes"
+            is_test: false
+            path: ".opencode/prompts/node.md"
+        name: "Chunk 1: Create node subagent prompt"
+        status: "completed"
+        test_cases:
+          - contracts:
+              - "node.md"
+            description: "Node subagent prompt defines behavior for handling sub-problems"
+            given_when_then: "GIVEN node.md prompt, WHEN subagent is launched, THEN it follows the problem decomposition workflow"
+            target_component: "node.md"
+            type: "unit"
+      - description: "Add node agent to opencode.json"
+        file_changes:
+          - action: "modify"
+            description: "Add node agent configuration to opencode.json"
+            is_test: false
+            path: "opencode.json"
+        name: "Chunk 2: Register node subagent in opencode.json"
+        status: "completed"
+        test_cases:
+          - contracts:
+              - "opencode.json"
+            description: "Node subagent is properly configured"
+            given_when_then: "GIVEN opencode.json, WHEN node agent is added, THEN it can be spawned as subagent"
+            target_component: "opencode.json"
+            type: "unit"
+    description: "Create node subagent for handling sub-problems"
+    file_changes: []
+    is_release_boundary: false
+    name: "Phase 4: Create node subagent"
+    status: "completed"
+    test_cases: []
+  - chunks:
+      - description: "Implement breadth-first exploration in spectree.md"
+        file_changes:
+          - action: "modify"
+            description: "Update spectree.md to implement breadth-first exploration logic"
+            is_test: false
+            path: ".opencode/prompts/spectree.md"
+        name: "Chunk 1: Implement breadth-first exploration"
+        status: "pending"
+        test_cases:
+          - contracts:
+              - "spectree.md"
+            description: "Spectree agent explores problems breadth-first"
+            given_when_then: "GIVEN multiple branches at a level, WHEN user says deep enough on one, THEN all branches at that level must be explored before going deeper"
+            target_component: "spectree.md"
+            type: "unit"
+      - description: "Implement node breakdown decision flow"
+        file_changes:
+          - action: "modify"
+            description: "Update spectree.md/node.md with breakdown options logic"
+            is_test: false
+            path: ".opencode/prompts/spectree.md"
+          - action: "modify"
+            description: "Update spectree.md/node.md with breakdown options logic"
+            is_test: false
+            path: ".opencode/prompts/node.md"
+        name: "Chunk 2: Implement breakdown decision flow"
+        status: "pending"
+        test_cases:
+          - contracts:
+              - "spectree.md"
+              - "node.md"
+            description: "Agent correctly offers breakdown options to user"
+            given_when_then: "GIVEN problem is being discussed, WHEN user and agent agree on solution, THEN agent offers: 1) breakdown suggestion, 2) deep enough (leaf), 3) custom answer"
+            target_component: "spectree.md/node.md"
+            type: "unit"
+      - description: "Implement interaction logging"
+        file_changes:
+          - action: "modify"
+            description: "Update spectree tools to log all user interactions"
+            is_test: false
+            path: ".opencode/tools/spectree.ts"
+        name: "Chunk 3: Implement interaction logging"
+        status: "pending"
+        test_cases:
+          - contracts:
+              - "spectree.ts"
+            description: "All user interactions are logged in interaction_log"
+            given_when_then: "GIVEN user answers a question, WHEN interaction completes, THEN question and answer are recorded in node's interaction_log"
+            target_component: "spectree.ts"
+            type: "unit"
+    description: "Implement breadth-first problem exploration and interaction logging"
+    file_changes: []
+    is_release_boundary: false
+    name: "Phase 5: Implement problem exploration logic"
+    status: "completed"
+    test_cases: []
+  - chunks:
+      - description: "Implement test strategy definition for leaves"
+        file_changes:
+          - action: "modify"
+            description: "Update node.md to guide test strategy definition"
+            is_test: false
+            path: ".opencode/prompts/node.md"
+        name: "Chunk 1: Implement test strategy definition"
+        status: "pending"
+        test_cases:
+          - contracts:
+              - "node.md"
+            description: "Leaf node defines test strategy before tests"
+            given_when_then: "GIVEN node is marked as leaf, WHEN user confirms deep enough, THEN agent works with user to define test strategy"
+            target_component: "node.md"
+            type: "unit"
+      - description: "Implement test case creation with user feedback"
+        file_changes:
+          - action: "modify"
+            description: "Update node.md for test case listing and feedback"
+            is_test: false
+            path: ".opencode/prompts/node.md"
+        name: "Chunk 2: Implement test case creation flow"
+        status: "pending"
+        test_cases:
+          - contracts:
+              - "node.md"
+            description: "Test cases are listed and approved by user before implementation"
+            given_when_then: "GIVEN test strategy is defined, WHEN agent lists test cases, THEN user approves before they are recorded in spec"
+            target_component: "node.md"
+            type: "unit"
+      - description: "Record tests in spec"
+        file_changes:
+          - action: "modify"
+            description: "Ensure spectree_update records test cases in spec"
+            is_test: false
+            path: ".opencode/tools/spectree.ts"
+        name: "Chunk 3: Record tests in spec"
+        status: "pending"
+        test_cases:
+          - contracts:
+              - "spectree_update"
+            description: "Approved test cases are stored in spec"
+            given_when_then: "GIVEN user approves test cases, WHEN spectree_update is called, THEN tests are stored in node's tests array"
+            target_component: "spectree_update"
+            type: "unit"
+    description: "Implement leaf test strategy and test case definition flow"
+    file_changes: []
+    is_release_boundary: false
+    name: "Phase 6: Implement leaf test definition"
+    status: "completed"
+    test_cases: []
+  - chunks:
+      - description: "Add leaf implementation order handling"
+        file_changes:
+          - action: "modify"
+            description: "Update spectree.md to handle leaf implementation order"
+            is_test: false
+            path: ".opencode/prompts/spectree.md"
+        name: "Chunk 1: Handle leaf implementation order"
+        status: "pending"
+        test_cases:
+          - contracts:
+              - "spectree.md"
+            description: "Leaves are implemented in depth-first order"
+            given_when_then: "GIVEN spec tree has multiple leaves, WHEN implementation starts, THEN left-most leaf is implemented first"
+            target_component: "spectree.md"
+            type: "unit"
+      - description: "Integrate test-writer for leaves"
+        file_changes:
+          - action: "modify"
+            description: "Update spectree.md to spawn test-writer subagent for each leaf"
+            is_test: false
+            path: ".opencode/prompts/spectree.md"
+        name: "Chunk 2: Integrate test-writer agent"
+        status: "pending"
+        test_cases:
+          - contracts:
+              - "spectree.md"
+            description: "test-writer is spawned for leaf implementation"
+            given_when_then: "GIVEN leaf is selected for implementation, WHEN spectree spawns test-writer, THEN test-writer creates tests from spec"
+            target_component: "spectree.md"
+            type: "unit"
+      - description: "Integrate implementer for leaves"
+        file_changes:
+          - action: "modify"
+            description: "Update spectree.md to spawn implementer subagent for each leaf"
+            is_test: false
+            path: ".opencode/prompts/spectree.md"
+        name: "Chunk 3: Integrate implementer agent"
+        status: "pending"
+        test_cases:
+          - contracts:
+              - "spectree.md"
+            description: "implementer is spawned after tests pass"
+            given_when_then: "GIVEN tests pass for leaf, WHEN spectree spawns implementer, THEN implementer creates implementation from spec"
+            target_component: "spectree.md"
+            type: "unit"
+      - description: "Run code review for leaves"
+        file_changes:
+          - action: "modify"
+            description: "Update spectree.md to spawn reviewer after implementation"
+            is_test: false
+            path: ".opencode/prompts/spectree.md"
+        name: "Chunk 4: Integrate reviewer agent"
+        status: "pending"
+        test_cases:
+          - contracts:
+              - "spectree.md"
+            description: "reviewer is spawned after implementation"
+            given_when_then: "GIVEN implementation is done, WHEN spectree spawns reviewer, THEN reviewer performs adversarial review"
+            target_component: "spectree.md"
+            type: "unit"
+      - description: "Handle review failures"
+        file_changes:
+          - action: "modify"
+            description: "Update spectree.md to handle review failures with user input"
+            is_test: false
+            path: ".opencode/prompts/spectree.md"
+        name: "Chunk 5: Handle review failures"
+        status: "pending"
+        test_cases:
+          - contracts:
+              - "spectree.md"
+            description: "Review failures are presented to user"
+            given_when_then: "GIVEN reviewer reports failures, WHEN spectree shows feedback, THEN user decides to fix or ignore each issue"
+            target_component: "spectree.md"
+            type: "unit"
+      - description: "Implement per-leaf commit"
+        file_changes:
+          - action: "modify"
+            description: "Update spectree.md to commit after successful review"
+            is_test: false
+            path: ".opencode/prompts/spectree.md"
+        name: "Chunk 6: Implement per-leaf commit"
+        status: "pending"
+        test_cases:
+          - contracts:
+              - "spectree.md"
+            description: "Commit happens after tests pass and review passes"
+            given_when_then: "GIVEN leaf passes review, WHEN spectree commits, THEN changes are committed with descriptive message"
+            target_component: "spectree.md"
+            type: "unit"
+    description: "Implement leaf implementation flow with test-writer, implementer, and reviewer"
+    file_changes: []
+    is_release_boundary: false
+    name: "Phase 7: Implement leaf execution flow"
+    status: "completed"
+    test_cases: []
+  - chunks:
+      - description: "Implement merge to main after all leaves"
+        file_changes:
+          - action: "modify"
+            description: "Update spectree.md to merge to main after all leaves complete"
+            is_test: false
+            path: ".opencode/prompts/spectree.md"
+        name: "Chunk 1: Implement final merge"
+        status: "pending"
+        test_cases:
+          - contracts:
+              - "spectree.md"
+            description: "Work is merged to main after all leaves complete"
+            given_when_then: "GIVEN all leaves are implemented and committed, WHEN spectree completes, THEN branch is merged to main"
+            target_component: "spectree.md"
+            type: "unit"
+    description: "Implement final merge to main"
+    file_changes: []
+    is_release_boundary: false
+    name: "Phase 8: Final merge"
+    status: "completed"
+    test_cases: []
+problem_statement: "Design and implement a new 'spectree' workflow that uses recursive subagent spawning to break down problems, records all decisions in a recursive spec file, and implements leaves in depth-first order with test-driven development and code review"
+status: "completed"
+tech_choices:
+  - area: "spec_file_format"
+    choice: "YAML"
+    rationale: "User requested YAML for the recursive spec file"
+  - area: "spec_file_location"
+    choice: "spectree/ directory at project root"
+    rationale: "User requested top-level directory, not nested under .opencode"
+  - area: "agent_id_storage"
+    choice: "File-based (agent writes to .opencode/agent_id)"
+    rationale: "User requested reading agent ID from file"
+  - area: "implementation_order"
+    choice: "Depth-first (left-to-right)"
+    rationale: "User specified depth-first with left-most leaf first, order determined by children array"
+  - area: "spec_tool_family"
+    choice: "New spectree_* tools"
+    rationale: "User requested new tool family, not extending existing spec tools"
+test_strategy:
+  approach: "Unit tests for tool functions, integration tests for workflow, manual testing for user interaction flow"
+  test_patterns:
+    - language: "typescript"
+      pattern: ".opencode/tools/*.test.ts"
+    - language: "python"
+      pattern: "test_agent*.py"
+review:
+  status: "passed"
+  reviewer: "reviewer"
+  timestamp: "2026-04-06T20:51:10.577Z"
+  feedback: "Phase 1 passed review. Minor issues noted for implementation: (1) Permissions need to be specified in opencode.json, (2) Status method behavior, (3) Session handling approach. Test cases are minimal but sufficient."

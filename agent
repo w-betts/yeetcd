@@ -30,6 +30,7 @@ AGENT_MAP = {
     "document": "document",
     "fix": "fix",
     "improve": "improve",
+    "spectree": "spectree",
 }
 
 # Model configuration
@@ -201,6 +202,8 @@ class WorkItem:
             return self._get_document_status()
         elif self.workflow_type == "fix":
             return self._get_fix_status()
+        elif self.workflow_type == "spectree":
+            return self._get_spectree_status()
         else:
             return "unknown"
     
@@ -260,6 +263,40 @@ class WorkItem:
         """Get status for fix workflow."""
         # Fix doesn't have structured status, just check if worktree exists
         return "active"
+    
+    def _get_spectree_status(self) -> str:
+        """Get status for spectree workflow."""
+        # Spectree is similar to spec - check for spec files in .opencode/specs
+        specs_dir = self.worktree_path / SPECS_DIR / self.branch_name
+        if not specs_dir.exists():
+            return "no-specs"
+        
+        spec_files = list(specs_dir.glob("*.yaml"))
+        if not spec_files:
+            return "no-specs"
+        
+        # Find the most recent spec
+        latest_spec = max(spec_files, key=lambda p: p.stat().st_mtime)
+        
+        try:
+            with open(latest_spec, 'r') as f:
+                spec_data = yaml.safe_load(f)
+                status = spec_data.get('status', 'unknown')
+                
+                # Check if all specs are complete
+                all_complete = all(
+                    self._is_spec_complete(s) 
+                    for s in spec_files
+                )
+                
+                if all_complete:
+                    return "complete"
+                elif status in ['draft', 'planned', 'reviewed', 'approved', 'in_progress']:
+                    return f"incomplete ({status})"
+                else:
+                    return f"status: {status}"
+        except Exception as e:
+            return f"error: {e}"
     
     def is_merged(self) -> bool:
         """Check if this branch has been merged to main."""
@@ -459,6 +496,7 @@ def prompt_new_or_resume(workflow_type: str) -> Optional[WorkItem]:
     matching_work = [w for w in worktrees if w.workflow_type == workflow_type]
     
     # For vibe and fix workflows, always offer main branch option
+    # For spec, spectree, and document workflows, always require worktree (no main branch option)
     if workflow_type in ("vibe", "fix"):
         print("\n" + "="*60)
         print("Work Setup")
@@ -720,6 +758,7 @@ def print_usage():
     print("  vibe      - Launch vibe agent (direct implementation workflow)", file=sys.stderr)
     print("  fix       - Launch fix agent (TDD bug fixing workflow)", file=sys.stderr)
     print("  document  - Launch document agent (two-phase documentation workflow)", file=sys.stderr)
+    print("  spectree  - Launch spectree agent (recursive spec workflow)", file=sys.stderr)
     print("  improve   - Analyze problems and suggest workflow improvements", file=sys.stderr)
     print("", file=sys.stderr)
     print("Examples:", file=sys.stderr)
@@ -727,6 +766,7 @@ def print_usage():
     print("  agent --paid vibe       # Start direct workflow with paid model", file=sys.stderr)
     print("  agent fix               # Start TDD workflow for bug fixes", file=sys.stderr)
     print("  agent --paid document  # Generate documentation with paid model", file=sys.stderr)
+    print("  agent spectree         # Start recursive spec workflow", file=sys.stderr)
     print("  agent improve           # Analyze recorded problems and suggest improvements", file=sys.stderr)
 
 
