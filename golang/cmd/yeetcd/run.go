@@ -170,6 +170,7 @@ func createSourceFromPath(path string) (build.Source, error) {
 		return build.Source{
 			Name:      filepath.Base(absPath),
 			Directory: absPath,
+			SkipBuild: runSkipBuild,
 		}, nil
 	}
 
@@ -181,8 +182,9 @@ func createSourceFromPath(path string) (build.Source, error) {
 	}
 
 	return build.Source{
-		Name: filepath.Base(absPath),
-		Zip:  zipData,
+		Name:      filepath.Base(absPath),
+		Zip:       zipData,
+		SkipBuild: runSkipBuild,
 	}, nil
 }
 

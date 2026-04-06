@@ -1,0 +1,747 @@
+# Spec (updated)
+# Updated: 2026-04-05T22:58:35.207Z
+
+version: 2
+problem_statement: "The current tests for java-sample have critical issues: (1) CLIBinaryBundlingTest.java and MakefileBuildTest.java test the Makefile which lives in the Go repo, not here, (2) SamplePipelineTest.java never actually calls YeetcdMockRunner.runCLI() - it only tests the building blocks in isolation with manually-created executions, (3) The YeetcdMockRunner API requires manual lifecycle management (startMockServer, runCLI, close) and has no verifier. We need to redesign the test SDK API to be cleaner and write real end-to-end tests."
+goals:
+  - "Redesign test SDK with clean public API: PipelineTestRun with single start() method"
+  - "Support three work behavior types: containerisedWork(), customWork(), dynamicWork()"
+  - "Allow mocking, replacing, or running actual work instances"
+  - "Return PipelineTestRunResult with queryable executions for user assertions"
+  - "Support repeated start() calls with isolation (no port conflicts, no state mutation)"
+  - "Delete CLIBinaryBundlingTest.java - Makefile testing is out of scope for this repo"
+  - "Delete MakefileBuildTest.java - Makefile testing is out of scope for this repo"
+  - "Create test-specific pipelines that cover all work definition types for thorough mock testing"
+  - "Write real end-to-end tests that execute pipelines and verify behavior"
+constraints:
+  - "Cannot run real containers in tests - mock server intercepts all work execution"
+  - "Test pipelines must be in java-sample module"
+  - "CLI must be spawned via CLISpawner with bundled binaries"
+  - "Multi-use PipelineTestRun - each start() call is isolated"
+  - "DynamicWork is required - no default, fails if not provided"
+tech_choices:
+  - area: "testing"
+    choice: "PipelineTestRun with single start() method"
+    rationale: "Clean lifecycle: build with behaviors -> start() -> get result -> assert"
+  - area: "test-pipelines"
+    choice: "Dedicated test pipelines in java-sample"
+    rationale: "Create pipelines specifically for testing the mock runner, covering all work types"
+  - area: "work-behaviors"
+    choice: "Unified behavior API with result/replace/run options"
+    rationale: "Flexible testing: mock any work, replace with different implementation, or run actual instances"
+public_api:
+  description: "Public-facing API for test SDK users"
+  classes:
+    - name: "PipelineTestRun"
+      responsibility: "Main entry point for test SDK users. Orchestrates mock server lifecycle, CLI spawning, and execution recording. Supports multiple start() calls with isolation."
+      public_methods:
+        - "builder(): static Builder: Create a new builder"
+        - "start(): PipelineTestRunResult: Start mock server, run CLI, cleanup, return result"
+      builder_fields:
+        - "pipelineName(name: String): Builder: Name of pipeline to execute (required)"
+        - "arguments(varargs: String...): Builder: Pipeline arguments in KEY=VALUE format (optional)"
+        - "timeout(duration: Duration): Builder: CLI execution timeout (optional, default 60s)"
+        - "containerisedWork(image: String): ContainerisedWorkBehaviorBuilder: Define behavior for containerised work by image"
+        - "customWork(instance: CustomWorkDefinition): CustomWorkBehaviorBuilder: Define behavior for custom work by instance"
+        - "dynamicWork(): DynamicWorkBehaviorBuilder: Define behavior for dynamic work (required)"
+        - "defaultContainerisedWork(): DefaultWorkBehaviorBuilder: Default response for unmatched containerised work (optional, default: exitCode=0, empty)"
+        - "defaultCustomWork(): DefaultWorkBehaviorBuilder: Default response for unmatched custom work (optional, default: exitCode=0, empty)"
+        - "build(): PipelineTestRun: Build the instance"
+    - name: "ContainerisedWorkBehaviorBuilder"
+      responsibility: "Builder for containerised work behavior. Matches by image, allows result override or replacement."
+      public_methods:
+        - "result(exitCode: int, stdout: String, stderr: String): Behavior: Return mocked result without running work"
+        - "replace(image: String, cmd: String...): Behavior: Replace with different image/command"
+    - name: "CustomWorkBehaviorBuilder"
+      responsibility: "Builder for custom work behavior. Matches by instance (for execution ID), allows mocked result, replacement, or running actual instance."
+      public_methods:
+        - "result(exitCode: int, stdout: String, stderr: String): Behavior: Return mocked result without running work"
+        - "replace(instance: CustomWorkDefinition): Behavior: Replace with different CustomWorkDefinition instance"
+        - "run(): Behavior: Run the matching CustomWorkDefinition instance"
+    - name: "DynamicWorkBehaviorBuilder"
+      responsibility: "Builder for dynamic work behavior. MUST provide replacement instance - no default allowed."
+      public_methods:
+        - "replace(instance: DynamicWorkGeneratingWorkDefinition): Behavior: Replace with given instance (required)"
+    - name: "DefaultWorkBehaviorBuilder"
+      responsibility: "Builder for default work behavior when no specific match found."
+      public_methods:
+        - "result(exitCode: int, stdout: String, stderr: String): void: Set default response"
+    - name: "Behavior"
+      responsibility: "Represents a configured behavior. Returned by behavior builders for fluent chaining."
+      public_methods:
+        - "containerisedWork(image: String): ContainerisedWorkBehaviorBuilder: Add another containerised work behavior"
+        - "customWork(instance: CustomWorkDefinition): CustomWorkBehaviorBuilder: Add another custom work behavior"
+        - "dynamicWork(): DynamicWorkBehaviorBuilder: Add another dynamic work behavior"
+    - name: "PipelineTestRunResult"
+      responsibility: "Contains pipeline execution result and recorded work executions. Users query this object to make assertions."
+      public_methods:
+        - "getPipelineStatus(): PipelineStatus: SUCCESS or FAILURE"
+        - "getPipelineExitCode(): int: Exit code from pipeline execution"
+        - "getExecutions(): List<WorkExecution>: All work executions that occurred (in order)"
+        - "getMatchedBehaviors(): List<MatchedBehavior>: All behaviors that matched and their responses"
+        - "findByImage(image: String): List<WorkExecution>: Find executions by image"
+        - "findByInstance(instance: CustomWorkDefinition): List<WorkExecution>: Find executions by custom work instance"
+        - "hasExecution(image: String): boolean: Check if any execution with image occurred"
+        - "hasNoExecution(image: String): boolean: Check no execution with image occurred"
+        - "getExecutionCount(image: String): int: Count executions with image"
+      nested_types:
+        - name: "MatchedBehavior"
+          fields:
+            - "type: WorkBehaviorType: CONTAINERISED, CUSTOM, or DYNAMIC"
+            - "matchKey: String: Image for containerised, execution ID for custom, null for dynamic"
+            - "execution: WorkExecution: The execution that matched"
+            - "response: WorkResponse: The response returned"
+        - name: "PipelineStatus"
+          values:
+            - "SUCCESS: Pipeline completed successfully"
+            - "FAILURE: Pipeline failed"
+        - name: "WorkBehaviorType"
+          values:
+            - "CONTAINERISED: Containerised work behavior"
+            - "CUSTOM: Custom work behavior"
+            - "DYNAMIC: Dynamic work behavior"
+        - name: "WorkResponse"
+          fields:
+            - "exitCode: int"
+            - "stdout: String"
+            - "stderr: String"
+    - name: "WorkExecution"
+      responsibility: "Record of a single work execution captured from mock server"
+      public_fields:
+        - "type: WorkBehaviorType: Type of work"
+        - "matchKey: String: Image for containerised, execution ID for custom, null for dynamic"
+        - "image: String: Container image used (for containerised)"
+        - "cmd: String[]: Command executed"
+        - "envVars: Map<String, String>: Environment variables"
+        - "workingDir: String: Working directory"
+        - "exitCode: int: Exit code returned"
+        - "stdout: String: Standard output"
+        - "stderr: String: Standard error"
+  usage_pattern: "// Example 1: Simple containerised work mocking
+
+    PipelineTestRunResult result = PipelineTestRun.builder()
+
+    \    .pipelineName(\"myPipeline\")
+
+    \    .containerisedWork(\"maven:3.9.9-eclipse-temurin-17\")
+
+    \        .result(0, \"hello world\", \"\")
+
+    \    .build()
+
+    \    .start();
+
+
+    assertEquals(PipelineStatus.SUCCESS, result.getPipelineStatus());
+
+    assertTrue(result.hasExecution(\"maven:3.9.9-eclipse-temurin-17\"));
+
+
+    // Example 2: Custom work with mocked result
+
+    CustomWorkDefinition myWork = new CustomWorkDefinition() {
+
+    \    @Override
+
+    \    public void run() {
+
+    \        System.out.println(\"Original work\");
+
+    \    }
+
+    };
+
+
+    result = PipelineTestRun.builder()
+
+    \    .pipelineName(\"customPipeline\")
+
+    \    .customWork(myWork)
+
+    \        .result(0, \"mocked output\", \"\")
+
+    \    .build()
+
+    \    .start();
+
+
+    // Example 3: Custom work with replacement instance
+
+    CustomWorkDefinition replacement = new CustomWorkDefinition() {
+
+    \    @Override
+
+    \    public void run() {
+
+    \        System.out.println(\"Replacement work\");
+
+    \    }
+
+    };
+
+
+    result = PipelineTestRun.builder()
+
+    \    .pipelineName(\"customPipeline\")
+
+    \    .customWork(myWork)
+
+    \        .replace(replacement)
+
+    \    .build()
+
+    \    .start();
+
+
+    // Example 4: Custom work running actual instance
+
+    result = PipelineTestRun.builder()
+
+    \    .pipelineName(\"customPipeline\")
+
+    \    .customWork(myWork)
+
+    \        .run()
+
+    \    .build()
+
+    \    .start();
+
+
+    // Example 5: Dynamic work (required)
+
+    DynamicWorkGeneratingWorkDefinition dynamicDef = new MyDynamicWork();
+
+    result = PipelineTestRun.builder()
+
+    \    .pipelineName(\"dynamicPipeline\")
+
+    \    .dynamicWork()
+
+    \        .replace(dynamicDef)
+
+    \    .build()
+
+    \    .start();
+
+
+    // Example 6: Default behaviors
+
+    result = PipelineTestRun.builder()
+
+    \    .pipelineName(\"myPipeline\")
+
+    \    .defaultContainerisedWork()
+
+    \        .result(0, \"default\", \"\")
+
+    \    .defaultCustomWork()
+
+    \        .result(0, \"default\", \"\")
+
+    \    .containerisedWork(\"special-image\")
+
+    \        .result(0, \"special\", \"\")
+
+    \    .build()
+
+    \    .start();
+
+
+    // Example 7: Multiple start() calls - each is isolated
+
+    PipelineTestRun runner = PipelineTestRun.builder()
+
+    \    .pipelineName(\"myPipeline\")
+
+    \    .containerisedWork(\"image1\").result(0, \"out\", \"\")
+
+    \    .build();
+
+
+    PipelineTestRunResult result1 = runner.start();
+
+    PipelineTestRunResult result2 = runner.start();
+
+    // Both are independent, no port conflicts\n"
+architecture:
+  description: "Test SDK architecture with unified behavior API"
+  components:
+    - name: "TestPipelines"
+      responsibility: "Test-specific pipeline definitions covering all work types"
+      interfaces:
+        - "containerisedWorkPipeline() -> Pipeline"
+        - "customWorkPipeline() -> Pipeline"
+        - "compoundWorkPipeline() -> Pipeline"
+        - "dynamicWorkPipeline() -> Pipeline"
+        - "conditionalWorkPipeline() -> Pipeline"
+        - "parameterizedWorkPipeline() -> Pipeline"
+    - name: "PipelineTestRun"
+      responsibility: "Main test orchestrator - single start() handles mock server, CLI run, cleanup"
+      interfaces:
+        - "start()"
+        - "containerisedWork()"
+        - "customWork()"
+        - "dynamicWork()"
+    - name: "PipelineTestRunResult"
+      responsibility: "Contains execution results for user assertions"
+      interfaces:
+        - "getPipelineStatus()"
+        - "getExecutions()"
+        - "hasExecution()"
+        - "hasNoExecution()"
+        - "getExecutionCount()"
+test_strategy:
+  approach: "Integration tests using PipelineTestRun with real CLI spawning and execution recording"
+  test_patterns:
+    - language: "java"
+      pattern: "*Test.java"
+phases:
+  - name: "Phase 0: Implement PipelineTestRun API"
+    description: "Implement the new PipelineTestRun API with single start() method, unified behavior API (containerisedWork, customWork, dynamicWork), and PipelineTestRunResult. Remove YeetcdMockRunner."
+    status: "completed"
+    is_release_boundary: false
+    chunks: []
+    file_changes:
+      - action: "create"
+        description: "Behavior interface for fluent chaining of multiple work behaviors"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/Behavior.java"
+      - action: "create"
+        description: "Main test orchestrator with single start() method, builder with containerisedWork/customWork/dynamicWork methods"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/PipelineTestRun.java"
+      - action: "create"
+        description: "Result object with getPipelineStatus, getExecutions, hasExecution, hasNoExecution, getExecutionCount methods"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/PipelineTestRunResult.java"
+      - action: "create"
+        description: "Builder for containerised work behavior with result() and replace() methods"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/ContainerisedWorkBehaviorBuilder.java"
+      - action: "create"
+        description: "Builder for custom work behavior with result(), replace(), run() methods"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/CustomWorkBehaviorBuilder.java"
+      - action: "create"
+        description: "Builder for dynamic work behavior with replace() method (required)"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/DynamicWorkBehaviorBuilder.java"
+      - action: "create"
+        description: "Builder for default work behavior with result() method"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/DefaultWorkBehaviorBuilder.java"
+      - action: "modify"
+        description: "Update WorkExecution to include type and matchKey fields for work behavior matching"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/WorkExecution.java"
+      - action: "modify"
+        description: "Update MockServer to support three work behavior types (result/replace/run) and execute real CustomWorkDefinition"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/MockServer.java"
+      - action: "delete"
+        description: "Remove old multi-step API class"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/YeetcdMockRunner.java"
+      - action: "delete"
+        description: "Remove old behavior class - replaced by new behavior builders"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/MockBehavior.java"
+      - action: "delete"
+        description: "Remove - functionality moved to PipelineTestRunResult"
+        is_test: false
+        path: "sdks/java/test/src/main/java/yeetcd/test/ExpectationVerifier.java"
+    test_cases:
+      - contracts:
+          - "Behavior.builder()"
+        description: "Test Behavior builder can chain multiple behaviors"
+        given_when_then: "GIVEN: Behavior.builder()
+
+          WHEN: Multiple behaviors added with add()
+
+          THEN: All behaviors are contained"
+        target_component: "Behavior"
+        type: "unit"
+      - contracts:
+          - "ContainerisedWorkBehaviorBuilder.result()"
+        description: "Test ContainerisedWorkBehaviorBuilder result() returns mocked response"
+        given_when_then: "GIVEN: containerisedWork('image').result(0, 'out', '')
+
+          WHEN: work executes with matching image
+
+          THEN: returns exitCode=0, stdout='out', stderr=''"
+        target_component: "ContainerisedWorkBehaviorBuilder"
+        type: "unit"
+      - contracts:
+          - "ContainerisedWorkBehaviorBuilder.replace()"
+        description: "Test ContainerisedWorkBehaviorBuilder replace() uses different image/cmd"
+        given_when_then: "GIVEN: containerisedWork('original').replace('replacement', 'cmd')
+
+          WHEN: work executes with original image
+
+          THEN: executes with replacement image and cmd"
+        target_component: "ContainerisedWorkBehaviorBuilder"
+        type: "unit"
+      - contracts:
+          - "CustomWorkBehaviorBuilder.result()"
+        description: "Test CustomWorkBehaviorBuilder result() returns mocked response without running"
+        given_when_then: "GIVEN: customWork(instance).result(0, 'out', '')
+
+          WHEN: work executes with matching instance
+
+          THEN: returns mocked response without calling instance.run()"
+        target_component: "CustomWorkBehaviorBuilder"
+        type: "unit"
+      - contracts:
+          - "CustomWorkBehaviorBuilder.replace()"
+        description: "Test CustomWorkBehaviorBuilder replace() runs different instance"
+        given_when_then: "GIVEN: customWork(instance1).replace(instance2)
+
+          WHEN: work executes with matching instance1
+
+          THEN: calls instance2.run() instead"
+        target_component: "CustomWorkBehaviorBuilder"
+        type: "unit"
+      - contracts:
+          - "CustomWorkBehaviorBuilder.run()"
+        description: "Test CustomWorkBehaviorBuilder run() executes the matching instance"
+        given_when_then: "GIVEN: customWork(instance).run()
+
+          WHEN: work executes with matching instance
+
+          THEN: calls instance.run() and returns its exitCode/stdout/stderr"
+        target_component: "CustomWorkBehaviorBuilder"
+        type: "unit"
+      - contracts:
+          - "DynamicWorkBehaviorBuilder.replace()"
+        description: "Test DynamicWorkBehaviorBuilder replace() requires instance"
+        given_when_then: "GIVEN: dynamicWork().replace(instance)
+
+          WHEN: dynamic work is requested
+
+          THEN: returns generated work from instance"
+        target_component: "DynamicWorkBehaviorBuilder"
+        type: "unit"
+      - contracts:
+          - "DefaultWorkBehaviorBuilder.result()"
+        description: "Test DefaultWorkBehaviorBuilder result() provides default response"
+        given_when_then: "GIVEN: defaultContainerisedWork().result(0, 'default', '')
+
+          WHEN: containerised work with unmatched image executes
+
+          THEN: returns default response"
+        target_component: "DefaultWorkBehaviorBuilder"
+        type: "unit"
+      - contracts:
+          - "PipelineTestRunResult.getPipelineStatus()"
+        description: "Test PipelineTestRunResult returns pipeline status"
+        given_when_then: "GIVEN: PipelineTestRunResult with execution data
+
+          WHEN: getPipelineStatus() is called
+
+          THEN: returns pipeline status from executions"
+        target_component: "PipelineTestRunResult"
+        type: "unit"
+      - contracts:
+          - "PipelineTestRunResult.hasExecution()"
+        description: "Test PipelineTestRunResult hasExecution() checks if work executed"
+        given_when_then: "GIVEN: PipelineTestRunResult with execution for 'image'
+
+          WHEN: hasExecution('image') is called
+
+          THEN: returns true"
+        target_component: "PipelineTestRunResult"
+        type: "unit"
+      - contracts:
+          - "PipelineTestRunResult.hasNoExecution()"
+        description: "Test PipelineTestRunResult hasNoExecution() checks work did NOT execute"
+        given_when_then: "GIVEN: PipelineTestRunResult without execution for 'image'
+
+          WHEN: hasNoExecution('image') is called
+
+          THEN: returns true"
+        target_component: "PipelineTestRunResult"
+        type: "unit"
+      - contracts:
+          - "PipelineTestRunResult.getExecutionCount()"
+        description: "Test PipelineTestRunResult getExecutionCount() returns correct count"
+        given_when_then: "GIVEN: PipelineTestRunResult with 3 executions for 'image'
+
+          WHEN: getExecutionCount('image') is called
+
+          THEN: returns 3"
+        target_component: "PipelineTestRunResult"
+        type: "unit"
+      - contracts:
+          - "PipelineTestRunResult.getExecutions()"
+        description: "Test PipelineTestRunResult getExecutions() returns in dependency order"
+        given_when_then: "GIVEN: PipelineTestRunResult with ordered executions
+
+          WHEN: getExecutions() is called
+
+          THEN: returns executions in correct order"
+        target_component: "PipelineTestRunResult"
+        type: "unit"
+      - contracts:
+          - "PipelineTestRun.builder()"
+        description: "Test PipelineTestRun builder creates instance"
+        given_when_then: "GIVEN: PipelineTestRun.builder()
+
+          WHEN: configured with pipelineName and containerisedWork().result()
+
+          THEN: build() creates PipelineTestRun instance"
+        target_component: "PipelineTestRun"
+        type: "unit"
+      - contracts:
+          - "PipelineTestRun.start()"
+        description: "Test PipelineTestRun start() returns result with pipeline status"
+        given_when_then: "GIVEN: PipelineTestRun configured with behaviors
+
+          WHEN: start() is called
+
+          THEN: returns PipelineTestRunResult with pipelineStatus"
+        target_component: "PipelineTestRun"
+        type: "unit"
+      - contracts:
+          - "PipelineTestRun.start()"
+        description: "Test PipelineTestRun supports multiple start() calls with isolation"
+        given_when_then: "GIVEN: PipelineTestRun instance
+
+          WHEN: start() called multiple times
+
+          THEN: Each call returns independent result, no port conflicts"
+        target_component: "PipelineTestRun"
+        type: "integration"
+  - name: "Phase 1: Delete invalid tests and create test pipelines"
+    description: "Remove CLIBinaryBundlingTest.java and MakefileBuildTest.java. Create TestPipelines class with pipelines covering all work definition types."
+    status: "completed"
+    is_release_boundary: false
+    chunks: []
+    file_changes:
+      - action: "delete"
+        description: "Delete - tests the Makefile which is out of scope for this repo"
+        is_test: true
+        path: "sdks/java/test/src/test/java/yeetcd/test/CLIBinaryBundlingTest.java"
+      - action: "delete"
+        description: "Delete - tests the Makefile which is out of scope for this repo"
+        is_test: true
+        path: "sdks/java/test/src/test/java/yeetcd/test/MakefileBuildTest.java"
+      - action: "create"
+        description: "Create TestPipelines with pipelines for testing all work types (containerised, custom, compound, dynamic, dependent, context)"
+        is_test: false
+        path: "sdks/java/sample/src/main/java/yeetcd/javasample/TestPipelines.java"
+    test_cases:
+      - contracts:
+          - "TestPipelines.containerisedWorkPipeline()"
+        description: "TestPipelines covers ContainerisedWorkDefinition"
+        given_when_then: "GIVEN: TestPipelines class exists
+
+          WHEN: containerisedWorkPipeline() is called
+
+          THEN: returns Pipeline with ContainerisedWorkDefinition"
+        target_component: "TestPipelines"
+        type: "unit"
+      - contracts:
+          - "TestPipelines.customWorkPipeline()"
+        description: "TestPipelines covers CustomWorkDefinition"
+        given_when_then: "GIVEN: TestPipelines class exists
+
+          WHEN: customWorkPipeline() is called
+
+          THEN: returns Pipeline with CustomWorkDefinition"
+        target_component: "TestPipelines"
+        type: "unit"
+      - contracts:
+          - "TestPipelines.compoundWorkPipeline()"
+        description: "TestPipelines covers CompoundWorkDefinition"
+        given_when_then: "GIVEN: TestPipelines class exists
+
+          WHEN: compoundWorkPipeline() is called
+
+          THEN: returns Pipeline with CompoundWorkDefinition"
+        target_component: "TestPipelines"
+        type: "unit"
+      - contracts:
+          - "TestPipelines.dynamicWorkPipeline()"
+        description: "TestPipelines covers DynamicWorkGeneratingWorkDefinition"
+        given_when_then: "GIVEN: TestPipelines class exists
+
+          WHEN: dynamicWorkPipeline() is called
+
+          THEN: returns Pipeline with DynamicWorkGeneratingWorkDefinition"
+        target_component: "TestPipelines"
+        type: "unit"
+      - contracts:
+          - "TestPipelines.dependentWorkPipeline()"
+        description: "TestPipelines covers work dependencies (PreviousWork)"
+        given_when_then: "GIVEN: TestPipelines class exists
+
+          WHEN: dependentWorkPipeline() is called
+
+          THEN: returns Pipeline with work that has previousWork dependency"
+        target_component: "TestPipelines"
+        type: "unit"
+      - contracts:
+          - "TestPipelines.contextWorkPipeline()"
+        description: "TestPipelines covers work context"
+        given_when_then: "GIVEN: TestPipelines class exists
+
+          WHEN: contextWorkPipeline() is called
+
+          THEN: returns Pipeline with work that has workContext"
+        target_component: "TestPipelines"
+        type: "unit"
+  - name: "Phase 2: Reimplement end-to-end integration tests"
+    description: "Completely rewrite SamplePipelineTest.java with real end-to-end tests using PipelineTestRun."
+    status: "in_progress"
+    is_release_boundary: false
+    chunks: []
+    file_changes:
+      - action: "modify"
+        description: "Rewrite completely with 15+ real end-to-end tests using PipelineTestRun - tests happy path, failure path, customWork result/replace/run, dynamicWork, multiple behaviors, defaults, isolation"
+        is_test: true
+        path: "sdks/java/sample/src/test/java/yeetcd/javasample/SamplePipelineTest.java"
+    test_cases:
+      - contracts:
+          - "PipelineTestRun.start()"
+          - "PipelineTestRunResult.getPipelineStatus()"
+        description: "Test PipelineTestRun happy path - pipeline succeeds with mocked containerised work"
+        given_when_then: "GIVEN: PipelineTestRun with containerisedWork().result(0, '', '')
+
+          WHEN: start() is called
+
+          THEN: pipelineStatus is SUCCESS and work was executed"
+        target_component: "PipelineTestRun"
+        type: "integration"
+      - contracts:
+          - "PipelineTestRun.start()"
+          - "PipelineTestRunResult.getPipelineStatus()"
+        description: "Test PipelineTestRun unhappy path - pipeline fails when work returns non-zero"
+        given_when_then: "GIVEN: PipelineTestRun with containerisedWork().result(1, '', '')
+
+          WHEN: start() is called
+
+          THEN: pipelineStatus is FAILURE"
+        target_component: "PipelineTestRun"
+        type: "integration"
+      - contracts:
+          - "PipelineTestRun.builder().customWork()"
+        description: "Test PipelineTestRun with customWork().result() - mocked result"
+        given_when_then: "GIVEN: PipelineTestRun with customWork(instance).result(0, 'out', '')
+
+          WHEN: start() is called
+
+          THEN: pipeline succeeds, original instance not run, mocked result returned"
+        target_component: "PipelineTestRun"
+        type: "integration"
+      - contracts:
+          - "PipelineTestRun.builder().customWork().replace()"
+        description: "Test PipelineTestRun with customWork().replace() - runs different instance"
+        given_when_then: "GIVEN: PipelineTestRun with customWork(instance1).replace(instance2)
+
+          WHEN: start() is called
+
+          THEN: instance2.run() is called instead of instance1"
+        target_component: "PipelineTestRun"
+        type: "integration"
+      - contracts:
+          - "PipelineTestRun.builder().customWork().run()"
+        description: "Test PipelineTestRun with customWork().run() - runs actual instance"
+        given_when_then: "GIVEN: PipelineTestRun with customWork(instance).run()
+
+          WHEN: start() is called
+
+          THEN: instance.run() is called and result reflects actual execution"
+        target_component: "PipelineTestRun"
+        type: "integration"
+      - contracts:
+          - "PipelineTestRun.builder().dynamicWork()"
+        description: "Test PipelineTestRun with dynamicWork().replace() - required behavior"
+        given_when_then: "GIVEN: PipelineTestRun with dynamicWork().replace(instance)
+
+          WHEN: start() is called with pipeline containing dynamic work
+
+          THEN: dynamic work is generated from instance"
+        target_component: "PipelineTestRun"
+        type: "integration"
+      - contracts:
+          - "PipelineTestRun.start()"
+        description: "Test PipelineTestRun fails when dynamic work not provided"
+        given_when_then: "GIVEN: PipelineTestRun without dynamicWork() for pipeline with dynamic work
+
+          WHEN: start() is called
+
+          THEN: pipeline fails"
+        target_component: "PipelineTestRun"
+        type: "integration"
+      - contracts:
+          - "PipelineTestRunResult.hasExecution()"
+        description: "Test PipelineTestRun verifies work was executed by image"
+        given_when_then: "GIVEN: PipelineTestRun with containerisedWork('image')
+
+          WHEN: start() is called
+
+          THEN: result.hasExecution('image') returns true"
+        target_component: "PipelineTestRunResult"
+        type: "integration"
+      - contracts:
+          - "PipelineTestRunResult.hasNoExecution()"
+        description: "Test PipelineTestRun verifies work was NOT executed"
+        given_when_then: "GIVEN: PipelineTestRun without behavior for 'unexpected'
+
+          WHEN: start() is called
+
+          THEN: result.hasNoExecution('unexpected') returns true"
+        target_component: "PipelineTestRunResult"
+        type: "integration"
+      - contracts:
+          - "PipelineTestRunResult.getExecutionCount()"
+        description: "Test PipelineTestRun verifies correct execution count"
+        given_when_then: "GIVEN: PipelineTestRun with behavior for image
+
+          WHEN: start() is called with pipeline executing work 3 times
+
+          THEN: result.getExecutionCount('image') returns 3"
+        target_component: "PipelineTestRunResult"
+        type: "integration"
+      - contracts:
+          - "PipelineTestRunResult.getExecutions()"
+        description: "Test PipelineTestRun records work in correct order"
+        given_when_then: "GIVEN: Pipeline with dependent work (previousWork)
+
+          WHEN: start() is called
+
+          THEN: getExecutions() returns executions in correct dependency order"
+        target_component: "PipelineTestRunResult"
+        type: "integration"
+      - contracts:
+          - "PipelineTestRun.builder().containerisedWork().customWork()"
+        description: "Test PipelineTestRun with multiple behaviors"
+        given_when_then: "GIVEN: PipelineTestRun with containerisedWork().customWork()
+
+          WHEN: start() is called with pipeline using both work types
+
+          THEN: Each behavior is matched correctly"
+        target_component: "PipelineTestRun"
+        type: "integration"
+      - contracts:
+          - "PipelineTestRun.builder().defaultContainerisedWork()"
+        description: "Test PipelineTestRun with default behaviors"
+        given_when_then: "GIVEN: PipelineTestRun with defaultContainerisedWork().result(0, 'default', '')
+
+          WHEN: work executes with image not explicitly matched
+
+          THEN: default response is returned"
+        target_component: "PipelineTestRun"
+        type: "integration"
+      - contracts:
+          - "PipelineTestRun.start()"
+        description: "Test PipelineTestRun isolates multiple start() calls"
+        given_when_then: "GIVEN: PipelineTestRun instance
+
+          WHEN: start() is called twice with different behaviors
+
+          THEN: Each result is independent, first result not affected by second"
+        target_component: "PipelineTestRun"
+        type: "integration"
+status: "planned"

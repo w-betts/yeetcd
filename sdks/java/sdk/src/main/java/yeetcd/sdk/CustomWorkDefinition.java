@@ -12,4 +12,8 @@ public abstract class CustomWorkDefinition extends NativeWorkDefinition {
                         .build()
         );
     }
+
+    public final String getExecutionId() {
+        return executionId();
+    }
 }

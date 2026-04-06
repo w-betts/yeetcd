@@ -10,6 +10,7 @@ type Source struct {
 	Name      string
 	Zip       []byte // Zip data (if source is a zip archive)
 	Directory string // Directory path (if source is a directory)
+	SkipBuild bool   // Skip the build step (use pre-compiled classes)
 }
 
 // SHA256 returns hex-encoded SHA256 hash of zip contents

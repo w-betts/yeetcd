@@ -39,10 +39,21 @@ func (d *DockerBuildService) Build(ctx context.Context, source Source) (*BuildRe
 	var allPipelines []*pb.Pipeline
 
 	for projectPath, yeetcdConfig := range extractionResult.YeetcdDefinitions {
-		// Build this project
-		buildResult, err := d.buildProject(ctx, extractionResult.Directory, projectPath, yeetcdConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build project %s: %w", yeetcdConfig.Name, err)
+		var buildResult *SourceBuildResult
+
+		// Skip maven build if requested (use pre-compiled classes)
+		if source.SkipBuild {
+			// Create a minimal build result without running maven
+			buildResult, err = d.buildProjectSkipped(ctx, extractionResult.Directory, projectPath, yeetcdConfig)
+			if err != nil {
+				return nil, fmt.Errorf("failed to setup skipped build for %s: %w", yeetcdConfig.Name, err)
+			}
+		} else {
+			// Build this project
+			buildResult, err = d.buildProject(ctx, extractionResult.Directory, projectPath, yeetcdConfig)
+			if err != nil {
+				return nil, fmt.Errorf("failed to build project %s: %w", yeetcdConfig.Name, err)
+			}
 		}
 
 		// Generate pipeline definitions by running the built container
@@ -73,6 +84,34 @@ func (d *DockerBuildService) Build(ctx context.Context, source Source) (*BuildRe
 		ImageID:            "", // No single image ID for multi-project builds
 		Pipelines:          allPipelines,
 		SourceBuildResults: sourceBuildResults,
+	}, nil
+}
+
+// buildProjectSkipped creates a build result without running maven build
+// Used when --skip-build is set - assumes classes are pre-compiled
+func (d *DockerBuildService) buildProjectSkipped(ctx context.Context, extractionDir, projectPath string, yeetcdConfig config.YeetcdConfig) (*SourceBuildResult, error) {
+	// The project directory should already have compiled classes
+	projectDir := extractionDir
+	if projectPath != "." {
+		projectDir = filepath.Join(extractionDir, projectPath)
+	}
+
+	// Verify that target directory exists (classes should be pre-compiled)
+	targetDir := filepath.Join(projectDir, "target")
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("target directory not found at %s (run 'mvn compile' first)", targetDir)
+	}
+
+	// Build output directory paths from artifacts
+	outputDirectoryPaths := make(map[string]string)
+	for _, artifact := range yeetcdConfig.Artifacts {
+		outputDirectoryPaths[artifact.Name] = filepath.Join(projectDir, artifact.Path)
+	}
+
+	return &SourceBuildResult{
+		YeetcdConfig:            yeetcdConfig,
+		OutputDirectoriesParent: projectDir,
+		OutputDirectoryPaths:    outputDirectoryPaths,
 	}, nil
 }
 

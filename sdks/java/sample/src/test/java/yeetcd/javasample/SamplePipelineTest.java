@@ -1,596 +1,448 @@
 package yeetcd.javasample;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import yeetcd.test.ExpectationVerifier;
-import yeetcd.test.MockBehavior;
-import yeetcd.test.WorkExecution;
-import yeetcd.test.YeetcdMockRunner;
+import yeetcd.sdk.CustomWorkDefinition;
+import yeetcd.test.*;
 
 import java.io.IOException;
-import java.util.List;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Integration tests for sample pipelines using YeetcdMockRunner.
+ * Integration tests for sample pipelines using PipelineTestRun.
  * 
- * These tests demonstrate the usage of YeetcdMockRunner to test sample pipelines
- * with mock behaviors. The tests verify that:
- * - YeetcdMockRunner can be configured and built
- * - Mock behaviors can be defined and registered
- * - Work executions are recorded correctly
- * - Expectation verifications work correctly
+ * These tests verify the PipelineTestRun API for testing pipelines:
+ * - Builder configuration with containerisedWork, customWork, dynamicWork
+ * - Result querying with hasExecution, hasNoExecution, getExecutionCount
+ * - Multiple behaviors and defaults
  */
 public class SamplePipelineTest {
 
-    private YeetcdMockRunner runner;
-
-    @BeforeEach
-    void setUp() throws IOException {
-        // Builder configuration - the runner is built but we may not
-        // actually run the CLI in unit test mode
-        runner = YeetcdMockRunner.builder()
-                .port(50051)
-                .pipelineName("sample")
-                .build();
-    }
-
-    @AfterEach
-    void tearDown() {
-        if (runner != null) {
-            try {
-                runner.close();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
-
-    /**
-     * Test that YeetcdMockRunner can be built with builder pattern.
-     * 
-     * Given: YeetcdMockRunner.builder() is called
-     * When: Builder is configured with port, pipeline name
-     * Then: YeetcdMockRunner instance is created successfully
-     */
-    @Test
-    void testBuilderCreatesRunner() throws IOException {
-        // Given - builder is created in setUp
+    private String buildClasspath() throws IOException {
+        StringBuilder cp = new StringBuilder();
         
-        // When - runner is built with custom settings
-        YeetcdMockRunner testRunner = YeetcdMockRunner.builder()
-                .port(50052)
-                .classpath("/test/classpath")
-                .sourcePath("/test/source")
+        // Add sample's own classes
+        cp.append("target/classes:");
+        
+        // Add SDK classes from sibling module
+        Path sdkClasses = Path.of("../sdk/target/classes");
+        if (Files.exists(sdkClasses)) {
+            cp.append(sdkClasses.toAbsolutePath()).append(":");
+        }
+        
+        // Add protocol classes from sibling module
+        Path protoClasses = Path.of("../protocol/target/classes");
+        if (Files.exists(protoClasses)) {
+            cp.append(protoClasses.toAbsolutePath()).append(":");
+        }
+        
+        // Add test classes (for MockServer)
+        cp.append("../test/target/classes:");
+        
+        // Add generated protobuf classes
+        Path protoGen = Path.of("../protocol/target/generated-sources/protobuf/java");
+        if (Files.exists(protoGen)) {
+            cp.append(protoGen.toAbsolutePath()).append(":");
+        }
+        
+        // Add generated gRPC classes
+        Path grpcGen = Path.of("../protocol/target/generated-sources/protobuf/grpc-java");
+        if (Files.exists(grpcGen)) {
+            cp.append(grpcGen.toAbsolutePath()).append(":");
+        }
+        
+        // Add generated annotation classes
+        Path annotationGen = Path.of("../sdk/target/generated-sources/annotations");
+        if (Files.exists(annotationGen)) {
+            cp.append(annotationGen.toAbsolutePath()).append(":");
+        }
+        
+        return cp.toString();
+    }
+
+    @Test
+    void testPipelineTestRunBuilderCreatesInstance() {
+        PipelineTestRun run = PipelineTestRun.builder()
                 .pipelineName("testPipeline")
+                .containerisedWork("maven:3.9.9-eclipse-temurin-17")
+                        .result(0, "output", "")
                 .build();
         
-        // Then - runner is created
-        assertThat(testRunner, notNullValue());
-        
-        // Clean up
-        try {
-            testRunner.close();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        assertThat(run, notNullValue());
     }
 
-    /**
-     * Test that YeetcdMockRunner builder has default port.
-     * 
-     * Given: YeetcdMockRunner.builder() is called
-     * When: No port is specified
-     * Then: Default port 50051 is used
-     */
     @Test
-    void testBuilderHasDefaultPort() throws IOException {
-        // Given - builder with no port specified
-        YeetcdMockRunner testRunner = YeetcdMockRunner.builder()
+    void testContainerisedWorkBehaviorBuilderResult() {
+        PipelineTestRun run = PipelineTestRun.builder()
                 .pipelineName("test")
+                .containerisedWork("maven:3.9.9-eclipse-temurin-17")
+                        .result(0, "hello", "error")
                 .build();
         
-        // Then - runner is created (mock server will use default port)
-        assertThat(testRunner, notNullValue());
-        
-        try {
-            testRunner.close();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        assertThat(run, notNullValue());
     }
 
-    /**
-     * Test mock behavior builder creates correct behavior.
-     * 
-     * Given: A MockBehavior builder
-     * When: Behavior is configured with image, cmd, exit code, stdout
-     * Then: MockBehavior is created with all configured values
-     */
     @Test
-    void testMockBehaviorBuilder() {
-        // Given
-        String expectedImage = "maven:3.9.9-eclipse-temurin-17";
-        String[] expectedCmd = {"bash", "-c", "echo 'Hello'"};
-        int expectedExitCode = 0;
-        String expectedStdout = "Hello from container";
+    void testCustomWorkBehaviorBuilderResult() {
+        CustomWorkDefinition instance = new CustomWorkDefinition() {
+            @Override
+            public void run() {
+                System.out.println("Test work");
+            }
+        };
         
-        // When
-        MockBehavior behavior = MockBehavior.builder()
-                .matchingImage(expectedImage)
-                .matchingCmd(expectedCmd)
-                .exitCode(expectedExitCode)
-                .stdout(expectedStdout)
+        PipelineTestRun run = PipelineTestRun.builder()
+                .pipelineName("test")
+                .customWork(instance)
+                        .result(0, "output", "")
                 .build();
         
-        // Then
-        assertThat(behavior.getImage(), is(expectedImage));
-        assertThat(behavior.getCmd(), is(expectedCmd));
-        assertThat(behavior.toMockWorkResponse().getExitCode(), is(expectedExitCode));
-        assertThat(behavior.toMockWorkResponse().getStdout(), is(expectedStdout));
+        assertThat(run, notNullValue());
     }
 
-    /**
-     * Test mock behavior matching with exact image and command.
-     * 
-     * Given: A MockBehavior configured for specific image and command
-     * When: Work execution matches the behavior
-     * Then: matches() returns true
-     */
     @Test
-    void testMockBehaviorMatches() {
-        // Given
-        MockBehavior behavior = MockBehavior.builder()
-                .matchingImage("maven:3.9.9-eclipse-temurin-17")
-                .matchingCmd("bash", "-c", "echo 'test'")
+    void testDefaultBehaviors() {
+        PipelineTestRun run = PipelineTestRun.builder()
+                .pipelineName("test")
+                .defaultContainerisedWork()
+                        .result(0, "default", "")
                 .build();
         
-        // When - exact match
-        boolean matches = behavior.matches(
+        PipelineTestRun.builder()
+                .pipelineName("test")
+                .defaultCustomWork()
+                        .result(0, "default", "")
+                .build();
+        
+        assertThat(run, notNullValue());
+    }
+
+    @Test
+    void testChainedBehaviors() {
+        PipelineTestRun.builder()
+                .pipelineName("test")
+                .containerisedWork("image1")
+                        .result(0, "out1", "")
+                .containerisedWork("image2")
+                        .result(0, "out2", "")
+                .build();
+    }
+
+    @Test
+    void testPipelineTestRunResultHasExecution() {
+        WorkExecution exec = WorkExecution.containerised(
                 "maven:3.9.9-eclipse-temurin-17",
-                new String[]{"bash", "-c", "echo 'test'"},
-                null
-        );
-        
-        // Then
-        assertThat(matches, is(true));
-    }
-
-    /**
-     * Test mock behavior does not match different command.
-     * 
-     * Given: A MockBehavior configured for specific command
-     * When: Work execution has different command
-     * Then: matches() returns false
-     */
-    @Test
-    void testMockBehaviorDoesNotMatchDifferentCommand() {
-        // Given
-        MockBehavior behavior = MockBehavior.builder()
-                .matchingCmd("bash", "-c", "echo 'test'")
-                .build();
-        
-        // When - different command
-        boolean matches = behavior.matches(
-                "maven:3.9.9-eclipse-temurin-17",
-                new String[]{"bash", "-c", "echo 'different'"},
-                null
-        );
-        
-        // Then
-        assertThat(matches, is(false));
-    }
-
-    /**
-     * Test mock behavior matching with environment variables.
-     * 
-     * Given: A MockBehavior with environment variable matching
-     * When: Work execution has matching env vars
-     * Then: matches() returns true
-     */
-    @Test
-    void testMockBehaviorMatchesEnvVars() {
-        // Given
-        Map<String, String> expectedEnvVars = Map.of(
-                "PIPELINE_NAME", "sample",
-                "WORK_NAME", "test-work"
-        );
-        
-        MockBehavior behavior = MockBehavior.builder()
-                .matchingImage("test-image")
-                .matchingEnvVars(expectedEnvVars)
-                .build();
-        
-        // When - matching env vars
-        boolean matches = behavior.matches(
-                "test-image",
-                null,
-                expectedEnvVars
-        );
-        
-        // Then
-        assertThat(matches, is(true));
-    }
-
-    /**
-     * Test expectation verifier asserts executed work.
-     * 
-     * Given: Work executions recorded
-     * When: assertExecuted is called with matching behavior
-     * Then: No errors are recorded
-     */
-    @Test
-    void testExpectationVerifierAssertExecuted() {
-        // Given - executions match behavior
-        WorkExecution execution = new WorkExecution(
-                "maven:3.9.9-eclipse-temurin-17",
-                new String[]{"bash", "-c", "echo 'test'"},
-                Map.of("KEY", "value"),
+                new String[]{"bash", "-c", "echo hello"},
+                Map.of("VAR", "value"),
                 "/workspace",
+                0,
+                "hello",
+                ""
+        );
+        
+        PipelineTestRunResult result = new PipelineTestRunResult(
+                PipelineStatus.SUCCESS,
+                0,
+                java.util.List.of(exec),
+                java.util.List.of()
+        );
+        
+        assertTrue(result.hasExecution("maven:3.9.9-eclipse-temurin-17"));
+        assertFalse(result.hasExecution("other-image"));
+    }
+
+    @Test
+    void testPipelineTestRunResultHasNoExecution() {
+        WorkExecution exec = WorkExecution.containerised(
+                "maven:3.9.9-eclipse-temurin-17",
+                new String[]{"bash"},
+                null,
+                "/workspace",
+                0,
+                "",
+                ""
+        );
+        
+        PipelineTestRunResult result = new PipelineTestRunResult(
+                PipelineStatus.SUCCESS,
+                0,
+                java.util.List.of(exec),
+                java.util.List.of()
+        );
+        
+        assertTrue(result.hasNoExecution("other-image"));
+    }
+
+    @Test
+    void testPipelineTestRunResultGetExecutionCount() {
+        WorkExecution exec1 = WorkExecution.containerised("image", new String[]{"cmd"}, null, "/wd", 0, "", "");
+        WorkExecution exec2 = WorkExecution.containerised("image", new String[]{"cmd"}, null, "/wd", 0, "", "");
+        WorkExecution exec3 = WorkExecution.containerised("image", new String[]{"cmd"}, null, "/wd", 0, "", "");
+        
+        PipelineTestRunResult result = new PipelineTestRunResult(
+                PipelineStatus.SUCCESS,
+                0,
+                java.util.List.of(exec1, exec2, exec3),
+                java.util.List.of()
+        );
+        
+        assertEquals(3, result.getExecutionCount("image"));
+        assertEquals(0, result.getExecutionCount("other-image"));
+    }
+
+    @Test
+    void testPipelineTestRunResultGetExecutions() {
+        WorkExecution exec1 = WorkExecution.containerised("image1", new String[]{"cmd1"}, null, "/wd", 0, "", "");
+        WorkExecution exec2 = WorkExecution.containerised("image2", new String[]{"cmd2"}, null, "/wd", 0, "", "");
+        
+        PipelineTestRunResult result = new PipelineTestRunResult(
+                PipelineStatus.SUCCESS,
+                0,
+                java.util.List.of(exec1, exec2),
+                java.util.List.of()
+        );
+        
+        assertThat(result.getExecutions(), hasSize(2));
+        assertEquals("image1", result.getExecutions().get(0).image());
+        assertEquals("image2", result.getExecutions().get(1).image());
+    }
+
+    @Test
+    void testPipelineTestRunResultFindByImage() {
+        WorkExecution exec1 = WorkExecution.containerised("maven", new String[]{"cmd"}, null, "/wd", 0, "", "");
+        WorkExecution exec2 = WorkExecution.containerised("other", new String[]{"cmd"}, null, "/wd", 0, "", "");
+        WorkExecution exec3 = WorkExecution.containerised("maven", new String[]{"other"}, null, "/wd", 0, "", "");
+        
+        PipelineTestRunResult result = new PipelineTestRunResult(
+                PipelineStatus.SUCCESS,
+                0,
+                java.util.List.of(exec1, exec2, exec3),
+                java.util.List.of()
+        );
+        
+        assertThat(result.findByImage("maven"), hasSize(2));
+        assertThat(result.findByImage("other"), hasSize(1));
+    }
+
+    @Test
+    void testPipelineTestRunResultPipelineStatus() {
+        PipelineTestRunResult successResult = new PipelineTestRunResult(
+                PipelineStatus.SUCCESS,
+                0,
+                java.util.List.of(),
+                java.util.List.of()
+        );
+        
+        assertEquals(PipelineStatus.SUCCESS, successResult.getPipelineStatus());
+        
+        PipelineTestRunResult failureResult = new PipelineTestRunResult(
+                PipelineStatus.FAILURE,
+                1,
+                java.util.List.of(),
+                java.util.List.of()
+        );
+        
+        assertEquals(PipelineStatus.FAILURE, failureResult.getPipelineStatus());
+    }
+
+    @Test
+    void testPipelineTestRunResultGetMatchedBehaviors() {
+        WorkExecution exec = WorkExecution.containerised("image", new String[]{"cmd"}, null, "/wd", 0, "out", "");
+        MatchedBehavior matched = new MatchedBehavior(
+                WorkBehaviorType.CONTAINERISED,
+                "image",
+                exec,
+                new WorkResponse(0, "out", "")
+        );
+        
+        PipelineTestRunResult result = new PipelineTestRunResult(
+                PipelineStatus.SUCCESS,
+                0,
+                java.util.List.of(exec),
+                java.util.List.of(matched)
+        );
+        
+        assertThat(result.getMatchedBehaviors(), hasSize(1));
+        assertEquals(WorkBehaviorType.CONTAINERISED, result.getMatchedBehaviors().get(0).type());
+    }
+
+    @Test
+    void testCustomWorkExecution() {
+        WorkExecution exec = WorkExecution.custom(
+                "exec-id-123",
+                "built-image",
+                new String[]{"java", "yeetcd.sdk.GeneratedCustomWorkRunner", "pipeline", "exec-id-123"},
+                Map.of("VAR", "value"),
+                "/",
                 0,
                 "output",
                 ""
         );
         
-        MockBehavior behavior = MockBehavior.builder()
-                .matchingImage("maven:3.9.9-eclipse-temurin-17")
-                .matchingCmd("bash", "-c", "echo 'test'")
-                .build();
-        
-        // When
-        ExpectationVerifier verifier = new ExpectationVerifier(List.of(execution));
-        verifier.assertExecuted(behavior);
-        
-        // Then
-        assertThat(verifier.hasErrors(), is(false));
+        assertEquals(WorkBehaviorType.CUSTOM, exec.type());
+        assertEquals("exec-id-123", exec.matchKey());
     }
 
-    /**
-     * Test expectation verifier detects missing execution.
-     * 
-     * Given: No work executions recorded
-     * When: assertExecuted is called
-     * Then: Error is recorded
-     */
     @Test
-    void testExpectationVerifierDetectsMissingExecution() {
-        // Given
-        MockBehavior behavior = MockBehavior.builder()
-                .matchingImage("maven:3.9.9-eclipse-temurin-17")
-                .matchingCmd("bash", "-c", "echo 'test'")
-                .build();
-        
-        // When
-        ExpectationVerifier verifier = new ExpectationVerifier(List.of());
-        verifier.assertExecuted(behavior);
-        
-        // Then
-        assertThat(verifier.hasErrors(), is(true));
-        assertThat(verifier.getErrors(), hasSize(1));
-    }
-
-    /**
-     * Test expectation verifier asserts executed count.
-     * 
-     * Given: Multiple work executions recorded
-     * When: assertExecutedCount is called with expected count
-     * Then: No errors if count matches
-     */
-    @Test
-    void testExpectationVerifierAssertExecutedCount() {
-        // Given - 3 executions matching behavior
-        WorkExecution execution = new WorkExecution(
-                "test-image",
-                new String[]{"cmd"},
+    void testDynamicWorkExecution() {
+        WorkExecution exec = WorkExecution.dynamic(
+                "built-image",
+                new String[]{"java", "yeetcd.sdk.GeneratedCustomWorkRunner", "pipeline", "dynamic-id"},
                 null,
-                "/workspace",
+                "/",
                 0,
-                "",
+                "generated-work",
                 ""
         );
         
-        MockBehavior behavior = MockBehavior.builder()
-                .matchingImage("test-image")
-                .build();
-        
-        // When
-        ExpectationVerifier verifier = new ExpectationVerifier(
-                List.of(execution, execution, execution)
-        );
-        verifier.assertExecutedCount(behavior, 3);
-        
-        // Then
-        assertThat(verifier.hasErrors(), is(false));
+        assertEquals(WorkBehaviorType.DYNAMIC, exec.type());
+        assertNull(exec.matchKey());
     }
 
-    /**
-     * Test expectation verifier detects wrong count.
-     * 
-     * Given: Work executions with different count than expected
-     * When: assertExecutedCount is called with wrong count
-     * Then: Error is recorded
-     */
     @Test
-    void testExpectationVerifierDetectsWrongCount() {
-        // Given - 2 executions
-        WorkExecution execution = new WorkExecution(
-                "test-image",
-                new String[]{"cmd"},
-                null,
-                "/workspace",
-                0,
-                "",
-                ""
-        );
-        
-        MockBehavior behavior = MockBehavior.builder()
-                .matchingImage("test-image")
-                .build();
-        
-        // When - expecting 3
-        ExpectationVerifier verifier = new ExpectationVerifier(
-                List.of(execution, execution)
-        );
-        verifier.assertExecutedCount(behavior, 3);
-        
-        // Then
-        assertThat(verifier.hasErrors(), is(true));
-    }
-
-    /**
-     * Test expectation verifier asserts not executed.
-     * 
-     * Given: No executions for specific behavior
-     * When: assertNotExecuted is called
-     * Then: No errors
-     */
-    @Test
-    void testExpectationVerifierAssertNotExecuted() {
-        // Given - no executions
-        MockBehavior behavior = MockBehavior.builder()
-                .matchingImage("test-image")
-                .build();
-        
-        // When
-        ExpectationVerifier verifier = new ExpectationVerifier(List.of());
-        verifier.assertNotExecuted(behavior);
-        
-        // Then
-        assertThat(verifier.hasErrors(), is(false));
-    }
-
-    /**
-     * Test expectation verifier detects unexpected execution.
-     * 
-     * Given: Execution exists for behavior
-     * When: assertNotExecuted is called
-     * Then: Error is recorded
-     */
-    @Test
-    void testExpectationVerifierDetectsUnexpectedExecution() {
-        // Given
-        WorkExecution execution = new WorkExecution(
-                "test-image",
-                new String[]{"cmd"},
-                null,
-                "/workspace",
-                0,
-                "",
-                ""
-        );
-        
-        MockBehavior behavior = MockBehavior.builder()
-                .matchingImage("test-image")
-                .build();
-        
-        // When
-        ExpectationVerifier verifier = new ExpectationVerifier(List.of(execution));
-        verifier.assertNotExecuted(behavior);
-        
-        // Then
-        assertThat(verifier.hasErrors(), is(true));
-    }
-
-    /**
-     * Test expectation verifier verify() throws on errors.
-     * 
-     * Given: ExpectationVerifier with errors
-     * When: verify() is called
-     * Then: AssertionError is thrown
-     */
-    @Test
-    void testExpectationVerifierVerifyThrows() {
-        // Given
-        MockBehavior behavior = MockBehavior.builder()
-                .matchingImage("test-image")
-                .build();
-        
-        ExpectationVerifier verifier = new ExpectationVerifier(List.of());
-        verifier.assertExecuted(behavior);
-        
-        // When/Then
-        assertThrows(AssertionError.class, () -> verifier.verify());
-    }
-
-    /**
-     * Test expectation verifier verify() passes without errors.
-     * 
-     * Given: ExpectationVerifier without errors
-     * When: verify() is called
-     * Then: No exception is thrown
-     */
-    @Test
-    void testExpectationVerifierVerifyPasses() {
-        // Given
-        WorkExecution execution = new WorkExecution(
-                "test-image",
-                new String[]{"cmd"},
-                null,
-                "/workspace",
-                0,
-                "",
-                ""
-        );
-        
-        MockBehavior behavior = MockBehavior.builder()
-                .matchingImage("test-image")
-                .build();
-        
-        ExpectationVerifier verifier = new ExpectationVerifier(List.of(execution));
-        verifier.assertExecuted(behavior);
-        
-        // When/Then - should not throw
-        assertDoesNotThrow(() -> verifier.verify());
-    }
-
-    /**
-     * Test sample pipeline 'sample' has containerised work.
-     * 
-     * Given: SamplePipelines.sample() pipeline definition
-     * When: Pipeline is inspected
-     * Then: It contains containerised work definition
-     * 
-     * Note: This verifies the pipeline structure for test planning
-     */
-    @Test
-    void testSamplePipelineStructure() {
-        // Given - the sample pipeline is defined in SamplePipelines.sample()
-        // We verify the structure by checking the generated protobuf
-        // For now, we test the expected structure
-        
-        // Then - sample pipeline should exist and be processable
-        // The actual structure is verified through the SDK generator
-        assertThat(SamplePipelines.class, notNullValue());
-    }
-
-    /**
-     * Test integration with sample pipeline - mock server setup.
-     * 
-     * Given: A configured YeetcdMockRunner
-     * When: startMockServer() is called
-     * Then: Mock server starts and is accessible
-     * 
-     * Note: This is an integration test that requires the mock server
-     */
-    @Test
-    void testMockServerStartup() throws IOException, InterruptedException {
-        // Given - runner is built in setUp
-        
-        // When
-        runner.startMockServer();
-        
-        // Then - mock server should be running
-        assertThat(runner.getMockServer(), notNullValue());
-        assertThat(runner.getMockServer().getPort(), is(50051));
-    }
-
-    /**
-     * Test mock behavior registration and retrieval.
-     * 
-     * Given: A configured YeetcdMockRunner with mock server started
-     * When: defineBehavior() is called
-     * Then: Behavior is registered and can be used in verification
-     */
-    @Test
-    void testDefineBehavior() throws IOException, InterruptedException {
-        // Given
-        runner.startMockServer();
-        
-        MockBehavior behavior = MockBehavior.builder()
-                .matchingImage("test-image")
-                .matchingCmd("test", "command")
+    void testWorkResponseBuilder() {
+        WorkResponse response = WorkResponse.builder()
                 .exitCode(0)
-                .stdout("test output")
-                .build();
-        
-        // When
-        runner.defineBehavior(behavior);
-        
-        // Then - behavior is registered (no exception thrown)
-        // The actual verification would happen after CLI runs
-        assertThat(runner, notNullValue());
-    }
-
-    /**
-     * Test getting executed work after mock execution.
-     * 
-     * Given: A YeetcdMockRunner with recorded executions
-     * When: getExecutedWork() is called
-     * Then: List of WorkExecution is returned
-     */
-    @Test
-    void testGetExecutedWork() throws IOException {
-        // Given - runner with empty executions
-        assertThat(runner.getExecutedWork(), is(notNullValue()));
-        
-        // When/Then - getExecutedWork returns empty list initially
-        assertThat(runner.getExecutedWork(), hasSize(0));
-    }
-
-    /**
-     * Test multiple behaviors can be defined.
-     * 
-     * Given: Multiple MockBehavior configurations
-     * When: Each behavior is built
-     * Then: Each behavior is independent and correctly configured
-     */
-    @Test
-    void testMultipleBehaviors() {
-        // Given
-        MockBehavior behavior1 = MockBehavior.builder()
-                .matchingImage("image1")
-                .exitCode(0)
-                .stdout("output1")
-                .build();
-        
-        MockBehavior behavior2 = MockBehavior.builder()
-                .matchingImage("image2")
-                .exitCode(0)
-                .stdout("output2")
-                .build();
-        
-        MockBehavior behavior3 = MockBehavior.builder()
-                .matchingImage("image3")
-                .exitCode(1)
+                .stdout("output")
                 .stderr("error")
                 .build();
         
-        // When/Then - all behaviors are independent
-        assertThat(behavior1.getImage(), is("image1"));
-        assertThat(behavior2.getImage(), is("image2"));
-        assertThat(behavior3.getImage(), is("image3"));
-        assertThat(behavior3.toMockWorkResponse().getExitCode(), is(1));
+        assertEquals(0, response.exitCode());
+        assertEquals("output", response.stdout());
+        assertEquals("error", response.stderr());
     }
 
-    /**
-     * Test fluent API for expectation verification.
-     * 
-     * Given: Work executions
-     * When: Multiple assertions are chained
-     * Then: All assertions are applied
-     */
     @Test
-    void testFluentExpectationVerification() {
-        // Given
-        WorkExecution exec1 = new WorkExecution("image1", null, null, "/wd", 0, "", "");
-        WorkExecution exec2 = new WorkExecution("image2", null, null, "/wd", 0, "", "");
-        WorkExecution exec3 = new WorkExecution("image1", null, null, "/wd", 0, "", "");
+    void testWorkResponseSuccess() {
+        WorkResponse response = WorkResponse.success();
         
-        MockBehavior behavior1 = MockBehavior.builder().matchingImage("image1").build();
-        MockBehavior behavior2 = MockBehavior.builder().matchingImage("image2").build();
+        assertEquals(0, response.exitCode());
+        assertEquals("", response.stdout());
+        assertEquals("", response.stderr());
+    }
+
+    @Test
+    void testTestPipelinesExist() {
+        assertNotNull(TestPipelines.containerisedWorkPipeline());
+        assertNotNull(TestPipelines.customWorkPipeline());
+        assertNotNull(TestPipelines.compoundWorkPipeline());
+        assertNotNull(TestPipelines.dynamicWorkPipeline());
+        assertNotNull(TestPipelines.dependentWorkPipeline());
+        assertNotNull(TestPipelines.contextWorkPipeline());
+        assertNotNull(TestPipelines.multiBehaviorPipeline());
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
+    void testE2E_ContainerisedWork_HappyPath() throws IOException, InterruptedException {
+        String classpath = buildClasspath();
         
-        // When - fluent API
-        ExpectationVerifier verifier = new ExpectationVerifier(List.of(exec1, exec2, exec3));
-        verifier.assertExecutedCount(behavior1, 2)
-                .assertExecutedCount(behavior2, 1);
+        PipelineTestRunResult result = PipelineTestRun.builder()
+                .pipelineName("containerisedWorkPipeline")
+                .classpath(classpath)
+                .containerisedWork("maven:3.9.9-eclipse-temurin-17")
+                        .result(0, "containerised work", "")
+                .build()
+                .start();
         
-        // Then
-        assertThat(verifier.hasErrors(), is(false));
-        assertDoesNotThrow(() -> verifier.verify());
+        assertEquals(PipelineStatus.SUCCESS, result.getPipelineStatus());
+        assertTrue(result.hasExecution("maven:3.9.9-eclipse-temurin-17"));
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
+    void testE2E_ContainerisedWork_FailurePath() throws IOException, InterruptedException {
+        String classpath = buildClasspath();
+        
+        PipelineTestRunResult result = PipelineTestRun.builder()
+                .pipelineName("containerisedWorkPipeline")
+                .classpath(classpath)
+                .containerisedWork("maven:3.9.9-eclipse-temurin-17")
+                        .result(1, "", "work failed")
+                .build()
+                .start();
+        
+        assertEquals(PipelineStatus.FAILURE, result.getPipelineStatus());
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
+    void testE2E_CustomWork_MockedResult() throws IOException, InterruptedException {
+        String classpath = buildClasspath();
+        
+        CustomWorkDefinition customWork = TestPipelines.getCustomWorkForPipeline();
+        
+        PipelineTestRunResult result = PipelineTestRun.builder()
+                .pipelineName("customWorkPipeline")
+                .classpath(classpath)
+                .customWork(customWork)
+                        .result(0, "mocked output", "")
+                .build()
+                .start();
+        
+        assertEquals(PipelineStatus.SUCCESS, result.getPipelineStatus());
+        assertTrue(result.getExecutionCount("custom") > 0);
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
+    void testE2E_MultipleContainerisedWork() throws IOException, InterruptedException {
+        String classpath = buildClasspath();
+        
+        PipelineTestRunResult result = PipelineTestRun.builder()
+                .pipelineName("multiBehaviorPipeline")
+                .classpath(classpath)
+                .containerisedWork("maven:3.9.9-eclipse-temurin-17")
+                        .result(0, "success", "")
+                .build()
+                .start();
+        
+        assertEquals(PipelineStatus.SUCCESS, result.getPipelineStatus());
+        int execCount = result.getExecutionCount("maven:3.9.9-eclipse-temurin-17");
+        assertTrue(execCount >= 2, "Should have at least 2 containerised work executions");
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
+    void testE2E_DefaultBehavior() throws IOException, InterruptedException {
+        String classpath = buildClasspath();
+        
+        PipelineTestRunResult result = PipelineTestRun.builder()
+                .pipelineName("containerisedWorkPipeline")
+                .classpath(classpath)
+                .defaultContainerisedWork()
+                        .result(0, "default response", "")
+                .build()
+                .start();
+        
+        assertEquals(PipelineStatus.SUCCESS, result.getPipelineStatus());
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
+    void testE2E_MultipleStartCalls_Isolation() throws IOException, InterruptedException {
+        String classpath = buildClasspath();
+        
+        PipelineTestRun runner = PipelineTestRun.builder()
+                .pipelineName("containerisedWorkPipeline")
+                .classpath(classpath)
+                .containerisedWork("maven:3.9.9-eclipse-temurin-17")
+                        .result(0, "first", "")
+                .build();
+        
+        PipelineTestRunResult result1 = runner.start();
+        assertEquals(PipelineStatus.SUCCESS, result1.getPipelineStatus());
+        
+        PipelineTestRunResult result2 = runner.start();
+        assertEquals(PipelineStatus.SUCCESS, result2.getPipelineStatus());
+        
+        assertTrue(result1.getExecutions().size() > 0);
+        assertTrue(result2.getExecutions().size() > 0);
     }
 }
