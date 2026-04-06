@@ -19,8 +19,23 @@ import java.util.stream.Collectors;
 @AutoService(Processor.class)
 public final class PipelineGeneratorAnnotationProcessor extends AbstractProcessor {
 
+    private boolean generated = false;
+
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        // Skip if we've already generated the files or if we're in a round that's only processing generated files
+        if (generated || roundEnv.processingOver()) {
+            return true;
+        }
+
+        // Check if there are any elements annotated with @PipelineGenerator
+        boolean hasPipelines = annotations.stream()
+                .anyMatch(element -> !roundEnv.getElementsAnnotatedWith(element).isEmpty());
+
+        if (!hasPipelines) {
+            return true;
+        }
+
         String commaSeparatedPipelines = annotations
                 .stream()
                 .flatMap(element -> roundEnv.getElementsAnnotatedWith(element).stream())
@@ -28,6 +43,7 @@ public final class PipelineGeneratorAnnotationProcessor extends AbstractProcesso
                 .collect(Collectors.joining(", "));
         writePipelineDefinitionsClass(commaSeparatedPipelines);
         writeCustomWorkRunnerClass(commaSeparatedPipelines);
+        generated = true;
         return true;
     }
 
