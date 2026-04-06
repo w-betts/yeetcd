@@ -137,6 +137,33 @@ describe('Node Prompt Content - Decision Options', () => {
   });
 });
 
+describe('Node Prompt Content - Self-Registration', () => {
+  test('Contains spectree_register_node as first action', () => {
+    const content = readNodePrompt();
+    expect(content).not.toBeNull();
+    
+    expect(content).toMatch(/spectree_register_node/);
+  });
+
+  test('Emphasizes register as FIRST action', () => {
+    const content = readNodePrompt();
+    expect(content).not.toBeNull();
+    
+    // Should emphasize registering as the first step
+    expect(content).toMatch(/first/i);
+    expect(content).toMatch(/register/i);
+  });
+
+  test('Does NOT reference agent_id file', () => {
+    const content = readNodePrompt();
+    expect(content).not.toBeNull();
+    
+    // Should not reference the old agent_id file mechanism
+    expect(content).not.toMatch(/agent_id/);
+    expect(content).not.toMatch(/\.opencode\/agent_id/);
+  });
+});
+
 // ============================================================================
 // Test Suite: Node Agent Configuration in opencode.json (Chunk 2)
 // ============================================================================

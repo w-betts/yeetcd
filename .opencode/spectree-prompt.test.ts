@@ -136,6 +136,13 @@ describe('Spectree Prompt Content - Tool References', () => {
     expect(content).toMatch(/spectree_get_my_node/);
   });
 
+  test('References spectree_register_node tool', () => {
+    const content = readSpectreePrompt();
+    expect(content).not.toBeNull();
+    
+    expect(content).toMatch(/spectree_register_node/);
+  });
+
   test('References spectree_get_leaves tool', () => {
     const content = readSpectreePrompt();
     expect(content).not.toBeNull();
@@ -180,5 +187,20 @@ describe('Spectree Prompt Content - Workflow Structure', () => {
     
     // Should mention depth-first or left-to-right order
     expect(content).toMatch(/depth[- ]?first|left[- ]?to[- ]?right/i);
+  });
+
+  test('Describes automatic node identity via sessionID', () => {
+    const content = readSpectreePrompt();
+    expect(content).not.toBeNull();
+    
+    expect(content).toMatch(/sessionID/i);
+    expect(content).toMatch(/automatic/i);
+  });
+
+  test('Does NOT reference agent_id file', () => {
+    const content = readSpectreePrompt();
+    expect(content).not.toBeNull();
+    
+    expect(content).not.toMatch(/agent_id/);
   });
 });

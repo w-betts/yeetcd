@@ -206,10 +206,6 @@
       "permission": {
         "question": "allow",
         "doc_read": "allow",
-        "edit": {
-          "*": "deny",
-          ".opencode/agent_id": "allow"
-        },
         "task": {
           "*": "deny",
           "node": "allow"
@@ -221,7 +217,7 @@
     "./.opencode/plugins/notification-plugin.ts",
     "./.opencode/tools/session.ts",
     "./.opencode/tools/checklist.ts",
-    "./.opencode/tools/spectree.ts"
+    "./.opencode/plugins/spectree-plugin.ts"
   ],
   "provider": {
     "opencode": {

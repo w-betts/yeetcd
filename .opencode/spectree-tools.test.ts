@@ -1,96 +1,135 @@
 /**
- * Spectree Tools Tests
+ * Spectree Plugin Tests
  *
- * Unit tests for the spectree tool family.
- * Verifies the spectree.ts file exists, exports required functions, and is registered in opencode.json.
+ * Unit tests for the spectree plugin.
+ * Verifies the spectree-plugin.ts file exists, exports the plugin with required tools,
+ * and is registered in opencode.json.
  */
 
 import { describe, it, expect } from "bun:test"
 import path from "path"
 import fs from "fs"
 
-const TOOLS_DIR = path.join(process.cwd(), "..", ".opencode", "tools")
-const SPECTREE_TOOL_PATH = path.join(TOOLS_DIR, "spectree.ts")
-const OPENCODE_JSON_PATH = path.join(process.cwd(), "..", "opencode.json")
+const PLUGINS_DIR = path.join(process.cwd(), ".opencode", "plugins")
+const SPECTREE_PLUGIN_PATH = path.join(PLUGINS_DIR, "spectree-plugin.ts")
+const OPENCODE_JSON_PATH = path.join(process.cwd(), "opencode.json")
 
-describe("Phase 2: spectree tools - Chunk 1", () => {
-  describe("Spectree tools file exists and exports required functions", () => {
-    it("spectree.ts file exists", () => {
-      expect(fs.existsSync(SPECTREE_TOOL_PATH)).toBe(true)
-    })
-
-    it("spectree_write function is exported", () => {
-      const content = fs.readFileSync(SPECTREE_TOOL_PATH, "utf-8")
-      expect(content).toContain("export const spectree_write")
-    })
-
-    it("spectree_read function is exported", () => {
-      const content = fs.readFileSync(SPECTREE_TOOL_PATH, "utf-8")
-      expect(content).toContain("export const spectree_read")
-    })
-
-    it("spectree_update function is exported", () => {
-      const content = fs.readFileSync(SPECTREE_TOOL_PATH, "utf-8")
-      expect(content).toContain("export const spectree_update")
-    })
-
-    it("spectree_get_my_node function is exported", () => {
-      const content = fs.readFileSync(SPECTREE_TOOL_PATH, "utf-8")
-      expect(content).toContain("export const spectree_get_my_node")
-    })
-
-    it("spectree_get_leaves function is exported", () => {
-      const content = fs.readFileSync(SPECTREE_TOOL_PATH, "utf-8")
-      expect(content).toContain("export const spectree_get_leaves")
-    })
+describe("Spectree plugin file exists and exports required tools", () => {
+  it("spectree-plugin.ts file exists", () => {
+    expect(fs.existsSync(SPECTREE_PLUGIN_PATH)).toBe(true)
   })
 
-  describe("Spectree tools file contains schema definitions for spec structure", () => {
-    it("NodeSchema is defined", () => {
-      const content = fs.readFileSync(SPECTREE_TOOL_PATH, "utf-8")
-      expect(content).toContain("NodeSchema")
-    })
-
-    it("SpectreeSpecSchema is defined", () => {
-      const content = fs.readFileSync(SPECTREE_TOOL_PATH, "utf-8")
-      expect(content).toContain("SpectreeSpecSchema")
-    })
+  it("exports SpectreePlugin", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    expect(content).toContain("export const SpectreePlugin")
   })
 
-  describe("Spectree tools file is valid TypeScript", () => {
-    it("file can be parsed without syntax errors", () => {
-      const content = fs.readFileSync(SPECTREE_TOOL_PATH, "utf-8")
-      // Basic check: file should not be empty and should have valid structure
-      expect(content.length).toBeGreaterThan(0)
-      expect(content).toContain("import")
-      expect(content).toContain("@opencode-ai/plugin")
-    })
+  it("contains spectree_write tool", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    expect(content).toContain("spectree_write")
+  })
+
+  it("contains spectree_read tool", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    expect(content).toContain("spectree_read")
+  })
+
+  it("contains spectree_register_node tool", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    expect(content).toContain("spectree_register_node")
+  })
+
+  it("contains spectree_update tool", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    expect(content).toContain("spectree_update")
+  })
+
+  it("contains spectree_get_my_node tool", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    expect(content).toContain("spectree_get_my_node")
+  })
+
+  it("contains spectree_get_leaves tool", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    expect(content).toContain("spectree_get_leaves")
   })
 })
 
-describe("Phase 2: spectree tools - Chunk 2", () => {
-  describe("Spectree tools are loaded as plugins", () => {
-    it("spectree.ts is listed in opencode.json plugins array", () => {
-      const opencodeContent = fs.readFileSync(OPENCODE_JSON_PATH, "utf-8")
-      const opencode = JSON.parse(opencodeContent)
+describe("Spectree plugin contains schema definitions", () => {
+  it("NodeSchema is defined", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    expect(content).toContain("NodeSchema")
+  })
 
-      expect(opencode).toHaveProperty("plugin")
-      expect(Array.isArray(opencode.plugin)).toBe(true)
+  it("SpectreeSpecSchema is defined", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    expect(content).toContain("SpectreeSpecSchema")
+  })
+})
 
-      const hasSpectreePlugin = opencode.plugin.some(
-        (p: string) => p.includes("spectree.ts")
-      )
-      expect(hasSpectreePlugin).toBe(true)
-    })
+describe("Spectree plugin is valid TypeScript", () => {
+  it("file can be parsed without syntax errors", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    expect(content.length).toBeGreaterThan(0)
+    expect(content).toContain("import")
+    expect(content).toContain("@opencode-ai/plugin")
+  })
 
-    it("plugin path matches expected location", () => {
-      const opencodeContent = fs.readFileSync(OPENCODE_JSON_PATH, "utf-8")
-      const opencode = JSON.parse(opencodeContent)
+  it("implements Plugin interface", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    expect(content).toContain("Plugin")
+    expect(content).toContain("async (ctx)")
+  })
+})
 
-      const spectreePlugin = opencode.plugin.find((p: string) =>
-        p.includes("spectree.ts")
-      )
-      expect(spectreePlugin).toBe("./.opencode/tools/spectree.ts")
-    })
+describe("Spectree plugin uses sessionID for identity", () => {
+  it("spectree_write uses context.sessionID for root node ID", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    // Should destructure sessionID from context
+    expect(content).toContain("sessionID")
+  })
+
+  it("spectree_register_node uses SDK client for parent lookup", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    expect(content).toContain("client.session.get")
+    expect(content).toContain("parentID")
+  })
+
+  it("spectree_update uses sessionID for ownership check", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    // spectree_update should use sessionID, not agent_id file
+    expect(content).not.toContain("agent_id")
+    expect(content).not.toContain("getAgentId")
+  })
+
+  it("does not use file-based agent_id mechanism", () => {
+    const content = fs.readFileSync(SPECTREE_PLUGIN_PATH, "utf-8")
+    expect(content).not.toContain(".opencode/agent_id")
+    expect(content).not.toContain("getAgentId")
+  })
+})
+
+describe("Spectree plugin is registered in opencode.json", () => {
+  it("spectree-plugin.ts is listed in opencode.json plugins array", () => {
+    const opencodeContent = fs.readFileSync(OPENCODE_JSON_PATH, "utf-8")
+    const opencode = JSON.parse(opencodeContent)
+
+    expect(opencode).toHaveProperty("plugin")
+    expect(Array.isArray(opencode.plugin)).toBe(true)
+
+    const hasSpectreePlugin = opencode.plugin.some((p: string) =>
+      p.includes("spectree-plugin.ts")
+    )
+    expect(hasSpectreePlugin).toBe(true)
+  })
+
+  it("plugin path matches expected location", () => {
+    const opencodeContent = fs.readFileSync(OPENCODE_JSON_PATH, "utf-8")
+    const opencode = JSON.parse(opencodeContent)
+
+    const spectreePlugin = opencode.plugin.find((p: string) =>
+      p.includes("spectree-plugin.ts")
+    )
+    expect(spectreePlugin).toBe("./.opencode/plugins/spectree-plugin.ts")
   })
 })
