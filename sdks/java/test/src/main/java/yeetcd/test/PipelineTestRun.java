@@ -15,6 +15,7 @@ public class PipelineTestRun {
     private final String[] arguments;
     private final Duration timeout;
     private final String classpath;
+    private final String sourcePath;
     private final BehaviorChain behaviorChain;
 
     private PipelineTestRun(Builder builder) {
@@ -22,6 +23,7 @@ public class PipelineTestRun {
         this.arguments = builder.arguments;
         this.timeout = builder.timeout;
         this.classpath = builder.classpath;
+        this.sourcePath = builder.sourcePath;
         this.behaviorChain = (BehaviorChain) builder.behavior;
     }
 
@@ -36,8 +38,8 @@ public class PipelineTestRun {
         
         try {
             mockServer = new MockServer(0);
-            if (classpath != null) {
-                mockServer.setClasspath(classpath);
+            if (sourcePath != null) {
+                mockServer.setSourcePath(sourcePath);
             }
             mockServer.start();
             
@@ -146,7 +148,7 @@ public class PipelineTestRun {
     }
 
     private String getSourcePath() {
-        return System.getProperty("user.dir") + "/src/main/java";
+        return sourcePath != null ? sourcePath : System.getProperty("user.dir");
     }
 
     public static class Builder {
@@ -154,6 +156,7 @@ public class PipelineTestRun {
         private String[] arguments;
         private Duration timeout = Duration.ofSeconds(60);
         private String classpath;
+        private String sourcePath;
         private Behavior behavior = new BehaviorChain(this);
 
         public Builder() {}
@@ -175,6 +178,11 @@ public class PipelineTestRun {
 
         public Builder classpath(String classpath) {
             this.classpath = classpath;
+            return this;
+        }
+
+        public Builder sourcePath(String sourcePath) {
+            this.sourcePath = sourcePath;
             return this;
         }
 

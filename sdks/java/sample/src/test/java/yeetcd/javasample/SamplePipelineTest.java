@@ -341,16 +341,17 @@ public class SamplePipelineTest {
     @Test
     @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
     void testE2E_ContainerisedWork_HappyPath() throws IOException, InterruptedException {
-        String classpath = buildClasspath();
+        String projectDir = System.getProperty("user.dir");
         
         PipelineTestRunResult result = PipelineTestRun.builder()
                 .pipelineName("containerisedWorkPipeline")
-                .classpath(classpath)
+                .sourcePath(projectDir)
                 .containerisedWork("maven:3.9.9-eclipse-temurin-17")
                         .result(0, "containerised work", "")
                 .build()
                 .start();
         
+        System.out.println("CLI Output:\n" + result.getCliOutput());
         assertEquals(PipelineStatus.SUCCESS, result.getPipelineStatus());
         assertTrue(result.hasExecution("maven:3.9.9-eclipse-temurin-17"));
     }
@@ -358,11 +359,11 @@ public class SamplePipelineTest {
     @Test
     @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
     void testE2E_ContainerisedWork_FailurePath() throws IOException, InterruptedException {
-        String classpath = buildClasspath();
+        String projectDir = System.getProperty("user.dir");
         
         PipelineTestRunResult result = PipelineTestRun.builder()
                 .pipelineName("containerisedWorkPipeline")
-                .classpath(classpath)
+                .sourcePath(projectDir)
                 .containerisedWork("maven:3.9.9-eclipse-temurin-17")
                         .result(1, "", "work failed")
                 .build()
@@ -374,13 +375,13 @@ public class SamplePipelineTest {
     @Test
     @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
     void testE2E_CustomWork_MockedResult() throws IOException, InterruptedException {
-        String classpath = buildClasspath();
+        String projectDir = System.getProperty("user.dir");
         
         CustomWorkDefinition customWork = TestPipelines.getCustomWorkForPipeline();
         
         PipelineTestRunResult result = PipelineTestRun.builder()
                 .pipelineName("customWorkPipeline")
-                .classpath(classpath)
+                .sourcePath(projectDir)
                 .customWork(customWork)
                         .result(0, "mocked output", "")
                 .build()
@@ -393,11 +394,11 @@ public class SamplePipelineTest {
     @Test
     @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
     void testE2E_MultipleContainerisedWork() throws IOException, InterruptedException {
-        String classpath = buildClasspath();
+        String projectDir = System.getProperty("user.dir");
         
         PipelineTestRunResult result = PipelineTestRun.builder()
                 .pipelineName("multiBehaviorPipeline")
-                .classpath(classpath)
+                .sourcePath(projectDir)
                 .containerisedWork("maven:3.9.9-eclipse-temurin-17")
                         .result(0, "success", "")
                 .build()
@@ -411,11 +412,11 @@ public class SamplePipelineTest {
     @Test
     @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
     void testE2E_DefaultBehavior() throws IOException, InterruptedException {
-        String classpath = buildClasspath();
+        String projectDir = System.getProperty("user.dir");
         
         PipelineTestRunResult result = PipelineTestRun.builder()
                 .pipelineName("containerisedWorkPipeline")
-                .classpath(classpath)
+                .sourcePath(projectDir)
                 .defaultContainerisedWork()
                         .result(0, "default response", "")
                 .build()
@@ -427,11 +428,11 @@ public class SamplePipelineTest {
     @Test
     @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
     void testE2E_MultipleStartCalls_Isolation() throws IOException, InterruptedException {
-        String classpath = buildClasspath();
+        String projectDir = System.getProperty("user.dir");
         
         PipelineTestRun runner = PipelineTestRun.builder()
                 .pipelineName("containerisedWorkPipeline")
-                .classpath(classpath)
+                .sourcePath(projectDir)
                 .containerisedWork("maven:3.9.9-eclipse-temurin-17")
                         .result(0, "first", "")
                 .build();

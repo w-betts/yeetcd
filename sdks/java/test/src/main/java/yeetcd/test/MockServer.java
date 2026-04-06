@@ -32,14 +32,14 @@ public class MockServer {
     private final Map<String, WorkResponse> customWorkBehaviors = new HashMap<>();
     private WorkResponse defaultContainerisedResponse = new WorkResponse(0, "", "");
     private WorkResponse defaultCustomResponse = new WorkResponse(0, "", "");
-    private String classpath;
+    private String sourcePath;
 
     public MockServer(int port) {
         this.port = port;
     }
 
-    public void setClasspath(String classpath) {
-        this.classpath = classpath;
+    public void setSourcePath(String sourcePath) {
+        this.sourcePath = sourcePath;
     }
 
     public void start() throws IOException {
@@ -48,7 +48,8 @@ public class MockServer {
                 .build()
                 .start();
 
-        logger.info("MockServer started on port " + port);
+        int actualPort = server.getPort();
+        logger.info("MockServer started on port " + actualPort);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
@@ -93,6 +94,9 @@ public class MockServer {
     }
 
     public int getPort() {
+        if (server != null) {
+            return server.getPort();
+        }
         return port;
     }
 
@@ -173,25 +177,18 @@ public class MockServer {
         }
 
         private WorkResponse runPipelineGenerator(String[] cmd, String workingDir, Map<String, String> envVars) {
-            if (classpath == null || classpath.isEmpty()) {
-                logger.warning("No classpath set for pipeline generator");
-                return new WorkResponse(1, "", "No classpath configured");
-            }
-
+            String projectDir = workingDir != null && !workingDir.isEmpty() ? workingDir : System.getProperty("user.dir");
+            
             try {
-                List<String> javaCmd = new ArrayList<>();
-                javaCmd.add("java");
-                javaCmd.add("-cp");
-                javaCmd.add(classpath);
-                for (String arg : cmd) {
-                    javaCmd.add(arg);
-                }
-
-                ProcessBuilder pb = new ProcessBuilder(javaCmd);
+                List<String> mvnCmd = new ArrayList<>();
+                mvnCmd.add("mvn");
+                mvnCmd.add("exec:java");
+                mvnCmd.add("-Dexec.mainClass=" + GENERATED_PIPELINE_DEFINITIONS);
+                mvnCmd.add("-q");
+                
+                ProcessBuilder pb = new ProcessBuilder(mvnCmd);
                 pb.environment().putAll(envVars);
-                if (workingDir != null && !workingDir.isEmpty()) {
-                    pb.directory(new java.io.File(workingDir));
-                }
+                pb.directory(new java.io.File(projectDir));
                 pb.redirectErrorStream(true);
 
                 Process process = pb.start();
@@ -199,19 +196,20 @@ public class MockServer {
                 ByteArrayOutputStream stdout = new ByteArrayOutputStream();
                 process.getInputStream().transferTo(stdout);
 
-                boolean finished = process.waitFor(60, TimeUnit.SECONDS);
+                boolean finished = process.waitFor(120, TimeUnit.SECONDS);
                 if (!finished) {
                     process.destroyForcibly();
-                    return new WorkResponse(1, "", "Generator timed out");
+                    return new WorkResponse(1, "", "Generator timed out after 120 seconds");
                 }
 
                 int exitCode = process.exitValue();
-                String output = stdout.toString(StandardCharsets.UTF_8);
+                byte[] outputBytes = stdout.toByteArray();
 
-                logger.info("Pipeline generator completed with exit code " + exitCode);
-                return new WorkResponse(exitCode, output, "");
+                logger.info("Pipeline generator completed with exit code " + exitCode + ", output size: " + outputBytes.length);
+                return new WorkResponse(exitCode, new String(outputBytes, StandardCharsets.UTF_8), "");
             } catch (Exception e) {
                 logger.severe("Failed to run pipeline generator: " + e.getMessage());
+                e.printStackTrace();
                 return new WorkResponse(1, "", e.getMessage());
             }
         }
