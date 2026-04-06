@@ -184,8 +184,6 @@ public class MockServer {
         }
 
         private WorkResponse runPipelineGenerator(String[] cmd, String workingDir, Map<String, String> envVars) {
-            logger.info("Running pipeline generator via direct Java invocation");
-            
             PrintStream originalOut = System.out;
             PrintStream originalErr = System.err;
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -206,9 +204,8 @@ public class MockServer {
                 System.setOut(originalOut);
                 System.setErr(originalErr);
                 
-                // Base64 encode the binary output for transmission
+                // Base64 encode the binary output for transmission over gRPC
                 String base64Output = Base64.getEncoder().encodeToString(outputBytes);
-                logger.info("Pipeline generator completed successfully, output size: " + outputBytes.length);
                 return new WorkResponse(0, base64Output, "");
                 
             } catch (Exception e) {
