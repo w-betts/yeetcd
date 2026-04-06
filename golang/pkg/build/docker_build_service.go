@@ -223,12 +223,6 @@ func (d *DockerBuildService) generatePipelines(ctx context.Context, yeetcdConfig
 	// Parse the protobuf output from stdout
 	stdout := streams.GetStdOut()
 
-	// Debug: log stdout length and first few bytes
-	fmt.Fprintf(os.Stderr, "DEBUG: stdout length: %d\n", len(stdout))
-	if len(stdout) > 0 {
-		fmt.Fprintf(os.Stderr, "DEBUG: stdout first 100 bytes: %v\n", stdout[:min(100, len(stdout))])
-	}
-
 	pipelines, err := d.parseProtobufPipelines(stdout)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to parse pipeline definitions: %w", err)
