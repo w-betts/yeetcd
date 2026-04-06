@@ -77,119 +77,6 @@ func TestWork_Execute_ExecutesPreviousWorkDependenciesFirst(t *testing.T) {
 	assert.Equal(t, "image-b:latest", executionOrder[1])
 }
 
-// TestWork_Execute_SkipsWorkWhenConditionNotMet tests that Execute skips work when condition evaluates to false
-// Given: Work with condition that returns false, MockExecutionEngine
-// When: work.Execute(ctx, context, engine, metadata, tracker, handler) is called
-// Then: Work is skipped, WorkFinished event with SKIPPED status recorded, no job executed
-func TestWork_Execute_SkipsWorkWhenConditionNotMet(t *testing.T) {
-	ctx := context.Background()
-
-	// Track if job was executed
-	jobExecuted := false
-
-	// Create mock execution engine
-	mockEngine := &MockExecutionEngine{
-		RunJobFunc: func(ctx context.Context, def engine.JobDefinition) (*engine.JobResult, error) {
-			jobExecuted = true
-			return &engine.JobResult{ExitCode: 0}, nil
-		},
-	}
-
-	// Create test handler
-	handler := NewTestPipelineOutputHandler()
-	tracker := NewWorkResultTracker()
-	metadata := PipelineMetadata{
-		PipelineName: "test-pipeline",
-	}
-
-	// Create a condition that always returns false
-	falseCondition := &mockCondition{shouldExecute: false}
-
-	// Create work with false condition
-	work := Work{
-		ID:          "conditional-work",
-		Description: "Conditional Work",
-		WorkContext: make(WorkContext),
-		WorkDefinition: &ContainerisedWorkDefinition{
-			Image: "alpine:latest",
-			Cmd:   []string{"echo", "hello"},
-		},
-		Condition: falseCondition,
-	}
-
-	// Execute work
-	result, err := work.Execute(ctx, make(WorkContext), mockEngine, metadata, tracker, handler)
-
-	// Verify no error
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	// Verify job was NOT executed
-	assert.False(t, jobExecuted, "Job should not be executed when condition is false")
-
-	// Verify result status is SKIPPED
-	assert.Equal(t, types.SKIPPED, result.WorkStatus)
-
-	// Verify WorkFinished event with SKIPPED status
-	finishedEvents := GetEventsOfType[WorkFinished](handler)
-	require.Len(t, finishedEvents, 1)
-	assert.Equal(t, types.SKIPPED, finishedEvents[0].WorkStatus)
-}
-
-// TestWork_Execute_ExecutesWorkWhenConditionMet tests that Execute runs work when condition evaluates to true
-// Given: Work with condition that returns true, MockExecutionEngine
-// When: work.Execute(ctx, context, engine, metadata, tracker, handler) is called
-// Then: Work is executed normally
-func TestWork_Execute_ExecutesWorkWhenConditionMet(t *testing.T) {
-	ctx := context.Background()
-
-	// Track if job was executed
-	jobExecuted := false
-
-	// Create mock execution engine
-	mockEngine := &MockExecutionEngine{
-		RunJobFunc: func(ctx context.Context, def engine.JobDefinition) (*engine.JobResult, error) {
-			jobExecuted = true
-			return &engine.JobResult{ExitCode: 0}, nil
-		},
-	}
-
-	// Create test handler
-	handler := NewTestPipelineOutputHandler()
-	tracker := NewWorkResultTracker()
-	metadata := PipelineMetadata{
-		PipelineName: "test-pipeline",
-	}
-
-	// Create a condition that always returns true
-	trueCondition := &mockCondition{shouldExecute: true}
-
-	// Create work with true condition
-	work := Work{
-		ID:          "conditional-work",
-		Description: "Conditional Work",
-		WorkContext: make(WorkContext),
-		WorkDefinition: &ContainerisedWorkDefinition{
-			Image: "alpine:latest",
-			Cmd:   []string{"echo", "hello"},
-		},
-		Condition: trueCondition,
-	}
-
-	// Execute work
-	result, err := work.Execute(ctx, make(WorkContext), mockEngine, metadata, tracker, handler)
-
-	// Verify no error
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	// Verify job WAS executed
-	assert.True(t, jobExecuted, "Job should be executed when condition is true")
-
-	// Verify result status is SUCCESS
-	assert.Equal(t, types.SUCCESS, result.WorkStatus)
-}
-
 // TestWork_Execute_MergesWorkContextWithContainingContext tests that Execute merges work context (work overrides pipeline)
 // Given: Pipeline context {KEY: "pipeline"}, Work context {KEY: "work"}, MockExecutionEngine
 // When: work.Execute(ctx, pipelineContext, engine, metadata, tracker, handler) is called
@@ -217,8 +104,8 @@ func TestWork_Execute_MergesWorkContextWithContainingContext(t *testing.T) {
 
 	// Create pipeline context
 	pipelineContext := WorkContext{
-		"KEY":       "pipeline_value",
-		"PIPELINE":  "only_in_pipeline",
+		"KEY":      "pipeline_value",
+		"PIPELINE": "only_in_pipeline",
 	}
 
 	// Create work with its own context
@@ -226,7 +113,7 @@ func TestWork_Execute_MergesWorkContextWithContainingContext(t *testing.T) {
 		ID:          "context-work",
 		Description: "Context Work",
 		WorkContext: WorkContext{
-			"KEY": "work_value",
+			"KEY":  "work_value",
 			"WORK": "only_in_work",
 		},
 		WorkDefinition: &ContainerisedWorkDefinition{

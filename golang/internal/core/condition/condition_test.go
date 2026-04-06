@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yeetcd/yeetcd/internal/core/pipeline"
+	"github.com/yeetcd/yeetcd/internal/core/types"
 )
 
 // Test: WorkContextCondition.Evaluate() returns true when context key matches expected value
@@ -13,7 +13,7 @@ import (
 // Then: Returns true
 func TestWorkContextCondition_Evaluate_Matches(t *testing.T) {
 	condition := NewWorkContextCondition("env", "prod", OperatorEquals)
-	ctx := pipeline.NewWorkContext(map[string]string{"env": "prod"})
+	ctx := types.NewWorkContext(map[string]string{"env": "prod"})
 
 	result, err := condition.Evaluate(ctx, nil)
 
@@ -27,7 +27,7 @@ func TestWorkContextCondition_Evaluate_Matches(t *testing.T) {
 // Then: Returns false
 func TestWorkContextCondition_Evaluate_NoMatch(t *testing.T) {
 	condition := NewWorkContextCondition("env", "prod", OperatorEquals)
-	ctx := pipeline.NewWorkContext(map[string]string{"env": "dev"})
+	ctx := types.NewWorkContext(map[string]string{"env": "dev"})
 
 	result, err := condition.Evaluate(ctx, nil)
 
@@ -41,7 +41,7 @@ func TestWorkContextCondition_Evaluate_NoMatch(t *testing.T) {
 // Then: Returns error indicating missing key
 func TestWorkContextCondition_Evaluate_MissingKey(t *testing.T) {
 	condition := NewWorkContextCondition("missing", "value", OperatorEquals)
-	ctx := pipeline.NewWorkContext(map[string]string{"other": "value"})
+	ctx := types.NewWorkContext(map[string]string{"other": "value"})
 
 	_, err := condition.Evaluate(ctx, nil)
 
@@ -68,8 +68,8 @@ func TestWorkContextCondition_ToProtobuf(t *testing.T) {
 // Then: Returns true
 func TestPreviousWorkStatusCondition_Evaluate_Success(t *testing.T) {
 	condition := NewPreviousWorkStatusCondition(WorkStatusSuccess)
-	tracker := pipeline.NewWorkResultTracker()
-	tracker.RecordResult("prev-work", &pipeline.WorkResult{WorkStatus: pipeline.WorkStatusSucceeded})
+	tracker := types.NewSimpleWorkResultTracker()
+	tracker.RecordResult("prev-work", &types.WorkResult{WorkStatus: types.WorkStatusSucceeded})
 
 	match, err := condition.Evaluate(nil, tracker)
 
@@ -83,8 +83,8 @@ func TestPreviousWorkStatusCondition_Evaluate_Success(t *testing.T) {
 // Then: Returns false
 func TestPreviousWorkStatusCondition_Evaluate_Failure(t *testing.T) {
 	condition := NewPreviousWorkStatusCondition(WorkStatusSuccess)
-	tracker := pipeline.NewWorkResultTracker()
-	tracker.RecordResult("prev-work", &pipeline.WorkResult{WorkStatus: pipeline.WorkStatusFailed})
+	tracker := types.NewSimpleWorkResultTracker()
+	tracker.RecordResult("prev-work", &types.WorkResult{WorkStatus: types.WorkStatusFailed})
 
 	match, err := condition.Evaluate(nil, tracker)
 
@@ -125,7 +125,7 @@ func TestAndCondition_Evaluate_AllTrue(t *testing.T) {
 	cond1 := NewWorkContextCondition("env", "prod", OperatorEquals)
 	cond2 := NewWorkContextCondition("region", "us", OperatorEquals)
 	andCond := NewAndCondition(cond1, cond2)
-	ctx := pipeline.NewWorkContext(map[string]string{"env": "prod", "region": "us"})
+	ctx := types.NewWorkContext(map[string]string{"env": "prod", "region": "us"})
 
 	result, err := andCond.Evaluate(ctx, nil)
 
@@ -141,7 +141,7 @@ func TestAndCondition_Evaluate_OneFalse(t *testing.T) {
 	cond1 := NewWorkContextCondition("env", "prod", OperatorEquals)
 	cond2 := NewWorkContextCondition("region", "eu", OperatorEquals)
 	andCond := NewAndCondition(cond1, cond2)
-	ctx := pipeline.NewWorkContext(map[string]string{"env": "prod", "region": "us"})
+	ctx := types.NewWorkContext(map[string]string{"env": "prod", "region": "us"})
 
 	result, err := andCond.Evaluate(ctx, nil)
 
@@ -172,7 +172,7 @@ func TestOrCondition_Evaluate_OneTrue(t *testing.T) {
 	cond1 := NewWorkContextCondition("env", "prod", OperatorEquals)
 	cond2 := NewWorkContextCondition("region", "eu", OperatorEquals)
 	orCond := NewOrCondition(cond1, cond2)
-	ctx := pipeline.NewWorkContext(map[string]string{"env": "prod", "region": "us"})
+	ctx := types.NewWorkContext(map[string]string{"env": "prod", "region": "us"})
 
 	result, err := orCond.Evaluate(ctx, nil)
 
@@ -188,7 +188,7 @@ func TestOrCondition_Evaluate_AllFalse(t *testing.T) {
 	cond1 := NewWorkContextCondition("env", "prod", OperatorEquals)
 	cond2 := NewWorkContextCondition("region", "eu", OperatorEquals)
 	orCond := NewOrCondition(cond1, cond2)
-	ctx := pipeline.NewWorkContext(map[string]string{"env": "dev", "region": "us"})
+	ctx := types.NewWorkContext(map[string]string{"env": "dev", "region": "us"})
 
 	result, err := orCond.Evaluate(ctx, nil)
 
@@ -218,7 +218,7 @@ func TestOrCondition_ToProtobuf(t *testing.T) {
 func TestNotCondition_Evaluate_WrappedTrue(t *testing.T) {
 	wrapped := NewWorkContextCondition("env", "prod", OperatorEquals)
 	notCond := NewNotCondition(wrapped)
-	ctx := pipeline.NewWorkContext(map[string]string{"env": "prod"})
+	ctx := types.NewWorkContext(map[string]string{"env": "prod"})
 
 	result, err := notCond.Evaluate(ctx, nil)
 
@@ -233,7 +233,7 @@ func TestNotCondition_Evaluate_WrappedTrue(t *testing.T) {
 func TestNotCondition_Evaluate_WrappedFalse(t *testing.T) {
 	wrapped := NewWorkContextCondition("env", "prod", OperatorEquals)
 	notCond := NewNotCondition(wrapped)
-	ctx := pipeline.NewWorkContext(map[string]string{"env": "dev"})
+	ctx := types.NewWorkContext(map[string]string{"env": "dev"})
 
 	result, err := notCond.Evaluate(ctx, nil)
 

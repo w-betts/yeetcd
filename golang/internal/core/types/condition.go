@@ -16,4 +16,7 @@ type WorkResultTracker interface {
 
 	// GetWorkResultMap returns the map of work results
 	GetWorkResultMap() map[string]*WorkResult
+
+	// RecordResult records a work result
+	RecordResult(workID string, result *WorkResult)
 }

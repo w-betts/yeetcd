@@ -28,7 +28,7 @@ func (c *CompoundWorkDefinition) Execute(ctx context.Context, work Work, mergedC
 		}
 
 		// Track if any work failed
-		if result.WorkStatus != types.SUCCESS && result.WorkStatus != types.SKIPPED {
+		if result.WorkStatus != types.SUCCESS {
 			allSucceeded = false
 		}
 	}

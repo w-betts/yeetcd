@@ -71,8 +71,6 @@ func (p *ProgressReporter) WorkFinished(work interface{}, status interface{}) {
 		color := "green"
 		if statusStr == "FAILURE" {
 			color = "red"
-		} else if statusStr == "SKIPPED" {
-			color = "yellow"
 		}
 		fmt.Printf("  Done: %s (%s)\n", w.Description, p.colorize(statusStr, color))
 	} else {

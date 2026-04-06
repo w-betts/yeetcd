@@ -335,63 +335,6 @@ func TestCompoundWorkDefinition_Execute_ContinuesExecutionAfterFailure(t *testin
 	assert.Equal(t, types.FAILURE, result.WorkStatus)
 }
 
-// TestCompoundWorkDefinition_Execute_ReturnsSuccessWhenAllSkipped tests that Execute returns SUCCESS when all final work is skipped
-// Given: CompoundWorkDefinition with two final work items, both return SKIPPED status
-// When: compoundDef.Execute(ctx, work, engine, metadata, tracker, handler) is called
-// Then: WorkResult.WorkStatus equals SUCCESS
-func TestCompoundWorkDefinition_Execute_ReturnsSuccessWhenAllSkipped(t *testing.T) {
-	ctx := context.Background()
-
-	mockEngine := &MockExecutionEngine{
-		RunJobFunc: func(ctx context.Context, def engine.JobDefinition) (*engine.JobResult, error) {
-			// This won't be called for skipped work
-			return &engine.JobResult{ExitCode: 0}, nil
-		},
-	}
-
-	handler := NewTestPipelineOutputHandler()
-	tracker := NewWorkResultTracker()
-	metadata := PipelineMetadata{
-		PipelineName: "test-pipeline",
-	}
-
-	// Create work items that will be marked as skipped in tracker
-	workA := Work{
-		ID:             "work-a",
-		Description:    "Work A",
-		WorkContext:    make(WorkContext),
-		WorkDefinition: &ContainerisedWorkDefinition{Image: "alpine:latest", Cmd: []string{"echo", "A"}},
-	}
-
-	workB := Work{
-		ID:             "work-b",
-		Description:    "Work B",
-		WorkContext:    make(WorkContext),
-		WorkDefinition: &ContainerisedWorkDefinition{Image: "alpine:latest", Cmd: []string{"echo", "B"}},
-	}
-
-	// Pre-populate tracker with SKIPPED results
-	tracker.results["work-a"] = &types.WorkResult{WorkStatus: types.SKIPPED}
-	tracker.results["work-b"] = &types.WorkResult{WorkStatus: types.SKIPPED}
-
-	compoundDef := &CompoundWorkDefinition{
-		FinalWork: []Work{workA, workB},
-	}
-
-	compoundWork := Work{
-		ID:             "compound-work",
-		Description:    "Compound Work",
-		WorkContext:    make(WorkContext),
-		WorkDefinition: compoundDef,
-	}
-
-	result, err := compoundDef.Execute(ctx, compoundWork, make(WorkContext), mockEngine, metadata, tracker, handler)
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.Equal(t, types.SUCCESS, result.WorkStatus)
-}
-
 // TestCompoundWorkDefinition_Execute_HandlesEmptyFinalWork tests that Execute handles empty FinalWork slice
 // Given: CompoundWorkDefinition with empty FinalWork slice
 // When: compoundDef.Execute(ctx, work, engine, metadata, tracker, handler) is called
