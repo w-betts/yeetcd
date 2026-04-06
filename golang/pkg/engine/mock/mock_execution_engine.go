@@ -2,7 +2,9 @@ package mock
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"os"
 
 	"github.com/yeetcd/yeetcd/internal/core/proto/mock/yeetcd/protocol/mock"
 	"github.com/yeetcd/yeetcd/pkg/engine"
@@ -104,6 +106,27 @@ func (m *MockExecutionEngine) RunJob(ctx context.Context, def engine.JobDefiniti
 	resp, err := m.client.RunWork(ctx, req)
 	if err != nil {
 		return &engine.JobResult{}, fmt.Errorf("mock run job failed: %w", err)
+	}
+
+	// Write stdout to JobStreams if provided
+	if def.JobStreams != nil && resp.Stdout != "" {
+		// Try to Base64 decode the stdout (mock server sends Base64 encoded binary)
+		stdoutBytes, err := base64.StdEncoding.DecodeString(resp.Stdout)
+		if err != nil {
+			// If Base64 decoding fails, use the raw string
+			stdoutBytes = []byte(resp.Stdout)
+		}
+		if _, writeErr := def.JobStreams.StdoutWriter().Write(stdoutBytes); writeErr != nil {
+			// Log but don't fail
+			fmt.Fprintf(os.Stderr, "Warning: failed to write stdout: %v\n", writeErr)
+		}
+	}
+
+	// Write stderr to JobStreams if provided
+	if def.JobStreams != nil && resp.Stderr != "" {
+		if _, writeErr := def.JobStreams.StderrWriter().Write([]byte(resp.Stderr)); writeErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to write stderr: %v\n", writeErr)
+		}
 	}
 
 	// Convert MockWorkResponse to engine.JobResult

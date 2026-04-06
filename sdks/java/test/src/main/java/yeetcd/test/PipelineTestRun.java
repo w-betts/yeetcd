@@ -14,16 +14,12 @@ public class PipelineTestRun {
     private final String pipelineName;
     private final String[] arguments;
     private final Duration timeout;
-    private final String classpath;
-    private final String sourcePath;
     private final BehaviorChain behaviorChain;
 
     private PipelineTestRun(Builder builder) {
         this.pipelineName = builder.pipelineName;
         this.arguments = builder.arguments;
         this.timeout = builder.timeout;
-        this.classpath = builder.classpath;
-        this.sourcePath = builder.sourcePath;
         this.behaviorChain = (BehaviorChain) builder.behavior;
     }
 
@@ -38,9 +34,6 @@ public class PipelineTestRun {
         
         try {
             mockServer = new MockServer(0);
-            if (sourcePath != null) {
-                mockServer.setSourcePath(sourcePath);
-            }
             mockServer.start();
             
             int port = mockServer.getPort();
@@ -84,12 +77,11 @@ public class PipelineTestRun {
         command.add(binaryPath);
         command.add("run");
         command.add("--source");
-        command.add(getSourcePath());
+        command.add(System.getProperty("user.dir"));
         command.add("--pipeline");
         command.add(pipelineName);
         command.add("--mock-execution-engine-address");
         command.add(mockAddress);
-        command.add("--skip-build");
         
         if (arguments != null) {
             for (String arg : arguments) {
@@ -147,16 +139,10 @@ public class PipelineTestRun {
         }
     }
 
-    private String getSourcePath() {
-        return sourcePath != null ? sourcePath : System.getProperty("user.dir");
-    }
-
     public static class Builder {
         private String pipelineName;
         private String[] arguments;
         private Duration timeout = Duration.ofSeconds(60);
-        private String classpath;
-        private String sourcePath;
         private Behavior behavior = new BehaviorChain(this);
 
         public Builder() {}
@@ -173,16 +159,6 @@ public class PipelineTestRun {
 
         public Builder timeout(Duration timeout) {
             this.timeout = timeout;
-            return this;
-        }
-
-        public Builder classpath(String classpath) {
-            this.classpath = classpath;
-            return this;
-        }
-
-        public Builder sourcePath(String sourcePath) {
-            this.sourcePath = sourcePath;
             return this;
         }
 

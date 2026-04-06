@@ -4,11 +4,7 @@ import org.junit.jupiter.api.Test;
 import yeetcd.sdk.CustomWorkDefinition;
 import yeetcd.test.*;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Map;
-import java.util.stream.Stream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -23,48 +19,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * - Multiple behaviors and defaults
  */
 public class SamplePipelineTest {
-
-    private String buildClasspath() throws IOException {
-        StringBuilder cp = new StringBuilder();
-        
-        // Add sample's own classes
-        cp.append("target/classes:");
-        
-        // Add SDK classes from sibling module
-        Path sdkClasses = Path.of("../sdk/target/classes");
-        if (Files.exists(sdkClasses)) {
-            cp.append(sdkClasses.toAbsolutePath()).append(":");
-        }
-        
-        // Add protocol classes from sibling module
-        Path protoClasses = Path.of("../protocol/target/classes");
-        if (Files.exists(protoClasses)) {
-            cp.append(protoClasses.toAbsolutePath()).append(":");
-        }
-        
-        // Add test classes (for MockServer)
-        cp.append("../test/target/classes:");
-        
-        // Add generated protobuf classes
-        Path protoGen = Path.of("../protocol/target/generated-sources/protobuf/java");
-        if (Files.exists(protoGen)) {
-            cp.append(protoGen.toAbsolutePath()).append(":");
-        }
-        
-        // Add generated gRPC classes
-        Path grpcGen = Path.of("../protocol/target/generated-sources/protobuf/grpc-java");
-        if (Files.exists(grpcGen)) {
-            cp.append(grpcGen.toAbsolutePath()).append(":");
-        }
-        
-        // Add generated annotation classes
-        Path annotationGen = Path.of("../sdk/target/generated-sources/annotations");
-        if (Files.exists(annotationGen)) {
-            cp.append(annotationGen.toAbsolutePath()).append(":");
-        }
-        
-        return cp.toString();
-    }
 
     @Test
     void testPipelineTestRunBuilderCreatesInstance() {
@@ -339,31 +293,24 @@ public class SamplePipelineTest {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
-    void testE2E_ContainerisedWork_HappyPath() throws IOException, InterruptedException {
-        String projectDir = System.getProperty("user.dir");
-        
+    void testE2E_ContainerisedWork_HappyPath() throws Exception {
         PipelineTestRunResult result = PipelineTestRun.builder()
                 .pipelineName("containerisedWorkPipeline")
-                .sourcePath(projectDir)
                 .containerisedWork("maven:3.9.9-eclipse-temurin-17")
                         .result(0, "containerised work", "")
                 .build()
                 .start();
         
         System.out.println("CLI Output:\n" + result.getCliOutput());
+        System.out.println("Executions: " + result.getExecutions());
         assertEquals(PipelineStatus.SUCCESS, result.getPipelineStatus());
         assertTrue(result.hasExecution("maven:3.9.9-eclipse-temurin-17"));
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
-    void testE2E_ContainerisedWork_FailurePath() throws IOException, InterruptedException {
-        String projectDir = System.getProperty("user.dir");
-        
+    void testE2E_ContainerisedWork_FailurePath() throws Exception {
         PipelineTestRunResult result = PipelineTestRun.builder()
                 .pipelineName("containerisedWorkPipeline")
-                .sourcePath(projectDir)
                 .containerisedWork("maven:3.9.9-eclipse-temurin-17")
                         .result(1, "", "work failed")
                 .build()
@@ -373,32 +320,24 @@ public class SamplePipelineTest {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
-    void testE2E_CustomWork_MockedResult() throws IOException, InterruptedException {
-        String projectDir = System.getProperty("user.dir");
-        
+    void testE2E_CustomWork_MockedResult() throws Exception {
         CustomWorkDefinition customWork = TestPipelines.getCustomWorkForPipeline();
         
         PipelineTestRunResult result = PipelineTestRun.builder()
                 .pipelineName("customWorkPipeline")
-                .sourcePath(projectDir)
                 .customWork(customWork)
                         .result(0, "mocked output", "")
                 .build()
                 .start();
         
         assertEquals(PipelineStatus.SUCCESS, result.getPipelineStatus());
-        assertTrue(result.getExecutionCount("custom") > 0);
+        assertTrue(result.getCustomExecutions().size() > 0);
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
-    void testE2E_MultipleContainerisedWork() throws IOException, InterruptedException {
-        String projectDir = System.getProperty("user.dir");
-        
+    void testE2E_MultipleContainerisedWork() throws Exception {
         PipelineTestRunResult result = PipelineTestRun.builder()
                 .pipelineName("multiBehaviorPipeline")
-                .sourcePath(projectDir)
                 .containerisedWork("maven:3.9.9-eclipse-temurin-17")
                         .result(0, "success", "")
                 .build()
@@ -410,13 +349,9 @@ public class SamplePipelineTest {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
-    void testE2E_DefaultBehavior() throws IOException, InterruptedException {
-        String projectDir = System.getProperty("user.dir");
-        
+    void testE2E_DefaultBehavior() throws Exception {
         PipelineTestRunResult result = PipelineTestRun.builder()
                 .pipelineName("containerisedWorkPipeline")
-                .sourcePath(projectDir)
                 .defaultContainerisedWork()
                         .result(0, "default response", "")
                 .build()
@@ -426,13 +361,9 @@ public class SamplePipelineTest {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("E2E tests require Docker and proper classpath setup")
-    void testE2E_MultipleStartCalls_Isolation() throws IOException, InterruptedException {
-        String projectDir = System.getProperty("user.dir");
-        
+    void testE2E_MultipleStartCalls_Isolation() throws Exception {
         PipelineTestRun runner = PipelineTestRun.builder()
                 .pipelineName("containerisedWorkPipeline")
-                .sourcePath(projectDir)
                 .containerisedWork("maven:3.9.9-eclipse-temurin-17")
                         .result(0, "first", "")
                 .build();
