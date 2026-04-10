@@ -26,6 +26,15 @@ func CreateProjectZip(rootDir string) ([]byte, error) {
 			return filepath.SkipDir
 		}
 
+		// Skip compiled CLI binaries in resources/cli directories (large binaries not needed for tests)
+		if info.IsDir() && (info.Name() == "cli") {
+			// Also skip parent 'resources' directory - cli binaries shouldn't be in the zip
+			relPath, err := filepath.Rel(rootDir, path)
+			if err == nil && strings.Contains(relPath, "resources") {
+				return filepath.SkipDir
+			}
+		}
+
 		// Skip hidden files and directories
 		if strings.HasPrefix(info.Name(), ".") {
 			if info.IsDir() {
