@@ -12,7 +12,7 @@
 .DEFAULT_GOAL := help
 
 # Directories
-GOLANG_DIR := golang
+CORE_DIR := core
 JAVA_SDK_DIR := sdks/java
 GOPATH := $(shell go env GOPATH)
 
@@ -57,10 +57,10 @@ help:
 .PHONY: build
 build: $(BINARY_DIR)/$(BINARY_NAME)
 
-$(BINARY_DIR)/$(BINARY_NAME): $(GOLANG_DIR)/cmd/yeetcd
+$(BINARY_DIR)/$(BINARY_NAME): $(CORE_DIR)/cmd/yeetcd
 	@mkdir -p $(BINARY_DIR)
 	$(call print_info,"Building $(BINARY_NAME)...")
-	cd $(GOLANG_DIR) && go build -o ../$(BINARY_DIR)/$(BINARY_NAME) ./cmd/yeetcd
+	cd $(CORE_DIR) && go build -o ../$(BINARY_DIR)/$(BINARY_NAME) ./cmd/yeetcd
 	$(call print_status,"Built $(BINARY_DIR)/$(BINARY_NAME)")
 
 ## build-all - Build yeetcd binaries for all platforms (darwin-amd64, darwin-arm64, linux-amd64, linux-arm64)
@@ -68,13 +68,13 @@ $(BINARY_DIR)/$(BINARY_NAME): $(GOLANG_DIR)/cmd/yeetcd
 build-all: $(foreach platform,$(PLATFORMS),$(CLI_DIR)/$(BINARY_NAME)-$(platform))
 	$(call print_status,"Built all platform binaries")
 
-$(CLI_DIR)/$(BINARY_NAME)-%: $(GOLANG_DIR)/cmd/yeetcd
+$(CLI_DIR)/$(BINARY_NAME)-%: $(CORE_DIR)/cmd/yeetcd
 	@mkdir -p $(CLI_DIR)
 	$(eval GOOS_ARCH := $(subst -, ,$*))
 	$(eval TARGET_GOOS := $(word 1,$(GOOS_ARCH)))
 	$(eval TARGET_GOARCH := $(word 2,$(GOOS_ARCH)))
 	$(call print_info,"Building $(BINARY_NAME)-$* for $(TARGET_GOOS)/$(TARGET_GOARCH)...")
-	cd $(GOLANG_DIR) && GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -o ../$(CLI_DIR)/$(BINARY_NAME)-$* ./cmd/yeetcd
+	cd $(CORE_DIR) && GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -o ../$(CLI_DIR)/$(BINARY_NAME)-$* ./cmd/yeetcd
 	$(call print_status,"Built $(CLI_DIR)/$(BINARY_NAME)-$*")
 
 ## build-darwin-arm64 - Build yeetcd for darwin arm64
@@ -109,7 +109,7 @@ test: test-go test-java
 .PHONY: test-go
 test-go:
 	$(call print_info,"Running Go tests...")
-	cd $(GOLANG_DIR) && go test -v -race ./...
+	cd $(CORE_DIR) && go test -v -race ./...
 	$(call print_status,"Go tests passed")
 
 ## test-java - Run Java tests only
@@ -122,7 +122,7 @@ test-java:
 ## test-go-verbose - Run Go tests with verbose output
 .PHONY: test-go-verbose
 test-go-verbose:
-	cd $(GOLANG_DIR) && go test -v ./...
+	cd $(CORE_DIR) && go test -v ./...
 
 ## install-sdk - Build and install SDK modules to local Maven repository
 .PHONY: install-sdk
@@ -142,7 +142,7 @@ build-sample: install-sdk
 .PHONY: test-e2e
 test-e2e: install-sdk
 	$(call print_info,"Running E2E tests...")
-	cd $(GOLANG_DIR) && go test -v -race -tags=e2e ./e2e/...
+	cd $(CORE_DIR) && go test -v -race -tags=e2e ./e2e/...
 
 ## build-java - Build protocol, sdk, and test modules in order
 .PHONY: build-java
@@ -167,16 +167,16 @@ test-all: build-all copy-cli-binaries build-java build-sample test-go test-sampl
 .PHONY: proto
 proto:
 	$(call print_info,"Generating protobuf Go code...")
-	@mkdir -p $(GOLANG_DIR)/internal/core/proto/pipeline
-	@mkdir -p $(GOLANG_DIR)/internal/core/proto/mock
-	PATH="$(GOPATH)/bin:$(PATH)" protoc --go_out=$(GOLANG_DIR)/internal/core/proto/pipeline --go_opt=paths=source_relative \
-		--go-grpc_out=$(GOLANG_DIR)/internal/core/proto/pipeline --go-grpc_opt=paths=source_relative \
-		--proto_path=$(GOLANG_DIR)/protocol/src/main/proto \
-		$(GOLANG_DIR)/protocol/src/main/proto/yeetcd/protocol/pipeline/pipeline.proto
-	PATH="$(GOPATH)/bin:$(PATH)" protoc --go_out=$(GOLANG_DIR)/internal/core/proto/mock --go_opt=paths=source_relative \
-		--go-grpc_out=$(GOLANG_DIR)/internal/core/proto/mock --go-grpc_opt=paths=source_relative \
-		--proto_path=$(GOLANG_DIR)/protocol/src/main/proto \
-		$(GOLANG_DIR)/protocol/src/main/proto/yeetcd/protocol/mock/mock.proto
+	@mkdir -p $(CORE_DIR)/internal/core/proto/pipeline
+	@mkdir -p $(CORE_DIR)/internal/core/proto/mock
+	PATH="$(GOPATH)/bin:$(PATH)" protoc --go_out=$(CORE_DIR)/internal/core/proto/pipeline --go_opt=paths=source_relative \
+		--go-grpc_out=$(CORE_DIR)/internal/core/proto/pipeline --go-grpc_opt=paths=source_relative \
+		--proto_path=$(CORE_DIR)/protocol/src/main/proto \
+		$(CORE_DIR)/protocol/src/main/proto/yeetcd/protocol/pipeline/pipeline.proto
+	PATH="$(GOPATH)/bin:$(PATH)" protoc --go_out=$(CORE_DIR)/internal/core/proto/mock --go_opt=paths=source_relative \
+		--go-grpc_out=$(CORE_DIR)/internal/core/proto/mock --go-grpc_opt=paths=source_relative \
+		--proto_path=$(CORE_DIR)/protocol/src/main/proto \
+		$(CORE_DIR)/protocol/src/main/proto/yeetcd/protocol/mock/mock.proto
 	$(call print_status,"Protobuf code generated")
 	$(call print_status,"E2E tests passed")
 
@@ -185,6 +185,6 @@ proto:
 clean:
 	$(call print_info,"Cleaning build artifacts...")
 	rm -rf $(BINARY_DIR)
-	cd $(GOLANG_DIR) && go clean ./...
+	cd $(CORE_DIR) && go clean ./...
 	cd $(JAVA_SDK_DIR) && ./mvnw clean
 	$(call print_status,"Cleaned all artifacts")

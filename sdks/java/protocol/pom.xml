@@ -80,8 +80,8 @@
                     <protocArtifact>com.google.protobuf:protoc:4.29.3:exe:${os.detected.classifier}</protocArtifact>
                     <pluginId>grpc-java</pluginId>
                     <pluginArtifact>io.grpc:protoc-gen-grpc-java:1.61.0:exe:${os.detected.classifier}</pluginArtifact>
-                    <!-- Point to proto files in golang directory -->
-                    <protoSourceRoot>${project.basedir}/../../../golang/protocol/src/main/proto</protoSourceRoot>
+                    <!-- Point to proto files in core directory -->
+                    <protoSourceRoot>${project.basedir}/../../../core/protocol/src/main/proto</protoSourceRoot>
                 </configuration>
                 <executions>
                     <execution>

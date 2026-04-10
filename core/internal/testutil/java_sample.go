@@ -20,25 +20,25 @@ var (
 )
 
 // findProjectRoot attempts to find the project root by looking for the sdks/java directory
-// from various possible starting points (current directory, golang module root, etc.)
+// from various possible starting points (current directory, core module root, etc.)
 func findProjectRoot() (string, error) {
 	// Check current working directory first
 	if _, err := os.Stat("sdks/java"); err == nil {
 		return ".", nil
 	}
 
-	// Check if we're inside the golang module - go test runs from temp dir
-	// so we need to find the golang module's directory
+	// Check if we're inside the core module - go test runs from temp dir
+	// so we need to find the core module's directory
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("failed to get current directory: %w", err)
 	}
 
 	// Walk up looking for the project root
-	// The project root contains both 'golang' and 'sdks' directories
+	// The project root contains both 'core' and 'sdks' directories
 	for {
-		// Check if this looks like project root (has golang AND sdks)
-		if _, err := os.Stat(filepath.Join(dir, "golang")); err == nil {
+		// Check if this looks like project root (has core AND sdks)
+		if _, err := os.Stat(filepath.Join(dir, "core")); err == nil {
 			if _, err := os.Stat(filepath.Join(dir, "sdks")); err == nil {
 				return dir, nil
 			}
