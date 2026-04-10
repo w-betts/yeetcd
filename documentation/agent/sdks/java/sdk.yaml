@@ -1,0 +1,30 @@
+# Documentation: java-sdk
+# Generated: 2026-04-10T22:09:40.142Z
+
+version: 1
+component_type: "module"
+name: "java-sdk"
+description: "Java SDK for defining pipelines using a fluent builder API. Provides classes and interfaces for creating pipeline definitions that are compiled to protobuf format at build time."
+responsibilities:
+  - "Provide fluent builder API for pipeline definition"
+  - "Support multiple work definition types (Containerised, Custom, Compound, DynamicWorkGenerating)"
+  - "Generate protobuf pipeline definitions at compile time via annotation processor"
+  - "Implement work context and parameter passing between pipeline stages"
+  - "Support conditional work execution based on context or previous work status"
+dependencies:
+  - "yeetcd.protocol (protobuf definitions)"
+  - "Lombok"
+  - "Apache Commons Codec"
+subcomponents:
+  - "yeetcd.sdk package - Core pipeline APIs"
+  - "yeetcd.sdk.condition package - Condition evaluation"
+contracts:
+  - "Pipeline.toProtobuf() produces valid protobuf message"
+  - "WorkDefinition implementations serialize correctly to protobuf"
+  - "NativeWorkDefinition executionId is deterministic based on class name and state"
+  - "Parameter validation occurs at pipeline build time"
+invariants:
+  - "Pipeline name must be unique within a deployment"
+  - "Work IDs are deterministically generated from work context"
+  - "Final work must be set before building pipeline"
+  - "All work definitions must provide applyTo() implementation"

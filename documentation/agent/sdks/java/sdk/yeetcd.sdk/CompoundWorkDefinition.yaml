@@ -1,0 +1,49 @@
+# Documentation: CompoundWorkDefinition
+# Generated: 2026-04-10T22:10:10.347Z
+
+version: 1
+component_type: "class"
+name: "CompoundWorkDefinition"
+description: "Work definition that groups multiple work items as a single unit. Used to compose complex work flows."
+responsibilities:
+  - "Store array of Work items"
+  - "Serialize nested work to protobuf"
+  - "Collect native work definitions from all nested work"
+dependencies:
+  - "yeetcd.sdk.Work"
+  - "yeetcd.protocol.pipeline.PipelineOuterClass"
+interfaces:
+  - method: "getFinalWork()"
+    returns: "Work[]"
+    description: "Returns the grouped work items"
+    preconditions: []
+    postconditions:
+      - "Returns array of Work, may be empty"
+  - method: "builder(Work... finalWork)"
+    returns: "Builder"
+    description: "Creates Builder for constructing CompoundWorkDefinition"
+    preconditions:
+      - "finalWork must not be null"
+    postconditions:
+      - "Builder returned ready for configuration"
+  - method: "applyTo(WorkContext context, PipelineOuterClass.Work.Builder workBuilder)"
+    returns: "void"
+    description: "Sets compound work definition with all nested work"
+    preconditions: []
+    postconditions:
+      - "workBuilder has CompoundWorkDefinition with finalWork set"
+  - method: "nativeWorkDefinitions()"
+    returns: "Stream<NativeWorkDefinition>"
+    description: "Returns stream of all native work definitions from nested work"
+    preconditions: []
+    postconditions:
+      - "Returns flattened stream of NativeWorkDefinitions"
+implementation_notes:
+  - "Each Work serialized recursively with merged context"
+  - "Native work definitions collected from this and all previous work"
+  - "Supports deep nesting of work items"
+contracts:
+  - "Nested work items execute as a unit"
+  - "Context merges hierarchically"
+invariants:
+  - "finalWork array is immutable after construction"

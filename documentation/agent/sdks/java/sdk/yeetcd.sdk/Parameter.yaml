@@ -1,0 +1,37 @@
+# Documentation: Parameter
+# Generated: 2026-04-10T22:10:24.082Z
+
+version: 1
+component_type: "class"
+name: "Parameter"
+description: "Immutable parameter definition with type checking, required flag, default value, and optional choices."
+responsibilities:
+  - "Store parameter metadata"
+  - "Validate against choices"
+  - "Serialize to protobuf format"
+dependencies:
+  - "yeetcd.protocol.pipeline.PipelineOuterClass"
+interfaces:
+  - method: "builder(TypeCheck typeCheck)"
+    returns: "Builder"
+    description: "Creates Builder with type check"
+    preconditions:
+      - "typeCheck must not be null"
+    postconditions:
+      - "Builder returned"
+  - method: "toProtobuf()"
+    returns: "PipelineOuterClass.Parameter"
+    description: "Serializes parameter to protobuf"
+    preconditions: []
+    postconditions:
+      - "Returns valid protobuf Parameter"
+implementation_notes:
+  - "Builder pattern for construction"
+  - "TypeCheck enum has STRING, NUMBER, BOOLEAN"
+  - "Default value is null if not set"
+  - "Choices list is optional and enforced if provided"
+contracts:
+  - "If choices set, value must be in choices"
+  - "Default value must match typeCheck if set"
+invariants:
+  - "TypeCheck is immutable after construction"

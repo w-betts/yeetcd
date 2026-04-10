@@ -1,0 +1,72 @@
+# Documentation: Pipeline
+# Generated: 2026-04-10T22:09:48.227Z
+
+version: 1
+component_type: "class"
+name: "Pipeline"
+description: "Immutable pipeline definition class that represents a complete pipeline with parameters, work context, and final work items."
+responsibilities:
+  - "Store pipeline name, parameters, work context, and final work"
+  - "Serialize pipeline to protobuf format"
+  - "Register native work definitions for execution"
+  - "Provide fluent builder API for construction"
+dependencies:
+  - "yeetcd.sdk.Parameters"
+  - "yeetcd.sdk.WorkContext"
+  - "yeetcd.sdk.Work"
+  - "yeetcd.sdk.NativeWorkDefinition"
+  - "yeetcd.protocol.pipeline.PipelineOuterClass"
+interfaces:
+  - method: "builder(String name)"
+    returns: "Builder"
+    description: "Creates a new Builder instance for constructing a Pipeline with the given name"
+    preconditions:
+      - "name must not be null or empty"
+    postconditions:
+      - "Builder instance returned ready for configuration"
+  - method: "getParameters()"
+    returns: "Parameters"
+    description: "Returns the pipeline parameters"
+    preconditions: []
+    postconditions:
+      - "Returns Parameters instance, never null"
+  - method: "getWorkContext()"
+    returns: "WorkContext"
+    description: "Returns the pipeline-level work context"
+    preconditions: []
+    postconditions:
+      - "Returns WorkContext instance, never null"
+  - method: "getFinalWork()"
+    returns: "Work[]"
+    description: "Returns the final work items that execute when pipeline runs"
+    preconditions: []
+    postconditions:
+      - "Returns array of Work items"
+  - method: "toProtobuf()"
+    returns: "PipelineOuterClass.Pipeline"
+    description: "Serializes the pipeline to protobuf format for transmission/storage"
+    preconditions: []
+    postconditions:
+      - "Returns valid protobuf Pipeline message"
+  - method: "runNativeWorkDefinition(String pipelineName, String taskName)"
+    returns: "void"
+    description: "Static method to run a native work definition by name. Used by generated code at runtime."
+    preconditions:
+      - "pipelineName and taskName must match registered native work definitions"
+    postconditions:
+      - "NativeWorkDefinition.execute() is called"
+implementation_notes:
+  - "Pipeline class is immutable - all fields are final and set only in constructor"
+  - "Builder pattern used for construction to ensure validation"
+  - "NativeWorkDefinition.computeIfAbsent() caches definitions in ConcurrentHashMap for fast lookup"
+  - "toProtobuf() flattens nested work items for serialization"
+  - "Pipeline acts as Work via asWorkBuilder() for use in compound definitions"
+contracts:
+  - "Pipeline name is unique identifier within a deployment"
+  - "Final work array must not be empty"
+  - "Parameters and WorkContext are optional but always non-null when retrieved"
+  - "All native work definitions are registered at construction time"
+invariants:
+  - "name field is immutable after construction"
+  - "finalWork array is immutable after construction"
+  - "NativeWorkDefinition map is populated once per pipeline name"

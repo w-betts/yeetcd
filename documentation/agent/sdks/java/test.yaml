@@ -1,0 +1,22 @@
+# Documentation: java-test
+# Generated: 2026-04-10T22:11:02.569Z
+
+version: 1
+component_type: "module"
+name: "java-test"
+description: "Java testing utilities for pipeline definitions. Provides FakePipelineRunner for unit testing pipeline logic without container execution."
+responsibilities:
+  - "Provide FakePipelineRunner for testing"
+  - "Mock work execution behavior"
+  - "Track test execution results"
+  - "Support work behavior type mocking"
+  - "Provide test utilities and builders"
+dependencies:
+  - "yeetcd.sdk"
+subcomponents:
+  - "yeetcd.test package - Test utilities"
+contracts:
+  - "FakePipelineRunner executes pipelines without containers"
+  - "Work behaviors can be mocked with controlled results"
+invariants:
+  - "Test results provide pass/fail status and output"

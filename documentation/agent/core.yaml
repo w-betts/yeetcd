@@ -1,0 +1,35 @@
+# Documentation: core
+# Generated: 2026-04-10T22:10:43.115Z
+
+version: 1
+component_type: "module"
+name: "core"
+description: "Go-based controller runtime that builds pipelines from protobuf definitions and executes work in containers. Contains pipeline execution engine, condition evaluation, and work orchestration."
+responsibilities:
+  - "Load pipeline definitions from protobuf"
+  - "Execute work items in containers (Docker/Kubernetes)"
+  - "Evaluate work conditions at runtime"
+  - "Track work results and status"
+  - "Stream outputs between work items"
+  - "Provide CLI for pipeline operations"
+dependencies:
+  - "yeetcd.protocol (protobuf definitions)"
+  - "Docker client"
+  - "Kubernetes client"
+  - "gRPC"
+subcomponents:
+  - "core/internal/core/pipeline - Pipeline execution logic"
+  - "core/internal/core/condition - Condition evaluation"
+  - "core/pkg/engine - Execution engines"
+  - "core/pkg/build - Source build service"
+  - "core/pkg/config - Configuration loading"
+  - "core/cmd/yeetcd - CLI entrypoint"
+contracts:
+  - "Pipeline execution completes with success or failure status"
+  - "Work conditions determine execution path"
+  - "Output directories mounted between dependent work items"
+  - "All executions are containerized"
+invariants:
+  - "Pipeline and work have unique identifiers"
+  - "Work results are tracked from execution to completion"
+  - "Context values are available in each work's environment"

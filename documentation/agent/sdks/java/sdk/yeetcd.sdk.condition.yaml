@@ -1,0 +1,25 @@
+# Documentation: yeetcd.sdk.condition
+# Generated: 2026-04-10T22:10:36.798Z
+
+version: 1
+component_type: "package"
+name: "yeetcd.sdk.condition"
+description: "Package for conditional work execution. Provides condition types for context-based and status-based conditions, and logical composition."
+responsibilities:
+  - "Define Condition base class"
+  - "Provide WorkContextCondition for context-based execution"
+  - "Provide PreviousWorkStatusCondition for status-based execution"
+  - "Support logical operators (And, Or, Not)"
+dependencies:
+  - "yeetcd.protocol.pipeline.PipelineOuterClass"
+subcomponents:
+  - "Condition - base abstract class"
+  - "Conditions - factory utility"
+  - "WorkContextCondition - context value comparison"
+  - "PreviousWorkStatusCondition - previous work status"
+  - "AndCondition, OrCondition, NotCondition - logical composition"
+contracts:
+  - "All conditions serialize to protobuf"
+  - "Conditions evaluated at runtime by controller"
+invariants:
+  - "Condition implementations are immutable"

@@ -1,0 +1,34 @@
+# Documentation: PipelineGeneratorAnnotationProcessor
+# Generated: 2026-04-10T22:11:16.291Z
+
+version: 1
+component_type: "class"
+name: "PipelineGeneratorAnnotationProcessor"
+description: "Java annotation processor that generates pipeline definition code at compile time. Discovers @PipelineGenerator methods and generates classes that output protobuf."
+responsibilities:
+  - "Discover @PipelineGenerator annotated methods"
+  - "Generate GeneratedPipelineDefinitions class"
+  - "Generate GeneratedCustomWorkRunner class"
+  - "Output protobuf to stdout"
+dependencies:
+  - "yeetcd.sdk.PipelineGenerator"
+  - "javax.annotation.processing"
+interfaces:
+  - method: "process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv)"
+    returns: "boolean"
+    description: "Processes annotations, generates code once"
+    preconditions:
+      - "Called by Java compiler"
+    postconditions:
+      - "GeneratedPipelineDefinitions and GeneratedCustomWorkRunner created"
+implementation_notes:
+  - "Uses Google AutoService for processor registration"
+  - "Generates on first round with @PipelineGenerator"
+  - "Skips subsequent rounds"
+  - "GeneratedPipelineDefinitions.main() outputs protobuf"
+  - "GeneratedCustomWorkRunner.run() executes native work"
+contracts:
+  - "@PipelineGenerator methods discovered at compile time"
+  - "Generated code runs at pipeline build time"
+invariants:
+  - "Generation happens exactly once per compilation"

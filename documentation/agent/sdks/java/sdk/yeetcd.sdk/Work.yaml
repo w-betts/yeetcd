@@ -1,0 +1,90 @@
+# Documentation: Work
+# Generated: 2026-04-10T22:09:52.937Z
+
+version: 1
+component_type: "class"
+name: "Work"
+description: "Immutable work item that represents a unit of work in a pipeline. Contains work definition, context, output paths, previous work dependencies, and execution conditions."
+responsibilities:
+  - "Store work item properties (description, definition, context)"
+  - "Manage work output paths for streaming to downstream work"
+  - "Define dependencies on previous work items"
+  - "Apply execution conditions"
+  - "Serialize work to protobuf format"
+  - "Generate native work definitions for execution"
+dependencies:
+  - "yeetcd.sdk.WorkDefinition"
+  - "yeetcd.sdk.WorkContext"
+  - "yeetcd.sdk.WorkOutputPath"
+  - "yeetcd.sdk.PreviousWork"
+  - "yeetcd.sdk.condition.Condition"
+  - "yeetcd.sdk.condition.Conditions"
+  - "yeetcd.protocol.pipeline.PipelineOuterClass"
+interfaces:
+  - method: "builder(String description, WorkDefinition workDefinition)"
+    returns: "Builder"
+    description: "Creates a new Builder for constructing a Work item"
+    preconditions:
+      - "description must not be null or empty"
+      - "workDefinition must not be null"
+    postconditions:
+      - "Builder instance returned ready for configuration"
+  - method: "getDescription()"
+    returns: "String"
+    description: "Returns the work description"
+    preconditions: []
+    postconditions:
+      - "Returns non-null, non-empty string"
+  - method: "getWorkDefinition()"
+    returns: "WorkDefinition"
+    description: "Returns the work definition specifying how to execute this work"
+    preconditions: []
+    postconditions:
+      - "Returns WorkDefinition instance, never null"
+  - method: "getWorkContext()"
+    returns: "WorkContext"
+    description: "Returns the work-level context that merges with pipeline context"
+    preconditions: []
+    postconditions:
+      - "Returns WorkContext instance, may be empty"
+  - method: "getWorkOutputPaths()"
+    returns: "WorkOutputPath[]"
+    description: "Returns output paths produced by this work"
+    preconditions: []
+    postconditions:
+      - "Returns array of WorkOutputPath, may be empty"
+  - method: "getPreviousWork()"
+    returns: "PreviousWork[]"
+    description: "Returns dependencies on previous work items"
+    preconditions: []
+    postconditions:
+      - "Returns array of PreviousWork, may be empty"
+  - method: "getCondition()"
+    returns: "Condition"
+    description: "Returns the execution condition for this work"
+    preconditions: []
+    postconditions:
+      - "Returns Condition instance, defaults to previousWorkStatusCondition(SUCCESS)"
+  - method: "toProtobuf(WorkContext containingContext)"
+    returns: "PipelineOuterClass.Work"
+    description: "Serializes work to protobuf, merging context with containing pipeline context"
+    preconditions:
+      - "containingContext must not be null"
+    postconditions:
+      - "Returns valid protobuf Work message with merged context"
+implementation_notes:
+  - "Work class is immutable - all fields set in constructor"
+  - "Builder provides fluent API with sensible defaults"
+  - "Default condition is previousWorkStatusCondition(SUCCESS)"
+  - "ID is generated using SHA-256 hash of random UUID for uniqueness"
+  - "NativeWorkDefinitions collected recursively from this work and all previous work"
+  - "WorkContext merges into containing context using priority: work context overrides pipeline context"
+contracts:
+  - "Work ID is unique within pipeline execution"
+  - "Work context merges hierarchically"
+  - "Output paths are optional but must have unique names"
+  - "Previous work dependencies can specify mount paths for streaming outputs"
+invariants:
+  - "description is immutable after construction"
+  - "workDefinition is immutable after construction"
+  - "condition defaults to SUCCESS but can be customized"

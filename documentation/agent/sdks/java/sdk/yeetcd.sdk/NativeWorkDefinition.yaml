@@ -1,0 +1,46 @@
+# Documentation: NativeWorkDefinition
+# Generated: 2026-04-10T22:10:17.513Z
+
+version: 1
+component_type: "class"
+name: "NativeWorkDefinition"
+description: "Abstract base class for work definitions that contain runnable Java code. Provides execution ID generation and native work tracking."
+responsibilities:
+  - "Provide abstract base for executable work code"
+  - "Generate deterministic execution ID from class name and state"
+  - "Implement WorkDefinition interface for serialization"
+  - "Provide work context value access from environment"
+dependencies:
+  - "yeetcd.sdk.WorkDefinition"
+  - "com.fasterxml.jackson.databind.ObjectMapper"
+  - "org.apache.commons.codec.digest.DigestUtils"
+interfaces:
+  - method: "run()"
+    returns: "void"
+    description: "Execute the work. Implemented by subclasses."
+    preconditions: []
+    postconditions:
+      - "Work execution completed or exception thrown"
+  - method: "nativeWorkDefinitions()"
+    returns: "Stream<NativeWorkDefinition>"
+    description: "Returns stream containing this instance"
+    preconditions: []
+    postconditions:
+      - "Returns Stream.of(this)"
+  - method: "workContextValue(String key)"
+    returns: "String"
+    description: "Get value from work context (env var or system property)"
+    preconditions:
+      - "key must not be null"
+    postconditions:
+      - "Returns value from env or system property, or null if not found"
+implementation_notes:
+  - "Base class for CustomWorkDefinition and DynamicWorkGeneratingWorkDefinition"
+  - "executionId computed as SHA-256(className + JSON serialized state)"
+  - "ObjectMapper configured to serialize only fields (no getters)"
+  - "workContextValue() first checks env vars, then system properties"
+contracts:
+  - "executionId is deterministic for same class+state"
+  - "run() implements actual work execution"
+invariants:
+  - "executionId does not change once computed"

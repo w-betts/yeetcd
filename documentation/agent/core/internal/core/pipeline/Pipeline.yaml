@@ -1,0 +1,42 @@
+# Documentation: Pipeline
+# Generated: 2026-04-10T22:10:49.469Z
+
+version: 1
+component_type: "class"
+name: "Pipeline"
+description: "Go struct representing a pipeline loaded from protobuf. Contains name, parameters, work context, and final work array."
+responsibilities:
+  - "Store pipeline name, parameters, work context"
+  - "Convert from protobuf format"
+  - "Merge pipeline arguments into context"
+  - "Provide work execution entry point"
+dependencies:
+  - "yeetcd.protocol.pipeline.PipelineOuterClass"
+  - "yeetcd.internal.core.pipeline.Parameters"
+  - "yeetcd.internal.core.pipeline.WorkContext"
+  - "yeetcd.internal.core.pipeline.Work"
+interfaces:
+  - method: "FromProtobuf(protoPipeline *pb.Pipeline) (*Pipeline, error)"
+    returns: "(*Pipeline, error)"
+    description: "Converts protobuf message to Pipeline struct"
+    preconditions:
+      - "protoPipeline must not be nil"
+    postconditions:
+      - "Returns Pipeline or error if invalid"
+  - method: "WithArguments(args Arguments) (*Pipeline, error)"
+    returns: "(*Pipeline, error)"
+    description: "Merges arguments into pipeline context"
+    preconditions:
+      - "Arguments validated against parameters"
+    postconditions:
+      - "Returns new Pipeline with merged context"
+implementation_notes:
+  - "Immutable - WithArguments returns new instance"
+  - "Parameters converted from protobuf type check enum"
+  - "WorkContext converted from proto map"
+  - "FinalWork converted from proto Work messages"
+contracts:
+  - "Pipeline name serves as unique identifier"
+  - "Arguments validated against parameter definitions"
+invariants:
+  - "Name is non-empty after construction"

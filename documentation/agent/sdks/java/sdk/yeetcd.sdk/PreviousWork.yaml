@@ -1,0 +1,55 @@
+# Documentation: PreviousWork
+# Generated: 2026-04-10T22:10:34.001Z
+
+version: 1
+component_type: "class"
+name: "PreviousWork"
+description: "Defines a dependency on a previous work item. Specifies how outputs are passed and how stdout is captured."
+responsibilities:
+  - "Store reference to previous work"
+  - "Define output mount path for streaming"
+  - "Define environment variable for stdout capture"
+  - "Serialize to protobuf format"
+dependencies:
+  - "yeetcd.sdk.Work"
+  - "yeetcd.protocol.pipeline.PipelineOuterClass"
+interfaces:
+  - method: "builder(Work work)"
+    returns: "Builder"
+    description: "Creates Builder with previous work"
+    preconditions:
+      - "work must not be null"
+    postconditions:
+      - "Builder returned"
+  - method: "getWork()"
+    returns: "Work"
+    description: "Returns the previous work item"
+    preconditions: []
+    postconditions:
+      - "Returns Work instance"
+  - method: "getOutputPathsMount()"
+    returns: "String"
+    description: "Returns mount path for outputs, or null if not set"
+    preconditions: []
+    postconditions:
+      - "Returns mount path or null"
+  - method: "getStdOutEnvVar()"
+    returns: "String"
+    description: "Returns stdout env var name, or null if not set"
+    preconditions: []
+    postconditions:
+      - "Returns env var name or null"
+  - method: "toProtobuf(WorkContext containingContext)"
+    returns: "PipelineOuterClass.PreviousWork"
+    description: "Serializes to protobuf with work"
+    preconditions: []
+    postconditions:
+      - "Returns valid protobuf message"
+implementation_notes:
+  - "Mount path creates output directory binding between containers"
+  - "Stdout capture enables conditional execution based on previous results"
+contracts:
+  - "Output mount path used to bind previous work output directory"
+  - "Stdout env var captures previous work stdout as env var"
+invariants:
+  - "Work reference immutable after construction"

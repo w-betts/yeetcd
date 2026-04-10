@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>java-test - Documentation</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 0; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        header .subtitle { font-size: 1.2em; opacity: 0.9; }
+        .breadcrumb { background: white; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; }
+        .breadcrumb a { color: #667eea; text-decoration: none; }
+        .breadcrumb .separator { margin: 0 10px; color: #999; }
+        .main-content { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        h2 { color: #667eea; margin-top: 30px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
+        h3 { color: #555; margin-top: 25px; margin-bottom: 10px; }
+        p { margin-bottom: 15px; }
+        .badge-module { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; background: #e3f2fd; color: #1976d2; margin-bottom: 15px; }
+        .package-list { list-style: none; margin-left: 0; }
+        .package-list li { background: #f8f9fa; padding: 15px 20px; border-left: 4px solid #667eea; margin-bottom: 10px; border-radius: 0 4px 4px 0; }
+        .two-column { display: grid; grid-template-columns: 250px 1fr; gap: 20px; }
+        .nav-sidebar { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .nav-sidebar h3 { margin-top: 0; color: #667eea; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .nav-sidebar ul { list-style: none; margin-left: 0; }
+        .nav-sidebar li { margin-bottom: 5px; }
+        .nav-sidebar a { color: #555; text-decoration: none; display: block; padding: 8px 12px; border-radius: 4px; }
+        .nav-sidebar a:hover { background: #f5f5f5; color: #667eea; }
+        .nav-sidebar .current { background: #e3f2fd; color: #1976d2; font-weight: bold; }
+        .diagram-container { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
+        footer { text-align: center; padding: 30px; color: #999; font-size: 0.9em; margin-top: 40px; }
+        .responsibility-list { list-style: none; margin-left: 0; }
+        .responsibility-list li { background: #f8f9fa; padding: 12px 15px; border-left: 4px solid #667eea; margin-bottom: 10px; border-radius: 0 4px 4px 0; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>java-test</h1>
+            <div class="subtitle">Java Testing Utilities</div>
+        </div>
+    </header>
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="index.html">Home</a>
+            <span class="separator">&raquo;</span>
+            <span>java-test</span>
+        </div>
+        <div class="two-column">
+            <div class="nav-sidebar">
+                <h3>Modules</h3>
+                <ul>
+                    <li><a href="../../../../index.html">Overview</a></li>
+                    <li><a href="../../../core/index.html">core</a></li>
+                    <li><a href="../../sdk/index.html">java-sdk</a></li>
+                    <li><a href="index.html" class="current">java-test</a></li>
+                </ul>
+            </div>
+            <div class="main-content">
+                <span class="badge-module">Module</span>
+                <h2>Description</h2>
+                <p>Java testing utilities for pipeline definitions. Provides FakePipelineRunner for unit testing pipeline logic without container execution.</p>
+                <div class="diagram-container">
+                    <div class="mermaid">
+classDiagram
+    class FakePipelineRunner {
+        +Builder builder()
+        +run(FakePipelineRun) FakePipelineRunResult
+    }
+    class FakePipelineRun {
+        +Pipeline pipeline
+        +Map~String, String~arguments
+    }
+    class FakePipelineRunResult {
+        +FakeStatus status
+        +Map~String, String~outputs
+    }
+    class FakeWorkResult {
+        +FakeStatus status
+    }
+    class FakeStatus {
+        <<enum>>
+        +SUCCESS
+        +FAILURE
+    }
+    FakePipelineRunner --> FakePipelineRun
+    FakePipelineRunner --> FakePipelineRunResult
+    FakePipelineRunResult --> FakeWorkResult
+                    </div>
+                </div>
+                <h2>Responsibilities</h2>
+                <ul class="responsibility-list">
+                    <li>Provide FakePipelineRunner for testing</li>
+                    <li>Mock work execution behavior</li>
+                    <li>Track test execution results</li>
+                    <li>Support work behavior type mocking</li>
+                    <li>Provide test utilities and builders</li>
+                </ul>
+                <h2>Dependencies</h2>
+                <ul>
+                    <li>yeetcd.sdk</li>
+                </ul>
+                <h2>Packages</h2>
+                <ul class="package-list">
+                    <li>yeetcd.test package - Test utilities</li>
+                </ul>
+                <h2>Contracts</h2>
+                <ul>
+                    <li>FakePipelineRunner executes pipelines without containers</li>
+                    <li>Work behaviors can be mocked with controlled results</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <footer>
+        <div class="container">Generated by OpenCode Documentation Agent</div>
+    </footer>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+    </script>
+</body>
+</html>

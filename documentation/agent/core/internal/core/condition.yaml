@@ -1,0 +1,25 @@
+# Documentation: core/internal/core/condition
+# Generated: 2026-04-10T22:10:59.597Z
+
+version: 1
+component_type: "package"
+name: "core/internal/core/condition"
+description: "Package for condition evaluation at runtime. Provides context-based and status-based condition evaluation for work execution control."
+responsibilities:
+  - "Evaluate WorkContextCondition"
+  - "Evaluate PreviousWorkStatusCondition"
+  - "Support logical composition (And, Or, Not)"
+  - "Serialize conditions to protobuf for storage"
+dependencies:
+  - "yeetcd.internal.core.types"
+  - "yeetcd.internal.core.proto.pipeline"
+subcomponents:
+  - "Condition interface"
+  - "WorkContextCondition - context value evaluation"
+  - "PreviousWorkStatusCondition - status evaluation"
+  - "AndCondition, OrCondition, NotCondition - logical operators"
+contracts:
+  - "Conditions evaluated before work execution"
+  - "Work only executes if condition passes"
+invariants:
+  - "Condition is immutable after construction"

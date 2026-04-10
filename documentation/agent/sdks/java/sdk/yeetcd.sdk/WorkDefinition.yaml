@@ -1,0 +1,37 @@
+# Documentation: WorkDefinition
+# Generated: 2026-04-10T22:09:56.727Z
+
+version: 1
+component_type: "class"
+name: "WorkDefinition"
+description: "Interface for work execution strategies. Implementations define how work runs in a pipeline - whether in a container, custom Java code, or compound work."
+responsibilities:
+  - "Apply work definition to protobuf builder"
+  - "Provide native work definitions for code generation"
+  - "Contract for serialization to protobuf format"
+dependencies:
+  - "yeetcd.protocol.pipeline.PipelineOuterClass"
+interfaces:
+  - method: "applyTo(WorkContext workContext, PipelineOuterClass.Work.Builder workBuilder)"
+    returns: "void"
+    description: "Applies this work definition to a protobuf work builder"
+    preconditions:
+      - "workContext must not be null"
+      - "workBuilder must not be null"
+    postconditions:
+      - "workBuilder has work definition set"
+  - method: "nativeWorkDefinitions()"
+    returns: "Stream<NativeWorkDefinition>"
+    description: "Returns stream of native work definitions embedded in this work"
+    preconditions: []
+    postconditions:
+      - "Returns stream, may be empty but never null"
+implementation_notes:
+  - "All work definition types implement this interface"
+  - "applyTo() sets the appropriate protobuf oneof field"
+  - "nativeWorkDefinitions() used for code generation at annotation processor time"
+contracts:
+  - "Exactly one work definition type set in protobuf"
+  - "nativeWorkDefinitions used for CustomWorkDefinition and DynamicWorkGenerating execution"
+invariants:
+  - "Implementation must set exactly one protobuf work definition type"

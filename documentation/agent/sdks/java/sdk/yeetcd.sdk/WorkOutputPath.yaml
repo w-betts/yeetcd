@@ -1,0 +1,46 @@
+# Documentation: WorkOutputPath
+# Generated: 2026-04-10T22:10:30.518Z
+
+version: 1
+component_type: "class"
+name: "WorkOutputPath"
+description: "Immutable definition of a named output path from work execution. Used to expose files for downstream work consumption."
+responsibilities:
+  - "Store output name and path"
+  - "Serialize to protobuf format"
+dependencies:
+  - "yeetcd.protocol.pipeline.PipelineOuterClass"
+interfaces:
+  - method: "builder(String name, String path)"
+    returns: "Builder"
+    description: "Creates Builder for construction"
+    preconditions:
+      - "name and path must not be null"
+    postconditions:
+      - "Builder returned"
+  - method: "getName()"
+    returns: "String"
+    description: "Returns output name"
+    preconditions: []
+    postconditions:
+      - "Returns non-null name"
+  - method: "getPath()"
+    returns: "String"
+    description: "Returns output path in container"
+    preconditions: []
+    postconditions:
+      - "Returns non-null path"
+  - method: "toProtobuf()"
+    returns: "PipelineOuterClass.WorkOutputPath"
+    description: "Serializes to protobuf"
+    preconditions: []
+    postconditions:
+      - "Returns valid protobuf message"
+implementation_notes:
+  - "Simple data class with builder pattern"
+  - "Path is absolute or relative within container"
+  - "Downstream work uses name to reference output"
+contracts:
+  - "Name must be unique within a work item"
+invariants:
+  - "name and path immutable after construction"

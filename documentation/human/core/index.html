@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>core - Documentation</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 0; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        header .subtitle { font-size: 1.2em; opacity: 0.9; }
+        .breadcrumb { background: white; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .breadcrumb a { color: #667eea; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .breadcrumb .separator { margin: 0 10px; color: #999; }
+        .main-content { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        h2 { color: #667eea; margin-top: 30px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
+        h3 { color: #555; margin-top: 25px; margin-bottom: 10px; }
+        p { margin-bottom: 15px; }
+        .badge-module { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; background: #e3f2fd; color: #1976d2; }
+        .package-list { list-style: none; margin-left: 0; }
+        .package-list li { background: #f8f9fa; padding: 15px 20px; border-left: 4px solid #667eea; margin-bottom: 10px; border-radius: 0 4px 4px 0; }
+        .package-list li a { color: #333; text-decoration: none; font-weight: bold; }
+        .package-list li a:hover { color: #667eea; }
+        .package-list li .desc { color: #666; font-size: 0.95em; margin-top: 5px; }
+        .two-column { display: grid; grid-template-columns: 250px 1fr; gap: 20px; }
+        @media (max-width: 768px) { .two-column { grid-template-columns: 1fr; } }
+        .nav-sidebar { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .nav-sidebar h3 { margin-top: 0; color: #667eea; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .nav-sidebar ul { list-style: none; margin-left: 0; }
+        .nav-sidebar li { margin-bottom: 5px; }
+        .nav-sidebar a { color: #555; text-decoration: none; display: block; padding: 8px 12px; border-radius: 4px; transition: background 0.2s; }
+        .nav-sidebar a:hover { background: #f5f5f5; color: #667eea; }
+        .nav-sidebar .current { background: #e3f2fd; color: #1976d2; font-weight: bold; }
+        .diagram-container { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
+        footer { text-align: center; padding: 30px; color: #999; font-size: 0.9em; margin-top: 40px; }
+        .responsibility-list { list-style: none; margin-left: 0; }
+        .responsibility-list li { background: #f8f9fa; padding: 12px 15px; border-left: 4px solid #667eea; margin-bottom: 10px; border-radius: 0 4px 4px 0; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>core</h1>
+            <div class="subtitle">Go-based Controller Runtime</div>
+        </div>
+    </header>
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="index.html">Home</a>
+            <span class="separator">&raquo;</span>
+            <span>core</span>
+        </div>
+        <div class="two-column">
+            <div class="nav-sidebar">
+                <h3>Modules</h3>
+                <ul>
+                    <li><a href="index.html">Overview</a></li>
+                    <li><a href="core/index.html" class="current">core</a></li>
+                    <li><a href="sdks/java/sdk/index.html">java-sdk</a></li>
+                    <li><a href="sdks/java/test/index.html">java-test</a></li>
+                </ul>
+                <h3 style="margin-top:20px;">Packages</h3>
+                <ul>
+                    <li><a href="internal/core/pipeline/index.html">pipeline</a></li>
+                    <li><a href="internal/core/condition/index.html">condition</a></li>
+                    <li><a href="pkg/engine/index.html">engine</a></li>
+                </ul>
+            </div>
+            <div class="main-content">
+                <span class="badge-module">Module</span>
+                <h2>Description</h2>
+                <p>Go-based controller runtime that builds pipelines from protobuf definitions and executes work in containers. Contains pipeline execution engine, condition evaluation, and work orchestration.</p>
+                <div class="diagram-container">
+                    <div class="mermaid">
+graph TD
+    subgraph core["Module: core"]
+        pipeline[pipeline]
+        condition[condition]
+        engine[engine]
+    end
+    pipeline --> condition
+    pipeline --> engine
+    style core fill:#e3f2fd
+                    </div>
+                </div>
+                <h2>Responsibilities</h2>
+                <ul class="responsibility-list">
+                    <li>Load pipeline definitions from protobuf</li>
+                    <li>Execute work items in containers (Docker/Kubernetes)</li>
+                    <li>Evaluate work conditions at runtime</li>
+                    <li>Track work results and status</li>
+                    <li>Stream outputs between work items</li>
+                    <li>Provide CLI for pipeline operations</li>
+                </ul>
+                <h2>Dependencies</h2>
+                <ul>
+                    <li>yeetcd.protocol (protobuf definitions)</li>
+                    <li>Docker client</li>
+                    <li>Kubernetes client</li>
+                    <li>gRPC</li>
+                </ul>
+                <h2>Packages</h2>
+                <ul class="package-list">
+                    <li>
+                        <a href="internal/core/pipeline/index.html">core/internal/core/pipeline</a>
+                        <div class="desc">Core pipeline execution logic in Go. Handles pipeline loading from protobuf, work execution, result tracking, and output handling.</div>
+                    </li>
+                    <li>
+                        <a href="internal/core/condition/index.html">core/internal/core/condition</a>
+                        <div class="desc">Package for condition evaluation at runtime. Provides context-based and status-based condition evaluation for work execution control.</div>
+                    </li>
+                    <li>
+                        <a href="pkg/engine/index.html">core/pkg/engine</a>
+                        <div class="desc">Package for container execution engines. Provides Docker and Kubernetes implementations.</div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <footer>
+        <div class="container">Generated by OpenCode Documentation Agent</div>
+    </footer>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+    </script>
+</body>
+</html>

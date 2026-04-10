@@ -1,0 +1,33 @@
+# Documentation: core/internal/core/pipeline
+# Generated: 2026-04-10T22:10:46.187Z
+
+version: 1
+component_type: "package"
+name: "core/internal/core/pipeline"
+description: "Core pipeline execution logic in Go. Handles pipeline loading from protobuf, work execution, result tracking, and output handling."
+responsibilities:
+  - "Load Pipeline from protobuf"
+  - "Validate and merge pipeline arguments"
+  - "Execute work items in sequence"
+  - "Track work results and status"
+  - "Handle work dependencies and output mounting"
+  - "Manage pipeline lifecycle and events"
+dependencies:
+  - "yeetcd.protocol (protobuf)"
+  - "yeetcd.internal.core.condition"
+  - "yeetcd.internal.core.types"
+subcomponents:
+  - "Pipeline - pipeline definition and loading"
+  - "Work - work execution"
+  - "Parameters - parameter validation"
+  - "WorkContext - context passing"
+  - "WorkResultTracker - result tracking"
+  - "PipelineController - execution orchestration"
+contracts:
+  - "Work executes after dependencies complete successfully"
+  - "Work context available as environment variables"
+  - "Output directories mounted for dependent work"
+  - "Pipeline status reflects aggregate work status"
+invariants:
+  - "Work IDs are unique within pipeline"
+  - "Pipeline has exactly one final work output"

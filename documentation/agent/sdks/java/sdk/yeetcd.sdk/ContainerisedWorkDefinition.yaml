@@ -1,0 +1,44 @@
+# Documentation: ContainerisedWorkDefinition
+# Generated: 2026-04-10T22:10:00.106Z
+
+version: 1
+component_type: "class"
+name: "ContainerisedWorkDefinition"
+description: "Work definition that runs a command in an existing container image. Executes without building a custom image."
+responsibilities:
+  - "Store container image name and command"
+  - "Serialize to protobuf format"
+  - "Provide container execution semantics"
+dependencies:
+  - "yeetcd.protocol.pipeline.PipelineOuterClass"
+interfaces:
+  - method: "builder(String image)"
+    returns: "Builder"
+    description: "Creates a Builder for constructing a ContainerisedWorkDefinition"
+    preconditions:
+      - "image must not be null or empty"
+    postconditions:
+      - "Builder returned ready for configuration"
+  - method: "applyTo(WorkContext containingContext, PipelineOuterClass.Work.Builder workBuilder)"
+    returns: "void"
+    description: "Sets container work definition on protobuf builder"
+    preconditions: []
+    postconditions:
+      - "workBuilder has ContainerisedWorkDefinition set"
+  - method: "nativeWorkDefinitions()"
+    returns: "Stream<NativeWorkDefinition>"
+    description: "Returns empty stream - no native code to generate"
+    preconditions: []
+    postconditions:
+      - "Returns empty Stream"
+implementation_notes:
+  - "Simplest work definition - just runs command in existing image"
+  - "Image must exist in registry or local Docker"
+  - "Command executed with entrypoint/cmd from image"
+  - "No custom code execution - purely container-based"
+contracts:
+  - "Image must be pullable from registry or exist locally"
+  - "Command array forms shell cmd or entrypoint"
+invariants:
+  - "image is immutable after construction"
+  - "command array is immutable after construction"

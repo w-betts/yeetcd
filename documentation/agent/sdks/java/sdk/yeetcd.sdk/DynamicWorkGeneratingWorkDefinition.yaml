@@ -1,0 +1,58 @@
+# Documentation: DynamicWorkGeneratingWorkDefinition
+# Generated: 2026-04-10T22:10:14.155Z
+
+version: 1
+component_type: "class"
+name: "DynamicWorkGeneratingWorkDefinition"
+description: "Abstract work definition that generates work at runtime based on context. Used for parameterized or conditional work creation."
+responsibilities:
+  - "Generate work items based on runtime context"
+  - "Provide dynamic custom work definitions"
+  - "Output generated work to stdout as protobuf"
+dependencies:
+  - "yeetcd.sdk.NativeWorkDefinition"
+  - "yeetcd.sdk.CustomWorkDefinition"
+  - "yeetcd.sdk.Work"
+  - "yeetcd.sdk.WorkContext"
+  - "yeetcd.protocol.pipeline.PipelineOuterClass"
+interfaces:
+  - method: "applyTo(WorkContext containingContext, PipelineOuterClass.Work.Builder workBuilder)"
+    returns: "void"
+    description: "Sets dynamic work generating definition with execution ID"
+    preconditions: []
+    postconditions:
+      - "workBuilder has DynamicWorkGeneratingWorkDefinition set"
+  - method: "run()"
+    returns: "void"
+    description: "Runs the work generator, outputting Work protobuf to stdout"
+    preconditions: []
+    postconditions:
+      - "Work protobuf written to stdout"
+  - method: "createWork()"
+    returns: "Work"
+    description: "Subclass implements to create Work based on context"
+    preconditions: []
+    postconditions:
+      - "Returns Work instance, never null"
+  - method: "nativeWorkDefinitions()"
+    returns: "Stream<NativeWorkDefinition>"
+    description: "Returns stream including super class and dynamic custom work"
+    preconditions: []
+    postconditions:
+      - "Returns stream with this and any dynamic custom work"
+  - method: "dynamicCustomWorkDefinitions()"
+    returns: "Stream<CustomWorkDefinition>"
+    description: "Subclass implements to provide dynamic CustomWorkDefinitions"
+    preconditions: []
+    postconditions:
+      - "Returns stream, may be empty"
+implementation_notes:
+  - "Called by controller at runtime to generate work"
+  - "createWork() receives work context for parameterization"
+  - "Output to stdout enables controller to capture and execute"
+  - "Dynamic custom work adds generated code to the container build"
+contracts:
+  - "createWork() must return non-null Work"
+  - "Protobuf output on stdout is consumed by controller"
+invariants:
+  - "Subclass must implement createWork() and dynamicCustomWorkDefinitions()"

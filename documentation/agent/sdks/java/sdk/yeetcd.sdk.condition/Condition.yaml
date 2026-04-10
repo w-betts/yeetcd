@@ -1,0 +1,35 @@
+# Documentation: Condition
+# Generated: 2026-04-10T22:10:39.734Z
+
+version: 1
+component_type: "class"
+name: "Condition"
+description: "Abstract base class for work execution conditions. Supports context-based and status-based conditions, and logical composition."
+responsibilities:
+  - "Serialize condition to protobuf"
+  - "Apply to protobuf work builder"
+  - "Support logical composition (And, Or, Not)"
+dependencies:
+  - "yeetcd.protocol.pipeline.PipelineOuterClass"
+interfaces:
+  - method: "applyTo(PipelineOuterClass.Work.Builder builder)"
+    returns: "void"
+    description: "Applies condition to protobuf work builder"
+    preconditions:
+      - "builder must not be null"
+    postconditions:
+      - "builder has condition set"
+  - method: "toProtobuf()"
+    returns: "PipelineOuterClass.Condition"
+    description: "Serializes to protobuf condition"
+    preconditions: []
+    postconditions:
+      - "Returns valid protobuf Condition"
+implementation_notes:
+  - "Abstract base class with template method pattern"
+  - "Subclasses implement toProtobuf()"
+  - "applyTo() handles builder setup for all condition types"
+contracts:
+  - "Serialization format matches controller expectations"
+invariants:
+  - "Subclasses are immutable"

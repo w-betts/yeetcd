@@ -1,0 +1,30 @@
+# Documentation: yeetcd.sdk
+# Generated: 2026-04-10T22:09:43.170Z
+
+version: 1
+component_type: "package"
+name: "yeetcd.sdk"
+description: "Core package for pipeline and work definitions. Contains main classes for building pipelines, work items, and work definitions."
+responsibilities:
+  - "Define Pipeline class for pipeline construction"
+  - "Define Work class for work item representation"
+  - "Provide WorkDefinition interface implementations"
+  - "Support work context and parameter passing"
+  - "Generate protobuf output for pipeline definitions"
+dependencies:
+  - "yeetcd.protocol"
+  - "yeetcd.sdk.condition"
+subcomponents:
+  - "Pipeline - Main pipeline builder class"
+  - "Work - Work item definition"
+  - "WorkDefinition interface implementations"
+  - "Parameter classes"
+  - "WorkContext class"
+contracts:
+  - "All classes implement toProtobuf() for serialization"
+  - "Builder pattern used for object construction"
+  - "Work context merges hierarchically from pipeline to work level"
+invariants:
+  - "Pipeline requires name and finalWork to be set"
+  - "Work requires description and WorkDefinition"
+  - "WorkContext is immutable after construction"

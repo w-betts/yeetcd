@@ -1,0 +1,29 @@
+# Documentation: core/pkg/engine
+# Generated: 2026-04-10T22:11:25.407Z
+
+version: 1
+component_type: "package"
+name: "core/pkg/engine"
+description: "Package for container execution engines. Defines ExecutionEngine interface and provides Docker implementation for running containers."
+responsibilities:
+  - "Provide ExecutionEngine interface"
+  - "Docker engine implementation"
+  - "BuildImage Definition and execution"
+  - "Job definition and execution"
+  - "Container output streaming"
+dependencies:
+  - "Docker client library"
+  - "Kubernetes client library"
+subcomponents:
+  - "ExecutionEngine interface"
+  - "Docker engine"
+  - "Kubernetes engine"
+  - "JobDefinition"
+  - "BuildImageDefinition"
+  - "JobResult"
+contracts:
+  - "BuildImage returns build result with image ID"
+  - "RunJob returns job result with status and outputs"
+invariants:
+  - "Images have unique identifiers"
+  - "Jobs complete with status (success/failure)"

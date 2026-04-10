@@ -1,0 +1,57 @@
+# Documentation: Work
+# Generated: 2026-04-10T22:10:53.318Z
+
+version: 1
+component_type: "class"
+name: "Work"
+description: "Go struct representing a unit of work in a pipeline. Contains ID, description, work definition, context, conditions, output paths, and previous work dependencies."
+responsibilities:
+  - "Store work properties"
+  - "Convert from protobuf"
+  - "Provide stdout capture as context"
+  - "Provide mount inputs from previous work"
+  - "Return output directory paths"
+dependencies:
+  - "yeetcd.protocol.pipeline.WorkOuterClass"
+  - "yeetcd.internal.core.condition"
+  - "yeetcd.internal.core.pipeline.WorkContext"
+  - "yeetcd.internal.core.pipeline.PreviousWork"
+  - "yeetcd.internal.core.types.WorkResultTracker"
+interfaces:
+  - method: "WorkFromProtobuf(protoWork *pb.Work) (*Work, error)"
+    returns: "(*Work, error)"
+    description: "Converts protobuf message to Work struct"
+    preconditions:
+      - "protoWork must not be nil"
+    postconditions:
+      - "Returns Work or error if invalid"
+  - method: "PreviousWorkStdOutAsWorkContext(tracker *WorkResultTracker) WorkContext"
+    returns: "WorkContext"
+    description: "Captures stdout from previous work as context"
+    preconditions:
+      - "tracker must not be nil"
+    postconditions:
+      - "Returns context with captured stdout"
+  - method: "PreviousWorkMountInputs(tracker *WorkResultTracker) map[string]interface{}"
+    returns: "map[string]interface{}"
+    description: "Returns mount input directories from previous work"
+    preconditions:
+      - "tracker must not be nil"
+    postconditions:
+      - "Returns map of mount paths"
+  - method: "OutputDirectoryPaths() map[string]string"
+    returns: "map[string]string"
+    description: "Returns output path map"
+    preconditions: []
+    postconditions:
+      - "Returns name to path mapping"
+implementation_notes:
+  - "WorkDefinition converted from protobuf oneof"
+  - "OutputPaths converted from proto messages"
+  - "PreviousWork converted with mount path and env var"
+  - "Condition converted from protobuf (limited support)"
+contracts:
+  - "ID is unique within pipeline"
+  - "Work executes after dependencies complete"
+invariants:
+  - "WorkDefinition is non-nil after construction"

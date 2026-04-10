@@ -1,0 +1,26 @@
+# Documentation: yeetcd.test
+# Generated: 2026-04-10T22:11:10.456Z
+
+version: 1
+component_type: "package"
+name: "yeetcd.test"
+description: "Test utilities for pipeline logic testing without container execution. Provides FakePipelineRunner and behavior mocking for unit tests."
+responsibilities:
+  - "Provide FakePipelineRunner class"
+  - "Mock work execution behavior"
+  - "Track test results"
+  - "Support different work behavior types"
+  - "Provide builders for test setup"
+dependencies:
+  - "yeetcd.sdk"
+subcomponents:
+  - "PipelineTestRunResult - test run results"
+  - "PipelineTestRun - test execution input"
+  - "Behavior - work behavior mocking"
+  - "WorkExecution - executed work tracking"
+  - "MockServer - HTTP mocking"
+contracts:
+  - "FakePipelineRunner executes pipelines in-process"
+  - "Behaviors control work execution results"
+invariants:
+  - "Test results are immutable after construction"

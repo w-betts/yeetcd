@@ -1,0 +1,53 @@
+# Documentation: WorkContext
+# Generated: 2026-04-10T22:10:27.548Z
+
+version: 1
+component_type: "class"
+name: "WorkContext"
+description: "Immutable key-value context passed to work as environment variables."
+responsibilities:
+  - "Store context key-value pairs"
+  - "Merge contexts hierarchically (work overrides pipeline)"
+  - "Provide factory methods"
+dependencies: []
+interfaces:
+  - method: "of(String k1, String v1)"
+    returns: "WorkContext"
+    description: "Creates single-entry WorkContext"
+    preconditions:
+      - "k1 and v1 must not be null"
+    postconditions:
+      - "Returns WorkContext with one entry"
+  - method: "of(String k1, String v1, String k2, String v2)"
+    returns: "WorkContext"
+    description: "Creates two-entry WorkContext"
+    preconditions:
+      - "All args must not be null"
+    postconditions:
+      - "Returns WorkContext with two entries"
+  - method: "empty()"
+    returns: "WorkContext"
+    description: "Creates empty WorkContext"
+    preconditions: []
+    postconditions:
+      - "Returns empty WorkContext"
+  - method: "mergeInto(WorkContext workContext)"
+    returns: "WorkContext"
+    description: "Merges this context into containing context (work context takes priority)"
+    preconditions:
+      - "workContext must not be null"
+    postconditions:
+      - "Returns new WorkContext with merged values"
+  - method: "getWorkContextMap()"
+    returns: "Map<String, String>"
+    description: "Returns the context map"
+    preconditions: []
+    postconditions:
+      - "Returns unmodifiable map"
+implementation_notes:
+  - "Uses Map.of() for immutable map creation"
+  - "mergeInto() keeps containing context values, adds/overrides with this values"
+contracts:
+  - "Context values available as environment variables in container"
+invariants:
+  - "Map is immutable after construction"

@@ -1,0 +1,43 @@
+# Documentation: PipelineController
+# Generated: 2026-04-10T22:11:28.989Z
+
+version: 1
+component_type: "class"
+name: "PipelineController"
+description: "Orchestrates pipeline assembly and execution. Manages source building, pipeline loading, and work execution."
+responsibilities:
+  - "Assemble pipeline from source (build, generate protobuf)"
+  - "Execute work items in containers"
+  - "Track work results"
+  - "Manage pipeline lifecycle events"
+dependencies:
+  - "yeetcd.pkg.build.BuildService"
+  - "yeetcd.pkg.engine.ExecutionEngine"
+  - "yeetcd.internal.core.pipeline.Pipeline"
+  - "yeetcd.internal.core.pipeline.WorkResultTracker"
+interfaces:
+  - method: "Assemble(ctx context.Context, source build.Source) ([]*Pipeline, error)"
+    returns: "([]*Pipeline, error)"
+    description: "Builds source, generates pipeline protobuf, loads Pipeline structs"
+    preconditions:
+      - "source must be valid"
+    postconditions:
+      - "Returns loaded pipelines or error"
+  - method: "Execute(ctx context.Context, pipeline *Pipeline, handler PipelineOutputHandler) (*PipelineResult, error)"
+    returns: "(*PipelineResult, error)"
+    description: "Executes all work items, returns result"
+    preconditions:
+      - "pipeline must not be nil"
+      - "handler must not be nil"
+    postconditions:
+      - "Returns PipelineResult with work results"
+implementation_notes:
+  - "Uses BuildService to build source"
+  - "Converts protobuf to Go Pipeline structs"
+  - "Creates WorkResultTracker for result tracking"
+  - "Records PipelineStarted/Finished events"
+contracts:
+  - "Work executes after dependencies complete"
+  - "All work tracked in WorkResultTracker"
+invariants:
+  - "BuildService and ExecutionEngine are required"

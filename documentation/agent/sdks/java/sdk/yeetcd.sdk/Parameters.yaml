@@ -1,0 +1,47 @@
+# Documentation: Parameters
+# Generated: 2026-04-10T22:10:20.758Z
+
+version: 1
+component_type: "class"
+name: "Parameters"
+description: "Immutable container for pipeline parameters. Stores a map of parameter names to Parameter definitions."
+responsibilities:
+  - "Store parameter name to definition mapping"
+  - "Provide factory methods for common cases"
+  - "Support empty parameters"
+dependencies:
+  - "yeetcd.sdk.Parameter"
+interfaces:
+  - method: "of(String p1, Parameter v1)"
+    returns: "Parameters"
+    description: "Creates Parameters with single parameter"
+    preconditions:
+      - "p1 and v1 must not be null"
+    postconditions:
+      - "Returns Parameters with single entry"
+  - method: "of(String p1, Parameter v1, String p2, Parameter v2)"
+    returns: "Parameters"
+    description: "Creates Parameters with two parameters"
+    preconditions:
+      - "All arguments must not be null"
+    postconditions:
+      - "Returns Parameters with two entries"
+  - method: "empty()"
+    returns: "Parameters"
+    description: "Creates empty Parameters"
+    preconditions: []
+    postconditions:
+      - "Returns Parameters with empty map"
+  - method: "getParametersMap()"
+    returns: "Map<String, Parameter>"
+    description: "Returns the parameter map"
+    preconditions: []
+    postconditions:
+      - "Returns unmodifiable map"
+implementation_notes:
+  - "Uses Map.of() for immutable map creation"
+  - "Supports variadic of() methods for common cases"
+contracts:
+  - "Parameter names must be unique within a pipeline"
+invariants:
+  - "Map is immutable after construction"
