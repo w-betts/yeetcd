@@ -1,0 +1,22 @@
+# Documentation: cmd/yeetcd
+# Generated: 2026-04-10T21:33:54.009Z
+
+version: 1
+component_type: "module"
+name: "cmd/yeetcd"
+description: "CLI entry point for executing pipelines locally using Docker or mock execution engine. Provides 'run' and 'list' commands for pipeline execution."
+responsibilities:
+  - "Provide 'run' command to execute pipelines"
+  - "Provide 'list' command to list available pipelines"
+  - "Initialize Docker or mock execution engine"
+  - "Parse pipeline arguments"
+  - "Report pipeline execution status and results"
+dependencies:
+  - "golang/pkg/build"
+  - "golang/pkg/engine"
+  - "golang/internal/core/pipeline"
+subcomponents: []
+contracts:
+  - "Run command executes pipeline from source zip or directory"
+  - "List command shows available pipeline names"
+  - "Mock engine available for testing"

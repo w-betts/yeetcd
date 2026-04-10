@@ -1,0 +1,21 @@
+# Documentation: internal/core/condition
+# Generated: 2026-04-10T21:33:50.432Z
+
+version: 1
+component_type: "package"
+name: "internal/core/condition"
+description: "Condition evaluation for work execution control. Implements condition types that determine whether work should be executed based on context or previous work status."
+responsibilities:
+  - "Implement WorkContextCondition (key equals value)"
+  - "Implement PreviousWorkStatusCondition (SUCCESS/FAILURE/ANY)"
+  - "Implement AndCondition (logical AND)"
+  - "Implement OrCondition (logical OR)"
+  - "Implement NotCondition (logical NOT)"
+  - "Provide condition evaluation interface"
+dependencies:
+  - "internal/core/types"
+subcomponents: []
+contracts:
+  - "WorkContextCondition evalutes context key against value"
+  - "PreviousWorkStatusCondition evaluates previous work completion status"
+  - "Compound conditions combine simple conditions"

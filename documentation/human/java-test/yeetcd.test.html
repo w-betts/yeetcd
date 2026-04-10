@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>java-test - Documentation</title>
+    <title>yeetcd.test - java-test</title>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -24,7 +24,6 @@
         li { margin-bottom: 8px; }
         .responsibility-list { list-style: none; margin-left: 0; }
         .responsibility-list li { background: #f8f9fa; padding: 12px 15px; border-left: 4px solid #667eea; margin-bottom: 10px; border-radius: 0 4px 4px 0; }
-        .diagram-container { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
         .nav-sidebar { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .nav-sidebar h3 { margin-top: 0; color: #667eea; border-bottom: 2px solid #eee; padding-bottom: 10px; }
         .nav-sidebar ul { list-style: none; margin-left: 0; }
@@ -35,54 +34,42 @@
         @media (max-width: 768px) { .two-column { grid-template-columns: 1fr; } }
         footer { text-align: center; padding: 30px; color: #999; font-size: 0.9em; margin-top: 40px; }
         .component-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; }
-        .badge-module { background: #e3f2fd; color: #1976d2; }
+        .badge-package { background: #f3e5f5; color: #7b1fa2; }
     </style>
 </head>
 <body>
     <header>
         <div class="container">
-            <h1>java-test</h1>
-            <div class="subtitle">Testing Utilities for Pipeline Definitions</div>
+            <h1>yeetcd.test</h1>
+            <div class="subtitle">Package - java-test</div>
         </div>
     </header>
     <div class="container">
         <div class="breadcrumb">
-            <a href="index.html">Home</a><span class="separator">›</span>java-test
+            <a href="../index.html">Home</a><span class="separator">›</span><a href="../java-test.html">java-test</a><span class="separator">›</span>yeetcd.test
         </div>
         <div class="two-column">
             <div class="nav-sidebar">
                 <h3>Packages</h3>
                 <ul>
-                    <li><a href="java-test/yeetcd.test.html">yeetcd.test</a></li>
+                    <li><a href="../java-test.html">Parent Module</a></li>
+                    <li><a href="yeetcd.test.html">yeetcd.test</a></li>
                 </ul>
             </div>
             <div class="main-content">
-                <span class="component-badge badge-module">Module</span>
+                <span class="component-badge badge-package">Package</span>
                 <h2>Description</h2>
-                <p>Testing utilities for unit testing pipeline definitions without requiring container execution. Provides a fake pipeline runner that simulates work execution in-memory for fast, deterministic tests.</p>
-                <div class="diagram-container">
-                    <div class="mermaid">
-graph TD
-    subgraph java-test["Module: java-test"]
-        test["yeetcd.test"]
-    end
-    test --> java-sdk
-    test --> protocol
-    style java-test fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-                    </div>
-                </div>
+                <p>Pipeline testing utilities for unit testing without container execution. Provides in-memory simulation of pipeline execution with configurable work results for fast, deterministic tests.</p>
                 <h2>Responsibilities</h2>
                 <ul class="responsibility-list">
-                    <li>Provide FakePipelineRunner for in-memory pipeline testing</li>
-                    <li>Simulate work execution without container runtime</li>
-                    <li>Support conditional work result specification</li>
-                    <li>Track work execution stages and dependencies</li>
+                    <li>Provide FakePipelineRunner for testing pipelines</li>
+                    <li>Simulate work execution with configurable results</li>
+                    <li>Track work execution stages</li>
                     <li>Evaluate conditions in test context</li>
+                    <li>Support work result matching based on work and context</li>
                 </ul>
                 <h3>Dependencies</h3>
-                <ul><li>java-sdk, protocol</li></ul>
-                <h3>Subcomponents</h3>
-                <ul><li>yeetcd.test</li></ul>
+                <ul><li>yeetcd.sdk, yeetcd.sdk.condition</li></ul>
             </div>
         </div>
     </div>

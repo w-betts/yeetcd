@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>controller - Documentation</title>
+    <title>internal/core/pipeline - golang</title>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -24,7 +24,6 @@
         li { margin-bottom: 8px; }
         .responsibility-list { list-style: none; margin-left: 0; }
         .responsibility-list li { background: #f8f9fa; padding: 12px 15px; border-left: 4px solid #667eea; margin-bottom: 10px; border-radius: 0 4px 4px 0; }
-        .diagram-container { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
         .nav-sidebar { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .nav-sidebar h3 { margin-top: 0; color: #667eea; border-bottom: 2px solid #eee; padding-bottom: 10px; }
         .nav-sidebar ul { list-style: none; margin-left: 0; }
@@ -35,81 +34,73 @@
         @media (max-width: 768px) { .two-column { grid-template-columns: 1fr; } }
         footer { text-align: center; padding: 30px; color: #999; font-size: 0.9em; margin-top: 40px; }
         .component-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; }
-        .badge-module { background: #e3f2fd; color: #1976d2; }
-        .contracts-section { background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; padding: 20px; margin: 20px 0; }
-        .contracts-section h3 { color: #388e3c; margin-top: 0; margin-bottom: 15px; }
-        .invariants-section { background: #fff3e0; border: 1px solid #ffe0b2; border-radius: 8px; padding: 20px; margin: 20px 0; }
-        .invariants-section h3 { color: #f57c00; margin-top: 0; margin-bottom: 15px; }
+        .badge-package { background: #f3e5f5; color: #7b1fa2; }
     </style>
 </head>
 <body>
     <header>
         <div class="container">
-            <h1>controller</h1>
-            <div class="subtitle">Java Runtime Controller for Pipeline Execution</div>
+            <h1>internal/core/pipeline</h1>
+            <div class="subtitle">Package - golang</div>
         </div>
     </header>
     <div class="container">
         <div class="breadcrumb">
-            <a href="index.html">Home</a><span class="separator">›</span>controller
+            <a href="../../index.html">Home</a><span class="separator">›</span><a href="../../golang.html">golang</a><span class="separator">›</span>internal/core/pipeline
         </div>
         <div class="two-column">
             <div class="nav-sidebar">
-                <h3>Modules</h3>
+                <h3>Packages</h3>
                 <ul>
-                    <li><a href="index.html">Back to Index</a></li>
+                    <li><a href="../../golang.html">Parent Module</a></li>
+                    <li><a href="../../pkg/engine.html">pkg/engine</a></li>
+                    <li><a href="../../pkg/build.html">pkg/build</a></li>
+                    <li><a href="../../pkg/config.html">pkg/config</a></li>
+                    <li><a href="pipeline.html">internal/core/pipeline</a></li>
+                    <li><a href="../condition.html">internal/core/condition</a></li>
                 </ul>
             </div>
             <div class="main-content">
-                <span class="component-badge badge-module">Module</span>
+                <span class="component-badge badge-package">Package</span>
                 <h2>Description</h2>
-                <p>Runtime controller that builds and executes pipelines. Orchestrates source extraction, image building, pipeline assembly from protobuf definitions, and work execution using Docker or Kubernetes execution engines.</p>
+                <p>Core pipeline execution logic. Implements pipeline assembly from protobuf, work execution orchestration, work definitions, conditions, and result tracking.</p>
                 <div class="diagram-container">
                     <div class="mermaid">
-graph TD
-    subgraph controller["Module: controller"]
-        source["yeetcd.controller.source"]
-        pipeline["yeetcd.controller.pipeline"]
-        execution["yeetcd.controller.execution"]
-    end
-    source --> pipeline
-    pipeline --> execution
-    style controller fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+classDiagram
+    class Pipeline {
+        +Assemble(pb *pb.Pipeline) *Pipeline
+        +Execute(ctx, engine, arguments) error
+    }
+    class WorkResultTracker {
+        +Record(key, result)
+        +Get(key) WorkResult
+        +AlreadyExecuted(key) bool
+    }
+    class Work {
+        +ID string
+        +Definition WorkDefinition
+        +PreviousWork []PreviousWork
+    }
+    class WorkDefinition {
+        <<interface>>
+    }
+    Pipeline --> WorkResultTracker
+    Work --> WorkDefinition
                     </div>
-                </div>
-                <div class="contracts-section">
-                    <h3>Contracts</h3>
-                    <ul>
-                        <li>Source extraction produces valid buildable source directories</li>
-                        <li>Image building produces runnable images containing all artifacts</li>
-                        <li>Pipeline assembly deserializes protobuf into executable pipeline objects</li>
-                        <li>Work execution respects dependencies and conditions</li>
-                        <li>Work results are tracked and shared with dependent work items</li>
-                        <li>Failed work causes dependent work to be skipped (unless condition specifies otherwise)</li>
-                    </ul>
-                </div>
-                <div class="invariants-section">
-                    <h3>Invariants</h3>
-                    <ul>
-                        <li>Work is executed at most once per pipeline run (idempotent execution via WorkResultTracker)</li>
-                        <li>Work dependencies form a directed acyclic graph</li>
-                        <li>Container images are built with unique tags based on source SHA</li>
-                        <li>All work results are captured including stdout, output files, and status</li>
-                        <li>Pipeline execution is complete when all final work items complete</li>
-                    </ul>
                 </div>
                 <h2>Responsibilities</h2>
                 <ul class="responsibility-list">
-                    <li>Extract and build source code from zip archives</li>
-                    <li>Build container images containing pipeline definitions</li>
-                    <li>Assemble executable pipelines from protobuf output</li>
-                    <li>Execute pipeline work items in containers</li>
-                    <li>Manage work dependencies and execution order</li>
-                    <li>Track work results and handle dynamic work generation</li>
-                    <li>Support multiple execution engines (Docker, Kubernetes)</li>
+                    <li>Assemble pipelines from protobuf definitions</li>
+                    <li>Execute work items with proper dependency ordering</li>
+                    <li>Manage WorkResultTracker for idempotent execution</li>
+                    <li>Implement work definition types (Containerized, Custom, Compound, Dynamic)</li>
+                    <li>Implement conditions (WorkContext, PreviousWorkStatus, And, Or, Not)</li>
+                    <li>Handle work output paths and mounts</li>
+                    <li>Manage pipeline parameters and arguments</li>
+                    <li>Track and report pipeline events and results</li>
                 </ul>
                 <h3>Dependencies</h3>
-                <ul><li>protocol, java-sdk (for protobuf deserialization)</li></ul>
+                <ul><li>pkg/engine, internal/core/types, internal/core/condition</li></ul>
             </div>
         </div>
     </div>

@@ -1,0 +1,42 @@
+# Documentation: ExecutionEngine
+# Generated: 2026-04-10T21:32:58.918Z
+
+version: 1
+component_type: "class"
+name: "ExecutionEngine"
+description: "Interface for executing work items in containers. Defines the contract for building images and running jobs across different container runtimes."
+responsibilities:
+  - "Build container images with specified definitions"
+  - "Run jobs in containers with proper configuration"
+  - "Remove images when no longer needed"
+dependencies: []
+interfaces:
+  - method: "BuildImage(ctx context.Context, def BuildImageDefinition) (*BuildImageResult, error)"
+    returns: "*BuildImageResult"
+    description: "Builds a container image from a BuildImageDefinition"
+    preconditions:
+      - "Definition must contain valid Dockerfile or build context"
+      - "Context must not be cancelled"
+    postconditions:
+      - "On success, result contains a valid runnable image ID"
+      - "On failure, error describes the failure reason"
+  - method: "RemoveImage(ctx context.Context, imageID string) error"
+    returns: "error"
+    description: "Removes a built image by its ID"
+    preconditions:
+      - "Image ID must refer to an existing image"
+    postconditions:
+      - "On success, image is removed from the runtime"
+  - method: "RunJob(ctx context.Context, def JobDefinition) (*JobResult, error)"
+    returns: "*JobResult"
+    description: "Runs a job in a container with the specified definition"
+    preconditions:
+      - "Definition must contain valid container image and command"
+      - "Context must not be cancelled"
+    postconditions:
+      - "On success, result contains exit code and output streams"
+      - "On failure, error describes the failure reason"
+contracts:
+  - "All methods accept context for cancellation support"
+  - "BuildImage results contain runnable container images"
+  - "RunJob captures stdout and stderr for result reporting"

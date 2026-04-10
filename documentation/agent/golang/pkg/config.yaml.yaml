@@ -1,0 +1,18 @@
+# Documentation: pkg/config
+# Generated: 2026-04-10T21:33:25.337Z
+
+version: 1
+component_type: "package"
+name: "pkg/config"
+description: "Configuration parsing for yeetcd.yaml files. Provides configuration models and parsing for language, build settings, and artifacts."
+responsibilities:
+  - "Parse yeetcd.yaml configuration files"
+  - "Validate configuration content"
+  - "Provide SourceLanguage enum"
+  - "Define ArtifactDefinition structure"
+dependencies: []
+subcomponents: []
+contracts:
+  - "Configuration validates required fields (name, language, buildImage)"
+  - "Load returns parsed configuration from file path"
+  - "LoadFromBytes parses configuration from YAML bytes"

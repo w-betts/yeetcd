@@ -3,479 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>yeetcd.sdk Package - yeetcd Documentation</title>
+    <title>yeetcd.sdk - java-sdk</title>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background-color: #f5f5f5;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 40px 0;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-
-        header .subtitle {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-
-        .breadcrumb {
-            background: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .breadcrumb a {
-            color: #667eea;
-            text-decoration: none;
-        }
-
-        .breadcrumb a:hover {
-            text-decoration: underline;
-        }
-
-        .breadcrumb .separator {
-            margin: 0 10px;
-            color: #999;
-        }
-
-        .main-content {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        h2 {
-            color: #667eea;
-            margin-top: 30px;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #eee;
-        }
-
-        h3 {
-            color: #555;
-            margin-top: 25px;
-            margin-bottom: 10px;
-        }
-
-        h4 {
-            color: #666;
-            margin-top: 20px;
-            margin-bottom: 8px;
-        }
-
-        p {
-            margin-bottom: 15px;
-        }
-
-        ul, ol {
-            margin-left: 20px;
-            margin-bottom: 15px;
-        }
-
-        li {
-            margin-bottom: 8px;
-        }
-
-        .responsibility-list {
-            list-style: none;
-            margin-left: 0;
-        }
-
-        .responsibility-list li {
-            background: #f8f9fa;
-            padding: 12px 15px;
-            border-left: 4px solid #667eea;
-            margin-bottom: 10px;
-            border-radius: 0 4px 4px 0;
-        }
-
-        .dependency-list, .subcomponent-list {
-            list-style: none;
-            margin-left: 0;
-        }
-
-        .dependency-list li, .subcomponent-list li {
-            display: inline-block;
-            background: #e3f2fd;
-            padding: 5px 12px;
-            margin: 5px;
-            border-radius: 20px;
-            font-size: 0.9em;
-        }
-
-        .diagram-container {
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        .diagram-container .mermaid {
-            display: inline-block;
-        }
-
-        .nav-sidebar {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-
-        .nav-sidebar h3 {
-            margin-top: 0;
-            color: #667eea;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-        }
-
-        .nav-sidebar ul {
-            list-style: none;
-            margin-left: 0;
-        }
-
-        .nav-sidebar li {
-            margin-bottom: 5px;
-        }
-
-        .nav-sidebar a {
-            color: #555;
-            text-decoration: none;
-            display: block;
-            padding: 8px 12px;
-            border-radius: 4px;
-            transition: background 0.2s;
-        }
-
-        .nav-sidebar a:hover {
-            background: #f5f5f5;
-            color: #667eea;
-        }
-
-        .nav-sidebar .current {
-            background: #e3f2fd;
-            color: #1976d2;
-            font-weight: bold;
-        }
-
-        .component-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: bold;
-            text-transform: uppercase;
-            margin-bottom: 15px;
-        }
-
-        .badge-package {
-            background: #f3e5f5;
-            color: #7b1fa2;
-        }
-
-        .two-column {
-            display: grid;
-            grid-template-columns: 250px 1fr;
-            gap: 20px;
-        }
-
-        @media (max-width: 768px) {
-            .two-column {
-                grid-template-columns: 1fr;
-            }
-
-            header h1 {
-                font-size: 1.8em;
-            }
-
-            .container {
-                padding: 10px;
-            }
-
-            .main-content {
-                padding: 20px;
-            }
-        }
-
-        footer {
-            text-align: center;
-            padding: 30px;
-            color: #999;
-            font-size: 0.9em;
-            margin-top: 40px;
-        }
-
-        .contracts-section {
-            background: #e8f5e9;
-            border: 1px solid #c8e6c9;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-
-        .contracts-section h3 {
-            color: #388e3c;
-            margin-top: 0;
-            margin-bottom: 15px;
-        }
-
-        .contract-item {
-            background: white;
-            border-left: 4px solid #388e3c;
-            padding: 12px 15px;
-            margin-bottom: 10px;
-            border-radius: 0 4px 4px 0;
-        }
-
-        .invariants-section {
-            background: #fff3e0;
-            border: 1px solid #ffe0b2;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-
-        .invariants-section h3 {
-            color: #f57c00;
-            margin-top: 0;
-            margin-bottom: 15px;
-        }
-
-        .invariant-item {
-            background: white;
-            border-left: 4px solid #ff9800;
-            padding: 12px 15px;
-            margin-bottom: 10px;
-            border-radius: 0 4px 4px 0;
-        }
-
-        .class-summary {
-            background: #f8f9fa;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-
-        .class-summary h4 {
-            color: #667eea;
-            margin-top: 0;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 0; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        header .subtitle { font-size: 1.2em; opacity: 0.9; }
+        .breadcrumb { background: white; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .breadcrumb a { color: #667eea; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .breadcrumb .separator { margin: 0 10px; color: #999; }
+        .main-content { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        h2 { color: #667eea; margin-top: 30px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
+        h3 { color: #555; margin-top: 25px; margin-bottom: 10px; }
+        p { margin-bottom: 15px; }
+        ul { margin-left: 20px; margin-bottom: 15px; }
+        li { margin-bottom: 8px; }
+        .responsibility-list { list-style: none; margin-left: 0; }
+        .responsibility-list li { background: #f8f9fa; padding: 12px 15px; border-left: 4px solid #667eea; margin-bottom: 10px; border-radius: 0 4px 4px 0; }
+        .nav-sidebar { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .nav-sidebar h3 { margin-top: 0; color: #667eea; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .nav-sidebar ul { list-style: none; margin-left: 0; }
+        .nav-sidebar li { margin-bottom: 5px; }
+        .nav-sidebar a { color: #555; text-decoration: none; display: block; padding: 8px 12px; border-radius: 4px; transition: background 0.2s; }
+        .nav-sidebar a:hover { background: #f5f5f5; color: #667eea; }
+        .two-column { display: grid; grid-template-columns: 250px 1fr; gap: 20px; }
+        @media (max-width: 768px) { .two-column { grid-template-columns: 1fr; } }
+        footer { text-align: center; padding: 30px; color: #999; font-size: 0.9em; margin-top: 40px; }
+        .component-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; }
+        .badge-package { background: #f3e5f5; color: #7b1fa2; }
     </style>
 </head>
 <body>
     <header>
         <div class="container">
             <h1>yeetcd.sdk</h1>
-            <div class="subtitle">Core SDK Package for Pipeline Definition</div>
+            <div class="subtitle">Package - java-sdk</div>
         </div>
     </header>
-
     <div class="container">
         <div class="breadcrumb">
-            <a href="../index.html">Documentation</a>
-            <span class="separator">&gt;</span>
-            <a href="../java-sdk.html">java-sdk Module</a>
-            <span class="separator">&gt;</span>
-            <span>yeetcd.sdk Package</span>
+            <a href="../index.html">Home</a><span class="separator">›</span><a href="../java-sdk.html">java-sdk</a><span class="separator">›</span>yeetcd.sdk
         </div>
-
         <div class="two-column">
             <div class="nav-sidebar">
-                <h3>Navigation</h3>
+                <h3>Packages</h3>
                 <ul>
-                    <li><a href="../index.html">Home</a></li>
-                    <li><a href="../protocol.html">protocol Module</a></li>
-                    <li><a href="../java-sdk.html">java-sdk Module</a></li>
-                    <li><a href="yeetcd.sdk.html" class="current">yeetcd.sdk Package</a></li>
-                    <li><a href="yeetcd.sdk.condition.html">yeetcd.sdk.condition Package</a></li>
-                    <li><a href="../controller.html">controller Module</a></li>
-                    <li><a href="../java-test.html">java-test Module</a></li>
+                    <li><a href="../java-sdk.html">Parent Module</a></li>
+                    <li><a href="yeetcd.sdk.html">yeetcd.sdk</a></li>
+                    <li><a href="yeetcd.sdk.condition.html">yeetcd.sdk.condition</a></li>
                 </ul>
             </div>
-
             <div class="main-content">
                 <span class="component-badge badge-package">Package</span>
-
-                <h2>What is yeetcd.sdk?</h2>
-                <p>The <strong>yeetcd.sdk</strong> package provides the core API for defining pipelines in the yeetcd continuous deployment system. It offers a fluent, type-safe builder pattern for constructing complex deployment pipelines with support for containerized execution, custom code execution, and dynamic work generation.</p>
-
-                <p>This package serves as the primary interface between developers and the yeetcd platform. Instead of writing YAML or JSON configuration files, developers use the Java SDK to programmatically define their deployment pipelines using intuitive builder patterns. The SDK handles all the complexity of serializing these definitions to Protocol Buffers for transmission to the controller.</p>
-
-                <h2>Why Does This Package Exist?</h2>
-                <p>Traditional deployment systems often rely on static configuration files that can become unwieldy as complexity grows. The yeetcd.sdk package addresses this by providing:</p>
-                <ul>
-                    <li><strong>Type Safety:</strong> Compile-time checking of pipeline definitions prevents runtime errors</li>
-                    <li><strong>Code Reusability:</strong> Pipeline components can be shared, versioned, and tested like any other code</li>
-                    <li><strong>IDE Support:</strong> Full autocomplete, refactoring, and navigation capabilities</li>
-                    <li><strong>Testability:</strong> Pipelines can be unit tested without requiring actual container execution</li>
-                    <li><strong>Flexibility:</strong> Dynamic work generation allows runtime decision-making about what work to execute</li>
-                </ul>
-
-                <h2>Package Architecture</h2>
-                <div class="diagram-container">
-                    <div class="mermaid">
-classDiagram
-    class Pipeline {
-        +String name
-        +Parameters parameters
-        +Work finalWork
-        +getName()
-        +toProtobuf()
-    }
-    class Work {
-        +String description
-        +WorkDefinition definition
-        +PreviousWork previousWork
-        +Condition condition
-        +getDescription()
-    }
-    class WorkDefinition {
-        <<interface>>
-        +toProtobuf()
-    }
-    class ContainerisedWorkDefinition {
-        +String image
-        +List~String~ command
-    }
-    class CustomWorkDefinition {
-        +String executionId
-        +toProtobuf()
-    }
-    class CompoundWorkDefinition {
-        +List~Work~ workItems
-    }
-    class DynamicWorkGeneratingWorkDefinition {
-        +WorkGenerator generator
-    }
-    class PreviousWork {
-        +Work work
-        +String outputsMountPath
-        +String stdOutEnvVar
-    }
-    class WorkContext {
-        +Map~String,String~ context
-    }
-    class Parameters {
-        +Map~String,Parameter~ params
-    }
-    class Parameter {
-        +TypeCheck type
-        +boolean required
-        +String defaultValue
-    }
-    class WorkOutputPath {
-        +String name
-        +String path
-    }
-    class PipelineGenerator {
-        <<annotation>>
-    }
-    class Pipelines {
-        +register(Pipeline)
-        +get(String)
-    }
-
-    Pipeline --> Work : contains
-    Work --> WorkDefinition : uses
-    Work --> PreviousWork : depends on
-    Work --> WorkContext : has
-    Work --> Parameters : accepts
-    Work --> WorkOutputPath : produces
-    ContainerisedWorkDefinition ..|> WorkDefinition
-    CustomWorkDefinition ..|> WorkDefinition
-    CompoundWorkDefinition ..|> WorkDefinition
-    DynamicWorkGeneratingWorkDefinition ..|> WorkDefinition
-    PreviousWork --> Work : references
-                    </div>
-                </div>
-
-                <h2>Core Classes</h2>
-                
-                <div class="class-summary">
-                    <h4>Pipeline</h4>
-                    <p>The root container for a deployment pipeline. Defines the pipeline name, parameters, and the final work item that represents the complete deployment process. Uses an immutable builder pattern for construction.</p>
-                </div>
-
-                <div class="class-summary">
-                    <h4>Work</h4>
-                    <p>Represents a single unit of work within a pipeline. Each work item has a description, a work definition (what to execute), optional dependencies on previous work, and optional execution conditions.</p>
-                </div>
-
-                <div class="class-summary">
-                    <h4>WorkDefinition (Interface)</h4>
-                    <p>The abstraction for different types of executable work. Implementations include:</p>
-                    <ul>
-                        <li><strong>ContainerisedWorkDefinition:</strong> Execute commands in existing container images</li>
-                        <li><strong>CustomWorkDefinition:</strong> Execute user-defined Java code in a built container</li>
-                        <li><strong>CompoundWorkDefinition:</strong> Group multiple work items as a single unit</li>
-                        <li><strong>DynamicWorkGeneratingWorkDefinition:</strong> Generate work at runtime based on parameters</li>
-                    </ul>
-                </div>
-
-                <div class="class-summary">
-                    <h4>PreviousWork</h4>
-                    <p>Defines dependencies between work items. Allows mounting output files from previous work and capturing stdout as environment variables for dependent work.</p>
-                </div>
-
-                <div class="class-summary">
-                    <h4>WorkContext &amp; Parameters</h4>
-                    <p>Key-value configuration passed to work items as environment variables. WorkContext applies to individual work items, while Parameters define pipeline-level inputs with validation.</p>
-                </div>
-
-                <div class="class-summary">
-                    <h4>PipelineGenerator (Annotation)</h4>
-                    <p>Marks static methods that return Pipeline objects. The annotation processor generates runtime code to discover and execute these methods during the build phase.</p>
-                </div>
-
-                <div class="contracts-section">
-                    <h3>Contracts</h3>
-                    <div class="contract-item">All builder methods return the builder instance for method chaining</div>
-                    <div class="contract-item">Immutable objects are created via builders only</div>
-                    <div class="contract-item">All public APIs accept non-null values (nulls cause IllegalArgumentException)</div>
-                    <div class="contract-item">Work IDs are deterministically generated from content hash</div>
-                    <div class="contract-item">Native work definitions are automatically registered when pipeline is built</div>
-                </div>
-
-                <div class="invariants-section">
-                    <h3>Invariants</h3>
-                    <div class="invariant-item">No null values accepted by public APIs</div>
-                    <div class="invariant-item">All collections are immutable after construction</div>
-                    <div class="invariant-item">Work dependencies form a directed acyclic graph</div>
-                    <div class="invariant-item">Pipeline names are unique within the static registry</div>
-                </div>
-
+                <h2>Description</h2>
+                <p>Core SDK classes for pipeline definition. Provides the main API for constructing pipelines, defining work items, and configuring work dependencies. All classes use immutable builder patterns for thread-safe construction.</p>
                 <h2>Responsibilities</h2>
                 <ul class="responsibility-list">
                     <li>Define Pipeline, Work, and WorkDefinition interfaces</li>
@@ -485,54 +70,16 @@ classDiagram
                     <li>Support work dependencies via PreviousWork</li>
                     <li>Serialize pipeline definitions to protobuf format</li>
                 </ul>
-
-                <h2>Dependencies</h2>
-                <ul class="dependency-list">
-                    <li>yeetcd.protocol.pipeline (protobuf)</li>
-                    <li>lombok (for boilerplate reduction)</li>
-                    <li>apache-commons-codec (for hashing)</li>
-                </ul>
-
-                <h2>Subcomponents</h2>
-                <ul class="subcomponent-list">
-                    <li>Pipeline</li>
-                    <li>Work</li>
-                    <li>WorkDefinition</li>
-                    <li>ContainerisedWorkDefinition</li>
-                    <li>CustomWorkDefinition</li>
-                    <li>NativeWorkDefinition</li>
-                    <li>DynamicWorkGeneratingWorkDefinition</li>
-                    <li>CompoundWorkDefinition</li>
-                    <li>PreviousWork</li>
-                    <li>WorkContext</li>
-                    <li>Parameters</li>
-                    <li>Parameter</li>
-                    <li>WorkOutputPath</li>
-                    <li>PipelineGeneratorAnnotationProcessor</li>
-                    <li>Pipelines</li>
-                    <li>PipelineGenerator</li>
-                </ul>
+                <h3>Dependencies</h3>
+                <ul><li>yeetcd.protocol.pipeline (protobuf), lombok, apache-commons-codec</li></ul>
             </div>
         </div>
     </div>
-
     <footer>
-        <div class="container">
-            Generated by OpenCode Documentation Agent
-        </div>
+        <div class="container">Generated by OpenCode Documentation Agent</div>
     </footer>
-
     <script>
-        mermaid.initialize({
-            startOnLoad: true,
-            theme: 'default',
-            securityLevel: 'loose',
-            flowchart: {
-                useMaxWidth: true,
-                htmlLabels: true,
-                curve: 'basis'
-            }
-        });
+        mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
     </script>
 </body>
 </html>

@@ -1,0 +1,31 @@
+# Documentation: internal/core/pipeline
+# Generated: 2026-04-10T21:33:08.543Z
+
+version: 1
+component_type: "package"
+name: "internal/core/pipeline"
+description: "Core pipeline execution logic. Implements pipeline assembly from protobuf, work execution orchestration, work definitions, conditions, and result tracking."
+responsibilities:
+  - "Assemble pipelines from protobuf definitions"
+  - "Execute work items with proper dependency ordering"
+  - "Manage WorkResultTracker for idempotent execution"
+  - "Implement work definition types (Containerized, Custom, Compound, Dynamic)"
+  - "Implement conditions (WorkContext, PreviousWorkStatus, And, Or, Not)"
+  - "Handle work output paths and mounts"
+  - "Manage pipeline parameters and arguments"
+  - "Track and report pipeline events and results"
+dependencies:
+  - "pkg/engine"
+  - "internal/core/types"
+  - "internal/core/condition"
+subcomponents: []
+contracts:
+  - "Pipeline.Assemble deserializes protobuf to pipeline objects"
+  - "Work execution respects PreviousWork dependencies"
+  - "Failed work causes dependent work to be skipped"
+  - "WorkResultTracker ensures work executes at most once"
+  - "Conditions control work execution eligibility"
+invariants:
+  - "Work dependencies form a directed acyclic graph"
+  - "All work results are recorded in tracker"
+  - "Pipeline completes when all final work items finish"

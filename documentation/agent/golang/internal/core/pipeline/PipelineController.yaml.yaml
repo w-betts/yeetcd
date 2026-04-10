@@ -1,0 +1,44 @@
+# Documentation: PipelineController
+# Generated: 2026-04-10T21:33:22.366Z
+
+version: 1
+component_type: "class"
+name: "PipelineController"
+description: "Orchestrates pipeline assembly and execution. Manages the complete lifecycle from source build through image creation, pipeline assembly, and work execution."
+responsibilities:
+  - "Orchestrate pipeline assembly from source"
+  - "Manage build service for source compilation"
+  - "Extract and process source code"
+  - "Deserialize protobuf to pipeline objects"
+  - "Execute work items with dependency ordering"
+  - "Manage execution engine for container runs"
+dependencies:
+  - "pkg/build"
+  - "pkg/engine"
+  - "golang/internal/core/pipeline"
+interfaces:
+  - description: "Assembles executable pipelines from source"
+    method: "Assemble"
+    returns: "[]*Pipeline"
+    preconditions:
+      - "Source must not be nil"
+      - "Source must contain buildable code with pipeline definitions"
+    postconditions:
+      - "Result contains list of assembled pipelines"
+      - "Pipelines are ready for execution"
+      - "All pipeline metadata is populated"
+  - description: "Executes a pipeline with output handling"
+    method: "Execute"
+    returns: "*PipelineResult"
+    preconditions:
+      - "Pipeline must not be nil"
+      - "Handler must not be nil"
+    postconditions:
+      - "PipelineStarted event is recorded"
+      - "All final work items are executed"
+      - "PipelineFinished event is recorded"
+      - "Result contains work results by work ID"
+contracts:
+  - "Assembly uses build service to compile source and generate protobuf"
+  - "Execution runs all final work with dependency resolution"
+  - "Work results are tracked and aggregated into pipeline result"
