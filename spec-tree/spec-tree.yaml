@@ -1,0 +1,45 @@
+title: "Go SDK for Yeetcd Pipeline Definitions"
+version: 1
+root:
+  id: "go-sdk-root"
+  title: "Go SDK for Yeetcd Pipeline Definitions"
+  description: "Create Go SDK for defining pipelines in Go, with test SDK and sample for e2e testing"
+  children:
+    - id: "go-sdk-types"
+      title: "Go SDK Core Types"
+      description: "Core Go types: Pipeline, Work, WorkDefinition, Conditions, Parameters. Mirror Java SDK API in Go"
+      children: []
+      interaction_log: []
+      tests: []
+      file_changes: []
+    - id: "go-sdk-generator"
+      title: "Generator Tool"
+      description: "Create generate command, implement static source parsing to find pipeline functions, output pipelines.pb"
+      children: []
+      interaction_log: []
+      tests: []
+      file_changes: []
+    - id: "go-sdk-test"
+      title: "Test SDK"
+      description: "Mirror Java's FakePipelineRunner - mock execution engine, test builders for behavior"
+      children: []
+      interaction_log: []
+      tests: []
+      file_changes: []
+    - id: "go-sdk-sample"
+      title: "Sample Project"
+      description: "Create sample project demonstrating all features, use for e2e testing"
+      children: []
+      interaction_log: []
+      tests: []
+      file_changes: []
+    - id: "go-sdk-integration"
+      title: "Controller Integration"
+      description: "Update controller to read embedded pipelines.pb, update yeetcd.yaml to support GO language"
+      children: []
+      interaction_log: []
+      tests: []
+      file_changes: []
+  interaction_log: []
+  tests: []
+  file_changes: []
