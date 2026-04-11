@@ -3,7 +3,7 @@ package pipeline
 import (
 	"fmt"
 
-	pb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
+	pb "github.com/yeetcd/yeetcd/pkg/proto/pipeline"
 )
 
 // Pipeline represents a pipeline definition

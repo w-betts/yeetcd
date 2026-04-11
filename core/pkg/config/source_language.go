@@ -57,6 +57,8 @@ func (s SourceLanguage) GetGeneratePipelineDefinitionsCmd() []string {
 	switch s {
 	case SourceLanguageJava:
 		return []string{"yeetcd.sdk.GeneratedPipelineDefinitions"}
+	case SourceLanguageGo:
+		return []string{"go", "run", "github.com/yeetcd/yeetcd/sdk/generator/cmd/generate"}
 	default:
 		return nil
 	}
@@ -67,6 +69,9 @@ func (s SourceLanguage) GetImageBase() engine.ImageBase {
 	switch s {
 	case SourceLanguageJava:
 		return engine.JAVA
+	case SourceLanguageGo:
+		// TODO: Add GOLANG to engine.ImageBase
+		return engine.JAVA // Temporary: use JAVA base for now
 	default:
 		return -1
 	}
@@ -79,6 +84,9 @@ func (s SourceLanguage) GetCustomTaskRunnerCmd(pipelineName, executionID string)
 		// The ENTRYPOINT in Dockerfile sets up java -cp <classpath>
 		// We just need to provide the main class and arguments
 		return []string{"yeetcd.sdk.GeneratedCustomWorkRunner", pipelineName, executionID}
+	case SourceLanguageGo:
+		// Go: run the compiled binary with arguments
+		return []string{"./pipeline", "--run-custom-work", executionID}
 	default:
 		return nil
 	}

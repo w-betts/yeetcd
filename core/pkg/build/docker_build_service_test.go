@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	pb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
+	pb "github.com/yeetcd/yeetcd/pkg/proto/pipeline"
 	"github.com/yeetcd/yeetcd/pkg/engine"
 	"google.golang.org/protobuf/proto"
 )

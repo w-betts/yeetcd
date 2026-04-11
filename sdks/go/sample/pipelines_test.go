@@ -8,7 +8,7 @@ import (
 )
 
 func TestSamplePipeline(t *testing.T) {
-	pipeline := samplePipeline()
+	pipeline := SamplePipeline()
 
 	assert.Equal(t, "sample", pipeline.Name)
 	assert.Len(t, pipeline.FinalWork, 1)
@@ -16,7 +16,7 @@ func TestSamplePipeline(t *testing.T) {
 }
 
 func TestSampleCompoundPipeline(t *testing.T) {
-	pipeline := sampleCompoundPipeline()
+	pipeline := SampleCompoundPipeline()
 
 	assert.Equal(t, "sampleCompound", pipeline.Name)
 	assert.Len(t, pipeline.FinalWork, 1)
@@ -26,7 +26,7 @@ func TestSampleCompoundPipeline(t *testing.T) {
 }
 
 func TestSampleWithWorkContextPipeline(t *testing.T) {
-	pipeline := sampleWithWorkContextPipeline()
+	pipeline := SampleWithWorkContextPipeline()
 
 	assert.Equal(t, "sampleWithWorkContext", pipeline.Name)
 	assert.Equal(t, "pipelineWorkContext", pipeline.WorkContext["PIPELINE_WORK_CONTEXT"])
@@ -36,7 +36,7 @@ func TestSampleWithWorkContextPipeline(t *testing.T) {
 }
 
 func TestSampleWithParametersPipeline(t *testing.T) {
-	pipeline := sampleWithParametersPipeline()
+	pipeline := SampleWithParametersPipeline()
 
 	assert.Equal(t, "sampleWithParameters", pipeline.Name)
 	assert.NotNil(t, pipeline.Parameters)
@@ -49,7 +49,7 @@ func TestSampleWithParametersPipeline(t *testing.T) {
 }
 
 func TestSampleWithConditionsPipeline(t *testing.T) {
-	pipeline := sampleWithConditionsPipeline()
+	pipeline := SampleWithConditionsPipeline()
 
 	assert.Equal(t, "sampleWithConditions", pipeline.Name)
 
@@ -61,7 +61,7 @@ func TestSampleWithConditionsPipeline(t *testing.T) {
 }
 
 func TestSampleWithCustomWorkPipeline(t *testing.T) {
-	pipeline := sampleWithCustomWorkPipeline()
+	pipeline := SampleWithCustomWorkPipeline()
 
 	assert.Equal(t, "sampleWithCustomWork", pipeline.Name)
 	assert.Len(t, pipeline.FinalWork, 1)
@@ -75,7 +75,7 @@ func TestSampleWithCustomWorkPipeline(t *testing.T) {
 }
 
 func TestSampleWithCompoundPipeline(t *testing.T) {
-	pipeline := sampleWithCompoundPipeline()
+	pipeline := SampleWithCompoundPipeline()
 
 	assert.Equal(t, "sampleWithCompound", pipeline.Name)
 	assert.Len(t, pipeline.FinalWork, 1)

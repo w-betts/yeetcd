@@ -1,8 +1,10 @@
 module github.com/yeetcd/yeetcd/sdk/test
 
-go 1.23
+go 1.25.0
 
 replace github.com/yeetcd/yeetcd/sdk => ../sdk
+
+replace github.com/yeetcd/yeetcd => ../../../core
 
 require github.com/stretchr/testify v1.11.1
 

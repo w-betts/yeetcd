@@ -17,7 +17,15 @@ root:
       description: "Create generate command, implement static source parsing to find pipeline functions, output pipelines.pb"
       children: []
       interaction_log: []
-      tests: []
+      tests:
+        - description: "Generator produces valid protobuf from sample pipelines"
+          type: "integration"
+          target_component: "generator"
+          contracts:
+            - "generator finds exported *Pipeline() functions"
+            - "generator outputs valid protobuf"
+            - "protobuf can be parsed by controller"
+          given_when_then: "Given sample project with 7 pipeline functions, when generator runs, then valid protobuf is produced with 7 pipelines"
       file_changes: []
     - id: "go-sdk-test"
       title: "Test SDK"

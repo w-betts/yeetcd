@@ -12,7 +12,7 @@ import (
 // TestE2ESamplePipeline runs the sample pipeline end-to-end using FakePipelineRunner.
 func TestE2ESamplePipeline(t *testing.T) {
 	// Get the pipeline definition
-	pipeline := samplePipeline()
+	pipeline := SamplePipeline()
 
 	// Create a fake runner with behavior for the containerised work
 	runner := sdktest.NewFakePipelineRunner().
@@ -40,7 +40,7 @@ func TestE2ESamplePipeline(t *testing.T) {
 
 // TestE2ESampleCompoundPipeline tests a compound pipeline with dependencies.
 func TestE2ESampleCompoundPipeline(t *testing.T) {
-	pipeline := sampleCompoundPipeline()
+	pipeline := SampleCompoundPipeline()
 
 	runner := sdktest.NewFakePipelineRunner().
 		WithWorkBehavior("sample-pipeline-work-1", sdktest.NewContainerisedWorkBehavior("alpine").
@@ -60,7 +60,7 @@ func TestE2ESampleCompoundPipeline(t *testing.T) {
 
 // TestE2ESampleWithCustomWork tests custom work execution.
 func TestE2ESampleWithCustomWork(t *testing.T) {
-	pipeline := sampleWithCustomWorkPipeline()
+	pipeline := SampleWithCustomWorkPipeline()
 
 	executed := false
 	runner := sdktest.NewFakePipelineRunner().
@@ -81,7 +81,7 @@ func TestE2ESampleWithCustomWork(t *testing.T) {
 
 // TestE2ESampleWithConditions tests conditional work execution.
 func TestE2ESampleWithConditions(t *testing.T) {
-	pipeline := sampleWithConditionsPipeline()
+	pipeline := SampleWithConditionsPipeline()
 
 	// Default behavior for works that don't have specific behaviors
 	runner := sdktest.NewFakePipelineRunner().
@@ -98,7 +98,7 @@ func TestE2ESampleWithConditions(t *testing.T) {
 
 // TestE2EPipelineOutput demonstrates how to capture pipeline output.
 func TestE2EPipelineOutput(t *testing.T) {
-	pipeline := samplePipeline()
+	pipeline := SamplePipeline()
 
 	// Capture output in a buffer-like fashion
 	var outputBuilder strings.Builder
@@ -124,7 +124,7 @@ func TestE2EPipelineOutput(t *testing.T) {
 
 // TestE2EFailureScenario tests how failures are handled.
 func TestE2EFailureScenario(t *testing.T) {
-	pipeline := samplePipeline()
+	pipeline := SamplePipeline()
 
 	runner := sdktest.NewFakePipelineRunner().
 		WithWorkBehavior("containerised-work-definition", sdktest.NewContainerisedWorkBehavior("alpine").
@@ -158,13 +158,13 @@ func TestE2EAllPipelines(t *testing.T) {
 		name   string
 		getter func() interface{}
 	}{
-		{"sample", func() interface{} { return samplePipeline() }},
-		{"sampleCompound", func() interface{} { return sampleCompoundPipeline() }},
-		{"sampleWithWorkContext", func() interface{} { return sampleWithWorkContextPipeline() }},
-		{"sampleWithParameters", func() interface{} { return sampleWithParametersPipeline() }},
-		{"sampleWithConditions", func() interface{} { return sampleWithConditionsPipeline() }},
-		{"sampleWithCustomWork", func() interface{} { return sampleWithCustomWorkPipeline() }},
-		{"sampleWithCompound", func() interface{} { return sampleWithCompoundPipeline() }},
+		{"sample", func() interface{} { return SamplePipeline() }},
+		{"sampleCompound", func() interface{} { return SampleCompoundPipeline() }},
+		{"sampleWithWorkContext", func() interface{} { return SampleWithWorkContextPipeline() }},
+		{"sampleWithParameters", func() interface{} { return SampleWithParametersPipeline() }},
+		{"sampleWithConditions", func() interface{} { return SampleWithConditionsPipeline() }},
+		{"sampleWithCustomWork", func() interface{} { return SampleWithCustomWorkPipeline() }},
+		{"sampleWithCompound", func() interface{} { return SampleWithCompoundPipeline() }},
 	}
 
 	for _, tc := range pipelines {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/yeetcd/yeetcd/internal/core/condition"
-	pb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
+	pb "github.com/yeetcd/yeetcd/pkg/proto/pipeline"
 	"github.com/yeetcd/yeetcd/internal/core/types"
 )
 

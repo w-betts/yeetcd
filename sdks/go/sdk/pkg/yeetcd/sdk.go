@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"sync/atomic"
 
-	"google.golang.org/protobuf/proto"
+	pb "github.com/yeetcd/yeetcd/pkg/proto/pipeline"
 )
 
 // Pipeline represents a complete pipeline definition.
@@ -205,8 +205,8 @@ func (b *PreviousWorkBuilder) Build() PreviousWork {
 
 // WorkDefinition is the interface that all work definitions must implement.
 type WorkDefinition interface {
-	// toProto converts the work definition to protobuf format
-	toProto() proto.Message
+	// applyToProto applies the work definition to the protobuf Work message
+	applyToProto(pbWork *pb.Work)
 }
 
 // ContainerisedWorkDefinition runs a command in an existing container image.
@@ -238,10 +238,6 @@ func (b *ContainerisedWorkDefinitionBuilder) Build() *ContainerisedWorkDefinitio
 	return b.def
 }
 
-func (c *ContainerisedWorkDefinition) toProto() proto.Message {
-	return nil // Placeholder - will use generated protobuf
-}
-
 // CustomWorkDefinition is a user-defined work that runs custom Go code.
 type CustomWorkDefinition struct {
 	execute func()
@@ -271,10 +267,6 @@ func (c *CustomWorkDefinition) Run() {
 	}
 }
 
-func (c *CustomWorkDefinition) toProto() proto.Message {
-	return nil // Placeholder
-}
-
 func (c *CustomWorkDefinition) executionID() string {
 	return fmt.Sprintf("%x", reflect.TypeOf(c).String())
 }
@@ -301,10 +293,6 @@ func (b *CompoundWorkDefinitionBuilder) Build() *CompoundWorkDefinition {
 	return b.def
 }
 
-func (c *CompoundWorkDefinition) toProto() proto.Message {
-	return nil // Placeholder
-}
-
 // DynamicWorkGeneratingWorkDefinition generates work at runtime.
 type DynamicWorkGeneratingWorkDefinition struct {
 	Generate func() []Work
@@ -315,13 +303,9 @@ func NewDynamicWork(generate func() []Work) *DynamicWorkGeneratingWorkDefinition
 	return &DynamicWorkGeneratingWorkDefinition{Generate: generate}
 }
 
-func (d *DynamicWorkGeneratingWorkDefinition) toProto() proto.Message {
-	return nil // Placeholder
-}
-
 // Condition is the interface for work execution conditions.
 type Condition interface {
-	toProto() proto.Message
+	toProtoCondition() *pb.Condition
 }
 
 // WorkContextCondition checks work context values.
@@ -353,10 +337,6 @@ type WorkContextConditionBuilder struct {
 // Build returns the WorkContextCondition.
 func (b *WorkContextConditionBuilder) Build() *WorkContextCondition {
 	return b.cond
-}
-
-func (c *WorkContextCondition) toProto() proto.Message {
-	return nil // Placeholder
 }
 
 // NotCondition inverts another condition.
@@ -414,11 +394,6 @@ var Conditions = struct {
 		return &PreviousWorkStatusCondition{Status: status}
 	},
 }
-
-func (n *NotCondition) toProto() proto.Message                { return nil }
-func (a *AndCondition) toProto() proto.Message                { return nil }
-func (o *OrCondition) toProto() proto.Message                 { return nil }
-func (p *PreviousWorkStatusCondition) toProto() proto.Message { return nil }
 
 // Pipelines is a collection of pipeline definitions.
 type Pipelines []Pipeline

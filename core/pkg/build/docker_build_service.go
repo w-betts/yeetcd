@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	pb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
+	pb "github.com/yeetcd/yeetcd/pkg/proto/pipeline"
 	"github.com/yeetcd/yeetcd/pkg/config"
 	"github.com/yeetcd/yeetcd/pkg/engine"
 	"google.golang.org/protobuf/proto"

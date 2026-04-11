@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	pipelinepb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
+	pipelinepb "github.com/yeetcd/yeetcd/pkg/proto/pipeline"
 )
 
 // Test: Conditions.FromProtobuf() deserializes WorkContextCondition correctly

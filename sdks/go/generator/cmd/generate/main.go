@@ -2,91 +2,204 @@ package main
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
-// This is a simple generator that finds pipeline definitions in Go source files.
-// It looks for functions that return sdk.Pipeline (by naming convention *Pipeline)
-// and generates pipeline protobuf.
+// This generator creates pipelines.pb by:
+// 1. Finding Go source files with pipeline functions (named *Pipeline returning sdk.Pipeline)
+// 2. Generating a temporary Go file that imports the user's package and calls those functions
+// 3. Running that file with `go run` to output protobuf to stdout
 
 func main() {
-	fmt.Println("Yeetcd Go Pipeline Generator")
-	fmt.Println("This generator finds pipeline definitions in your code.")
-	fmt.Println("")
-	fmt.Println("To use this generator, add the following to any .go file in your project:")
-	fmt.Println("")
-	fmt.Println("  //go:generate go run github.com/yeetcd/yeetcd/sdk/generator/cmd/generate")
-	fmt.Println("")
-	fmt.Println("Then run: go generate")
-	fmt.Println("")
-	fmt.Println("The generator will find functions that return sdk.Pipeline and generate pipelines.pb")
-
-	// For now, just print guidance. The actual implementation would:
-	// 1. Parse Go source files in current directory
-	// 2. Find functions returning Pipeline (naming pattern: *Pipeline)
-	// 3. Generate protobuf output
-
-	// Check if we're being run as part of go generate
-	if _, err := os.Stat("pipelines.pb"); err == nil {
-		// pipelines.pb already exists - user might want to regenerate
-		fmt.Println("\nNote: pipelines.pb already exists. Remove it and run go generate to regenerate.")
-	}
-
-	// Try to find Go files with pipeline definitions
-	files, err := filepath.Glob("*.go")
-	if err != nil || len(files) == 0 {
-		fmt.Println("\nNo .go files found in current directory.")
+	if len(os.Args) > 1 && os.Args[1] == "--help" {
+		fmt.Println("Yeetcd Go Pipeline Generator")
+		fmt.Println("")
+		fmt.Println("Usage: go run github.com/yeetcd/yeetcd/sdk/generator/cmd/generate")
+		fmt.Println("")
+		fmt.Println("This generator finds functions named *Pipeline() that return sdk.Pipeline")
+		fmt.Println("and outputs their protobuf representation to stdout.")
 		os.Exit(0)
 	}
 
-	// Look for pipeline function definitions
-	pipelineFuncs := findPipelineFunctions(files)
-	if len(pipelineFuncs) > 0 {
-		fmt.Printf("\nFound %d potential pipeline function(s):\n", len(pipelineFuncs))
-		for _, f := range pipelineFuncs {
-			fmt.Printf("  - %s\n", f)
-		}
-		fmt.Println("\nTo generate pipelines.pb, implement these functions to return sdk.Pipeline")
+	// Get the current directory (user's project)
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error getting current directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Find the module name from go.mod
+	moduleName, err := findModuleName(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error finding module name: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Find pipeline functions
+	pipelineFuncs, err := findPipelineFunctions(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error finding pipeline functions: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(pipelineFuncs) == 0 {
+		fmt.Fprintf(os.Stderr, "No pipeline functions found. Make sure you have functions named *Pipeline that return sdk.Pipeline\n")
+		os.Exit(1)
+	}
+
+	// Generate a temporary Go file that calls the pipeline functions
+	tmpFile, err := generateRunnerFile(dir, moduleName, pipelineFuncs)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error generating runner file: %v\n", err)
+		os.Exit(1)
+	}
+	defer os.Remove(tmpFile)
+
+	// Run the generated file
+	cmd := exec.Command("go", "run", tmpFile)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Dir = dir
+
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error running generator: %v\n", err)
+		os.Exit(1)
 	}
 }
 
-func findPipelineFunctions(files []string) []string {
+// findModuleName reads the go.mod file to find the module name
+func findModuleName(dir string) (string, error) {
+	goModPath := filepath.Join(dir, "go.mod")
+	content, err := os.ReadFile(goModPath)
+	if err != nil {
+		return "", fmt.Errorf("reading go.mod: %w", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "module ") {
+			return strings.TrimPrefix(line, "module "), nil
+		}
+	}
+
+	return "", fmt.Errorf("module directive not found in go.mod")
+}
+
+// findPipelineFunctions finds all functions named *Pipeline that return sdk.Pipeline
+func findPipelineFunctions(dir string) ([]string, error) {
 	var funcs []string
 
-	for _, file := range files {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			continue
-		}
+	fset := token.NewFileSet()
+	pkgs, err := parser.ParseDir(fset, dir, nil, parser.ParseComments)
+	if err != nil {
+		return nil, fmt.Errorf("parsing directory: %w", err)
+	}
 
-		// Simple pattern matching for functions returning Pipeline
-		// Look for: func <name>Pipeline(...) sdk.Pipeline
-		lines := strings.Split(string(content), "\n")
-		for _, line := range lines {
-			// Skip comments
-			trimmed := strings.TrimSpace(line)
-			if strings.HasPrefix(trimmed, "//") {
-				continue
-			}
+	for _, pkg := range pkgs {
+		for _, file := range pkg.Files {
+			for _, decl := range file.Decls {
+				fn, ok := decl.(*ast.FuncDecl)
+				if !ok {
+					continue
+				}
 
-			// Look for function definitions that return Pipeline
-			if strings.Contains(line, "func ") && strings.Contains(line, "Pipeline") && strings.Contains(line, "sdk.Pipeline") {
-				// Extract function name
-				funcStart := strings.Index(line, "func ")
-				rest := line[funcStart+5:]
-				spaceIdx := strings.Index(rest, "(")
-				if spaceIdx > 0 {
-					funcName := strings.TrimSpace(rest[:spaceIdx])
-					// Skip methods (they have a receiver)
-					if !strings.Contains(funcName, "(") {
-						funcs = append(funcs, file+":"+funcName)
-					}
+				// Check if function name ends with "Pipeline"
+				if !strings.HasSuffix(fn.Name.Name, "Pipeline") {
+					continue
+				}
+
+				// Check if function is exported (first letter is uppercase)
+				if !ast.IsExported(fn.Name.Name) {
+					continue
+				}
+
+				// Check if it returns sdk.Pipeline
+				if fn.Type.Results == nil || len(fn.Type.Results.List) == 0 {
+					continue
+				}
+
+				// Check the return type
+				retType := fn.Type.Results.List[0].Type
+				if isSDKPipelineType(retType) {
+					funcs = append(funcs, fn.Name.Name)
 				}
 			}
 		}
 	}
 
-	return funcs
+	return funcs, nil
+}
+
+// isSDKPipelineType checks if the type is sdk.Pipeline
+func isSDKPipelineType(expr ast.Expr) bool {
+	switch t := expr.(type) {
+	case *ast.SelectorExpr:
+		if x, ok := t.X.(*ast.Ident); ok {
+			return x.Name == "sdk" && t.Sel.Name == "Pipeline"
+		}
+	case *ast.Ident:
+		return t.Name == "Pipeline"
+	}
+	return false
+}
+
+// generateRunnerFile generates a temporary Go file that calls the pipeline functions
+func generateRunnerFile(dir, moduleName string, pipelineFuncs []string) (string, error) {
+	// Create a temporary file
+	tmpFile, err := os.CreateTemp("", "yeetcd_generator_*.go")
+	if err != nil {
+		return "", fmt.Errorf("creating temp file: %w", err)
+	}
+
+	// Generate the code
+	code := fmt.Sprintf(`// Code generated by yeetcd generator. DO NOT EDIT.
+//go:build ignore
+
+package main
+
+import (
+	"os"
+
+	sdk "github.com/yeetcd/yeetcd/sdk/pkg/yeetcd"
+	userpkg "%s"
+	"google.golang.org/protobuf/proto"
+)
+
+func main() {
+	pipelines := make([]sdk.Pipeline, %d)
+`, moduleName, len(pipelineFuncs))
+
+	for i, fn := range pipelineFuncs {
+		code += fmt.Sprintf("\tpipelines[%d] = userpkg.%s()\n", i, fn)
+	}
+
+	code += `
+	// Convert to protobuf and output to stdout
+	pbPipelines := sdk.Pipelines(pipelines).ToProto()
+	data, err := proto.Marshal(pbPipelines)
+	if err != nil {
+		os.Stderr.Write([]byte(err.Error()))
+		os.Exit(1)
+	}
+	os.Stdout.Write(data)
+}
+`
+
+	if _, err := tmpFile.WriteString(code); err != nil {
+		tmpFile.Close()
+		return "", fmt.Errorf("writing temp file: %w", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		return "", fmt.Errorf("closing temp file: %w", err)
+	}
+
+	return tmpFile.Name(), nil
 }

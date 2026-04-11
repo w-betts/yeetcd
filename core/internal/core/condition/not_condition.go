@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	pipelinepb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
+	pipelinepb "github.com/yeetcd/yeetcd/pkg/proto/pipeline"
 	"github.com/yeetcd/yeetcd/internal/core/types"
 )
 

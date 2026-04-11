@@ -5,8 +5,8 @@ import (
 	sdk "github.com/yeetcd/yeetcd/sdk/pkg/yeetcd"
 )
 
-// samplePipeline demonstrates a basic containerised work definition.
-func samplePipeline() sdk.Pipeline {
+// SamplePipeline demonstrates a basic containerised work definition.
+func SamplePipeline() sdk.Pipeline {
 	containerisedWork := sdk.NewWork(
 		"containerised-work-definition",
 		sdk.NewContainerisedWork("maven:3.9.9-eclipse-temurin-17").
@@ -19,8 +19,8 @@ func samplePipeline() sdk.Pipeline {
 		Build()
 }
 
-// sampleCompoundPipeline demonstrates compound work definitions.
-func sampleCompoundPipeline() sdk.Pipeline {
+// SampleCompoundPipeline demonstrates compound work definitions.
+func SampleCompoundPipeline() sdk.Pipeline {
 	work1 := sdk.NewWork(
 		"sample-pipeline-work-1",
 		sdk.NewContainerisedWork("alpine").Build(),
@@ -41,8 +41,8 @@ func sampleCompoundPipeline() sdk.Pipeline {
 		Build()
 }
 
-// sampleWithWorkContextPipeline demonstrates work context propagation.
-func sampleWithWorkContextPipeline() sdk.Pipeline {
+// SampleWithWorkContextPipeline demonstrates work context propagation.
+func SampleWithWorkContextPipeline() sdk.Pipeline {
 	pipelineWorkContext := sdk.WorkContextOf("PIPELINE_WORK_CONTEXT", "pipelineWorkContext")
 	workWorkContext := sdk.WorkContextOf("WORK_WORK_CONTEXT", "workWorkContext")
 
@@ -59,8 +59,8 @@ func sampleWithWorkContextPipeline() sdk.Pipeline {
 		Build()
 }
 
-// sampleWithParametersPipeline demonstrates pipeline parameters.
-func sampleWithParametersPipeline() sdk.Pipeline {
+// SampleWithParametersPipeline demonstrates pipeline parameters.
+func SampleWithParametersPipeline() sdk.Pipeline {
 	param := sdk.NewParameter(sdk.TypeCheckString).
 		WithRequired(true).
 		WithDefaultValue("default").
@@ -80,8 +80,8 @@ func sampleWithParametersPipeline() sdk.Pipeline {
 		Build()
 }
 
-// sampleWithConditionsPipeline demonstrates work conditions.
-func sampleWithConditionsPipeline() sdk.Pipeline {
+// SampleWithConditionsPipeline demonstrates work conditions.
+func SampleWithConditionsPipeline() sdk.Pipeline {
 	unconditionalWork := sdk.NewWork(
 		"unconditional-work",
 		sdk.NewContainerisedWork("alpine").Build(),
@@ -103,8 +103,8 @@ func sampleWithConditionsPipeline() sdk.Pipeline {
 		Build()
 }
 
-// sampleWithCustomWorkPipeline demonstrates custom work definitions.
-func sampleWithCustomWorkPipeline() sdk.Pipeline {
+// SampleWithCustomWorkPipeline demonstrates custom work definitions.
+func SampleWithCustomWorkPipeline() sdk.Pipeline {
 	work := sdk.NewWork(
 		"custom-work",
 		sdk.NewCustomWork(func() {
@@ -117,9 +117,9 @@ func sampleWithCustomWorkPipeline() sdk.Pipeline {
 		Build()
 }
 
-// sampleWithCompoundPipeline demonstrates using a pipeline as compound work.
-func sampleWithCompoundPipeline() sdk.Pipeline {
-	innerPipeline := samplePipeline()
+// SampleWithCompoundPipeline demonstrates using a pipeline as compound work.
+func SampleWithCompoundPipeline() sdk.Pipeline {
+	innerPipeline := SamplePipeline()
 
 	// Use the pipeline as a work (compound work)
 	compoundWork := sdk.NewWork(

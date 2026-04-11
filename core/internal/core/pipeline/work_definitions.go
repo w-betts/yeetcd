@@ -3,7 +3,7 @@ package pipeline
 import (
 	"fmt"
 
-	pb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
+	pb "github.com/yeetcd/yeetcd/pkg/proto/pipeline"
 )
 
 // FromWorkProtobuf converts protobuf Work to appropriate WorkDefinition type

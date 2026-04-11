@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	pipelinepb "github.com/yeetcd/yeetcd/internal/core/proto/pipeline"
+	pipelinepb "github.com/yeetcd/yeetcd/pkg/proto/pipeline"
 )
 
 // PREVIOUS_WORK_SUCCESS is a constant condition for previous work success
