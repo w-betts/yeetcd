@@ -299,11 +299,14 @@ export const SpecTreePlugin: Plugin = async (ctx) => {
           const specPath = path.join(dir, "spec-tree.yaml")
           fs.writeFileSync(specPath, toYamlString(spec))
 
-          return {
-            success: true,
-            title: args.title,
-            root_node_id: args.root_node.id,
-          }
+          return `Spec-tree created successfully.
+
+Title: ${args.title}
+Root Node ID: ${args.root_node.id}
+Root Node Title: ${args.root_node.title}
+File: ${specPath}
+
+Use spec_tree_register_node to add child nodes.`
         },
       }),
 
@@ -326,10 +329,37 @@ export const SpecTreePlugin: Plugin = async (ctx) => {
             if (!node) {
               throw new Error(`Node with id "${args.node_id}" not found`)
             }
-            return node
+            return `Node: ${node.id}
+Title: ${node.title}
+Description: ${node.description}
+Children: ${node.children.length}
+Test cases: ${node.tests.length}
+File changes: ${node.file_changes.length}
+Impl status: ${node.impl_status || "pending"}
+Test status: ${node.test_status || "pending"}`
           }
 
-          return spec
+          // Return full spec formatted
+          let output = `Spec-Tree: ${spec.title}
+Root: ${spec.root.id} - ${spec.root.title}
+
+`
+          const formatNode = (n: Node, indent: number = 0): string => {
+            const prefix = "  ".repeat(indent)
+            let s = `${prefix}${n.id}: ${n.title}\n`
+            s += `${prefix}  Description: ${n.description}\n`
+            if (n.children.length > 0) {
+              s += `${prefix}  Children: ${n.children.length}\n`
+              for (const child of n.children) {
+                s += formatNode(child, indent + 1)
+              }
+            } else {
+              s += `${prefix}  Status: impl=${n.impl_status || "pending"}, test=${n.test_status || "pending"}\n`
+            }
+            return s
+          }
+
+          return output + formatNode(spec.root)
         },
       }),
 
@@ -355,12 +385,14 @@ export const SpecTreePlugin: Plugin = async (ctx) => {
           // Check if already registered
           const existing = findNodeById(spec.root, args.id)
           if (existing) {
-            return {
-              success: true,
-              node_id: args.id,
-              parent_id: args.parent_id,
-              already_registered: true,
-            }
+            return `Node already registered.
+
+Node ID: ${args.id}
+Parent ID: ${args.parent_id}
+Title: ${args.title}
+Description: ${args.description}
+
+Use spec_tree_update to modify this node.`
           }
 
           // Find parent node in spec
@@ -383,11 +415,14 @@ export const SpecTreePlugin: Plugin = async (ctx) => {
 
           saveSpec(worktree, updatedSpec)
 
-          return {
-            success: true,
-            node_id: args.id,
-            parent_id: args.parent_id,
-          }
+          return `Node registered successfully.
+
+Node ID: ${args.id}
+Parent ID: ${args.parent_id}
+Title: ${args.title}
+Description: ${args.description}
+
+Use spec_tree_update to add children or modify status.`
         },
       }),
 
@@ -422,7 +457,15 @@ export const SpecTreePlugin: Plugin = async (ctx) => {
 
           saveSpec(worktree, updatedSpec)
 
-          return { success: true, node_id: args.node_id }
+          // Format updated fields
+          const updatedFields = Object.keys(args.updates).join(", ")
+
+          return `Node updated successfully.
+
+Node ID: ${args.node_id}
+Updated fields: ${updatedFields}
+
+Use spec_tree_read to verify the changes.`
         },
       }),
 
@@ -446,7 +489,14 @@ export const SpecTreePlugin: Plugin = async (ctx) => {
             )
           }
 
-          return node
+          return `Node: ${node.id}
+Title: ${node.title}
+Description: ${node.description}
+Children: ${node.children.length}
+Test cases: ${node.tests.length}
+File changes: ${node.file_changes.length}
+Impl status: ${node.impl_status || "pending"}
+Test status: ${node.test_status || "pending"}`
         },
       }),
 
@@ -458,7 +508,22 @@ export const SpecTreePlugin: Plugin = async (ctx) => {
         async execute(args, context) {
           const { worktree } = context
           const spec = loadSpec(worktree)
-          return getLeafNodes(spec.root)
+          const leaves = getLeafNodes(spec.root)
+
+          if (leaves.length === 0) {
+            return `No leaf nodes found. The spec-tree may only have a root node.`
+          }
+
+          let output = `Leaf nodes found: ${leaves.length}\n\n`
+          for (let i = 0; i < leaves.length; i++) {
+            const leaf = leaves[i]
+            output += `${i + 1}. ${leaf.id}: ${leaf.title}\n`
+            output += `   Description: ${leaf.description}\n`
+            output += `   Impl status: ${leaf.impl_status || "pending"}\n`
+            output += `   Test status: ${leaf.test_status || "pending"}\n\n`
+          }
+
+          return output
         },
       }),
     },
