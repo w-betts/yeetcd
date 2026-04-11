@@ -138,11 +138,11 @@ describe('Node Prompt Content - Decision Options', () => {
 });
 
 describe('Node Prompt Content - Self-Registration', () => {
-  test('Contains spectree_register_node as first action', () => {
+  test('Contains spec_tree_register_node as first action', () => {
     const content = readNodePrompt();
     expect(content).not.toBeNull();
     
-    expect(content).toMatch(/spectree_register_node/);
+    expect(content).toMatch(/spec_tree_register_node/);
   });
 
   test('Emphasizes register as FIRST action', () => {
@@ -203,15 +203,15 @@ describe('Node Agent Configuration in opencode.json', () => {
 // Test Suite: Spectree Agent Can Spawn Node Subagent (Chunk 2)
 // ============================================================================
 
-describe('Spectree Agent Can Spawn Node Subagent', () => {
-  test('Spectree agent permissions include node subagent', () => {
+describe('Spec-Tree Agent Can Spawn Node Subagent', () => {
+  test('Spec-tree agent permissions include node subagent', () => {
     const config = readOpencodeConfig();
     expect(config).not.toBeNull();
-    expect(config.agent.spectree).toBeDefined();
-    expect(config.agent.spectree.permission).toBeDefined();
+    expect(config.agent['spec-tree']).toBeDefined();
+    expect(config.agent['spec-tree'].permission).toBeDefined();
     
-    // Check that spectree can spawn node
-    const taskPerm = config.agent.spectree.permission.task;
+    // Check that spec-tree can spawn node
+    const taskPerm = config.agent['spec-tree'].permission.task;
     if (taskPerm && typeof taskPerm === 'object') {
       expect(taskPerm.node).toBe('allow');
     } else {

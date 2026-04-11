@@ -434,9 +434,9 @@ class TestSubagentConfigurations(unittest.TestCase):
 
 
 class TestSpectreeAgentConfiguration(unittest.TestCase):
-    """Test cases for spectree agent configuration in opencode.json.
+    """Test cases for spec-tree agent configuration in opencode.json.
     
-    Test cases for Chunk 2: Add spectree agent to opencode.json
+    Test cases for Chunk 2: Add spec-tree agent to opencode.json
     - Spectree agent is properly configured in opencode.json
     - Spectree has correct mode (primary) and prompt path
     """
@@ -449,104 +449,104 @@ class TestSpectreeAgentConfiguration(unittest.TestCase):
             with open(self.config_path, 'r') as f:
                 self.config = json.load(f)
 
-    def test_spectree_agent_exists(self):
-        """Verify spectree agent is configured in opencode.json.
+    def test_spec-tree_agent_exists(self):
+        """Verify spec-tree agent is configured in opencode.json.
         
-        GIVEN opencode.json, WHEN spectree agent config is added,
-        THEN agent can be launched with --agent spectree
+        GIVEN opencode.json, WHEN spec-tree agent config is added,
+        THEN agent can be launched with --agent spec-tree
         """
         if self.config is None:
             self.skipTest("opencode.json does not exist or is invalid")
         
         agents = self.config.get("agent", {})
         self.assertIn(
-            "spectree",
+            "spec-tree",
             agents,
-            "spectree agent should be configured in opencode.json for --agent spectree to work"
+            "spec-tree agent should be configured in opencode.json for --agent spec-tree to work"
         )
 
-    def test_spectree_agent_has_primary_mode(self):
-        """Verify spectree agent has mode set to 'primary'.
+    def test_spec-tree_agent_has_primary_mode(self):
+        """Verify spec-tree agent has mode set to 'primary'.
         
-        GIVEN opencode.json has spectree config, WHEN parsed,
+        GIVEN opencode.json has spec-tree config, WHEN parsed,
         THEN mode is 'primary'
         """
         if self.config is None:
             self.skipTest("opencode.json does not exist or is invalid")
         
         agents = self.config.get("agent", {})
-        if "spectree" not in agents:
-            self.skipTest("spectree agent not configured")
+        if "spec-tree" not in agents:
+            self.skipTest("spec-tree agent not configured")
         
-        spectree_config = agents["spectree"]
+        spec-tree_config = agents["spec-tree"]
         self.assertEqual(
-            spectree_config.get("mode"),
+            spec-tree_config.get("mode"),
             "primary",
-            "spectree agent should have mode='primary'"
+            "spec-tree agent should have mode='primary'"
         )
 
-    def test_spectree_agent_has_prompt_reference(self):
-        """Verify spectree agent prompt references spectree.md.
+    def test_spec-tree_agent_has_prompt_reference(self):
+        """Verify spec-tree agent prompt references spec-tree.md.
         
-        GIVEN opencode.json has spectree config, WHEN parsed,
-        THEN prompt references spectree.md
+        GIVEN opencode.json has spec-tree config, WHEN parsed,
+        THEN prompt references spec-tree.md
         """
         if self.config is None:
             self.skipTest("opencode.json does not exist or is invalid")
         
         agents = self.config.get("agent", {})
-        if "spectree" not in agents:
-            self.skipTest("spectree agent not configured")
+        if "spec-tree" not in agents:
+            self.skipTest("spec-tree agent not configured")
         
-        spectree_config = agents["spectree"]
-        prompt = spectree_config.get("prompt", "")
+        spec-tree_config = agents["spec-tree"]
+        prompt = spec-tree_config.get("prompt", "")
         
-        # Should reference spectree.md prompt file
+        # Should reference spec-tree.md prompt file
         self.assertIn(
-            "spectree",
+            "spec-tree",
             prompt.lower(),
-            "spectree agent should reference spectree.md in prompt path"
+            "spec-tree agent should reference spec-tree.md in prompt path"
         )
         self.assertIn(
             ".md",
             prompt,
-            "spectree agent prompt should reference a .md file"
+            "spec-tree agent prompt should reference a .md file"
         )
 
-    def test_spectree_agent_has_description(self):
-        """Verify spectree agent has a description."""
+    def test_spec-tree_agent_has_description(self):
+        """Verify spec-tree agent has a description."""
         if self.config is None:
             self.skipTest("opencode.json does not exist or is invalid")
         
         agents = self.config.get("agent", {})
-        if "spectree" not in agents:
-            self.skipTest("spectree agent not configured")
+        if "spec-tree" not in agents:
+            self.skipTest("spec-tree agent not configured")
         
-        spectree_config = agents["spectree"]
+        spec-tree_config = agents["spec-tree"]
         self.assertIn(
             "description",
-            spectree_config,
-            "spectree agent should have a description"
+            spec-tree_config,
+            "spec-tree agent should have a description"
         )
 
-    def test_spectree_agent_has_permissions(self):
-        """Verify spectree agent has permissions configured."""
+    def test_spec-tree_agent_has_permissions(self):
+        """Verify spec-tree agent has permissions configured."""
         if self.config is None:
             self.skipTest("opencode.json does not exist or is invalid")
         
         agents = self.config.get("agent", {})
-        if "spectree" not in agents:
-            self.skipTest("spectree agent not configured")
+        if "spec-tree" not in agents:
+            self.skipTest("spec-tree agent not configured")
         
-        spectree_config = agents["spectree"]
+        spec-tree_config = agents["spec-tree"]
         self.assertIn(
             "permission",
-            spectree_config,
-            "spectree agent should have permissions configured"
+            spec-tree_config,
+            "spec-tree agent should have permissions configured"
         )
 
-    def test_spectree_agent_can_delegate_to_node_subagent(self):
-        """Verify spectree agent can delegate to node subagent.
+    def test_spec-tree_agent_can_delegate_to_node_subagent(self):
+        """Verify spec-tree agent can delegate to node subagent.
         
         Spectree workflow spawns node subagents for handling sub-problems.
         """
@@ -554,23 +554,23 @@ class TestSpectreeAgentConfiguration(unittest.TestCase):
             self.skipTest("opencode.json does not exist or is invalid")
         
         agents = self.config.get("agent", {})
-        if "spectree" not in agents:
-            self.skipTest("spectree agent not configured")
+        if "spec-tree" not in agents:
+            self.skipTest("spec-tree agent not configured")
         
-        spectree_config = agents["spectree"]
-        permissions = spectree_config.get("permission", {})
+        spec-tree_config = agents["spec-tree"]
+        permissions = spec-tree_config.get("permission", {})
         task_permissions = permissions.get("task", {})
         
         # Should allow delegating to node subagent
         self.assertIn(
             "node",
             task_permissions,
-            "spectree agent should be able to delegate to node subagent"
+            "spec-tree agent should be able to delegate to node subagent"
         )
         self.assertEqual(
             task_permissions.get("node"),
             "allow",
-            "spectree agent should have 'allow' permission for node"
+            "spec-tree agent should have 'allow' permission for node"
         )
 
 

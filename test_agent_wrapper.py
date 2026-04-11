@@ -170,8 +170,8 @@ class TestAgentScriptExecution(unittest.TestCase):
             return f.read()
 
 
-class TestSpectreeWorkflow(unittest.TestCase):
-    """Test cases for spectree workflow entry point."""
+class TestSpecTreeWorkflow(unittest.TestCase):
+    """Test cases for spec-tree workflow entry point."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -184,88 +184,88 @@ class TestSpectreeWorkflow(unittest.TestCase):
         with open(self.script_path, 'r') as f:
             return f.read()
 
-    def test_spectree_in_agent_map(self):
-        """Verify spectree is added to AGENT_MAP dictionary."""
+    def test_spec-tree_in_agent_map(self):
+        """Verify spec-tree is added to AGENT_MAP dictionary."""
         content = self._get_script_content()
         if content is None:
             self.skipTest("Agent script does not exist yet")
         
-        # Check that spectree is in AGENT_MAP
-        self.assertIn('"spectree"', content, 
-            "AGENT_MAP should contain 'spectree' entry")
+        # Check that spec-tree is in AGENT_MAP
+        self.assertIn('"spec-tree"', content, 
+            "AGENT_MAP should contain 'spec-tree' entry")
 
-    def test_spectree_in_print_usage(self):
-        """Verify spectree entry is in print_usage() function."""
+    def test_spec-tree_in_print_usage(self):
+        """Verify spec-tree entry is in print_usage() function."""
         content = self._get_script_content()
         if content is None:
             self.skipTest("Agent script does not exist yet")
         
-        # Check that print_usage includes spectree
-        self.assertIn("spectree", content.lower(),
-            "print_usage should include spectree entry")
+        # Check that print_usage includes spec-tree
+        self.assertIn("spec-tree", content.lower(),
+            "print_usage should include spec-tree entry")
 
-    def test_spectree_handled_like_spec_in_prompt_new_or_resume(self):
-        """Verify spectree workflow type is handled like spec (always requires worktree)."""
+    def test_spec-tree_handled_like_spec_in_prompt_new_or_resume(self):
+        """Verify spec-tree workflow type is handled like spec (always requires worktree)."""
         content = self._get_script_content()
         if content is None:
             self.skipTest("Agent script does not exist yet")
         
-        # Verify that spectree is handled similarly to spec in prompt_new_or_resume
-        # spectree should NOT have main branch option like vibe/fix
-        # Check the logic in prompt_new_or_resume handles spectree without main branch
+        # Verify that spec-tree is handled similarly to spec in prompt_new_or_resume
+        # spec-tree should NOT have main branch option like vibe/fix
+        # Check the logic in prompt_new_or_resume handles spec-tree without main branch
         
         # Look for the workflow type handling section
         self.assertIn("workflow_type", content,
             "Script should have workflow_type variable")
         
-        # Verify that spectree doesn't get main branch option
+        # Verify that spec-tree doesn't get main branch option
         # The existing code has: if workflow_type in ("vibe", "fix"):
-        # For spectree, it should NOT be in this tuple
-        # We check that "spectree" is NOT in the vibe/fix tuple
+        # For spec-tree, it should NOT be in this tuple
+        # We check that "spec-tree" is NOT in the vibe/fix tuple
         lines = content.split('\n')
         for i, line in enumerate(lines):
             if 'workflow_type in ("vibe", "fix")' in line or "workflow_type in ('vibe', 'fix')" in line:
-                # Ensure spectree is not added to this condition
+                # Ensure spec-tree is not added to this condition
                 next_few_lines = '\n'.join(lines[i:i+5])
-                self.assertNotIn("spectree", next_few_lines,
-                    "spectree should not be grouped with vibe/fix for main branch option")
+                self.assertNotIn("spec-tree", next_few_lines,
+                    "spec-tree should not be grouped with vibe/fix for main branch option")
                 break
 
-    def test_get_spectree_status_method_exists(self):
-        """Verify _get_spectree_status() method exists in WorkItem class."""
+    def test_get_spec-tree_status_method_exists(self):
+        """Verify _get_spec-tree_status() method exists in WorkItem class."""
         content = self._get_script_content()
         if content is None:
             self.skipTest("Agent script does not exist yet")
         
-        # Check that _get_spectree_status method exists
-        self.assertIn("_get_spectree_status", content,
-            "WorkItem class should have _get_spectree_status() method")
+        # Check that _get_spec-tree_status method exists
+        self.assertIn("_get_spec-tree_status", content,
+            "WorkItem class should have _get_spec-tree_status() method")
 
-    def test_get_spectree_status_called_in_get_status(self):
-        """Verify _get_spectree_status is called when workflow_type is spectree."""
+    def test_get_spec-tree_status_called_in_get_status(self):
+        """Verify _get_spec-tree_status is called when workflow_type is spec-tree."""
         content = self._get_script_content()
         if content is None:
             self.skipTest("Agent script does not exist yet")
         
-        # Check that get_status() method calls _get_spectree_status
-        # Look for the pattern where workflow_type is checked and _get_spectree_status is called
-        self.assertIn("workflow_type == \"spectree\"", content,
-            "get_status() should check for spectree workflow type")
-        self.assertIn("_get_spectree_status()", content,
-            "get_status() should call _get_spectree_status() for spectree workflow")
+        # Check that get_status() method calls _get_spec-tree_status
+        # Look for the pattern where workflow_type is checked and _get_spec-tree_status is called
+        self.assertIn("workflow_type == \"spec-tree\"", content,
+            "get_status() should check for spec-tree workflow type")
+        self.assertIn("_get_spec-tree_status()", content,
+            "get_status() should call _get_spec-tree_status() for spec-tree workflow")
 
-    def test_spectree_in_get_workflow_types_with_sessions(self):
-        """Verify spectree is included in get_workflow_types_with_sessions() function."""
+    def test_spec-tree_in_get_workflow_types_with_sessions(self):
+        """Verify spec-tree is included in get_workflow_types_with_sessions() function."""
         content = self._get_script_content()
         if content is None:
             self.skipTest("Agent script does not exist yet")
         
-        # Check that get_workflow_types_with_sessions includes spectree
-        # It should iterate over AGENT_MAP.keys() which now includes spectree
+        # Check that get_workflow_types_with_sessions includes spec-tree
+        # It should iterate over AGENT_MAP.keys() which now includes spec-tree
         self.assertIn("get_workflow_types_with_sessions", content,
             "get_workflow_types_with_sessions function should exist")
         
-        # Since AGENT_MAP now includes spectree, it should be returned by this function
+        # Since AGENT_MAP now includes spec-tree, it should be returned by this function
         # (unless explicitly excluded like improve)
 
 

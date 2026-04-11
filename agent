@@ -30,7 +30,7 @@ AGENT_MAP = {
     "document": "document",
     "fix": "fix",
     "improve": "improve",
-    "spectree": "spectree",
+    "spec-tree": "spec-tree",
 }
 
 # Model configuration
@@ -202,8 +202,8 @@ class WorkItem:
             return self._get_document_status()
         elif self.workflow_type == "fix":
             return self._get_fix_status()
-        elif self.workflow_type == "spectree":
-            return self._get_spectree_status()
+        elif self.workflow_type == "spec-tree":
+            return self._get_spec_tree_status()
         else:
             return "unknown"
     
@@ -264,9 +264,9 @@ class WorkItem:
         # Fix doesn't have structured status, just check if worktree exists
         return "active"
     
-    def _get_spectree_status(self) -> str:
-        """Get status for spectree workflow."""
-        # Spectree is similar to spec - check for spec files in .opencode/specs
+    def _get_spec_tree_status(self) -> str:
+        """Get status for spec-tree workflow."""
+        # Spec-tree is similar to spec - check for spec files in .opencode/specs
         specs_dir = self.worktree_path / SPECS_DIR / self.branch_name
         if not specs_dir.exists():
             return "no-specs"
@@ -496,7 +496,7 @@ def prompt_new_or_resume(workflow_type: str) -> Optional[WorkItem]:
     matching_work = [w for w in worktrees if w.workflow_type == workflow_type]
     
     # For vibe and fix workflows, always offer main branch option
-    # For spec, spectree, and document workflows, always require worktree (no main branch option)
+    # For spec, spec-tree, and document workflows, always require worktree (no main branch option)
     if workflow_type in ("vibe", "fix"):
         print("\n" + "="*60)
         print("Work Setup")
@@ -758,7 +758,7 @@ def print_usage():
     print("  vibe      - Launch vibe agent (direct implementation workflow)", file=sys.stderr)
     print("  fix       - Launch fix agent (TDD bug fixing workflow)", file=sys.stderr)
     print("  document  - Launch document agent (two-phase documentation workflow)", file=sys.stderr)
-    print("  spectree  - Launch spectree agent (recursive spec workflow)", file=sys.stderr)
+    print("  spec-tree  - Launch spec-tree agent (recursive spec workflow)", file=sys.stderr)
     print("  improve   - Analyze problems and suggest workflow improvements", file=sys.stderr)
     print("", file=sys.stderr)
     print("Examples:", file=sys.stderr)
@@ -766,7 +766,7 @@ def print_usage():
     print("  agent --paid vibe       # Start direct workflow with paid model", file=sys.stderr)
     print("  agent fix               # Start TDD workflow for bug fixes", file=sys.stderr)
     print("  agent --paid document  # Generate documentation with paid model", file=sys.stderr)
-    print("  agent spectree         # Start recursive spec workflow", file=sys.stderr)
+    print("  agent spec-tree        # Start recursive spec workflow", file=sys.stderr)
     print("  agent improve           # Analyze recorded problems and suggest improvements", file=sys.stderr)
 
 
