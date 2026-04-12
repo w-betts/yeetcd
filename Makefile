@@ -105,11 +105,14 @@ copy-cli-binaries:
 .PHONY: test
 test: test-go test-java
 
-## test-go - Run Go tests only
+## test-go - Run Go tests only (core, Go SDK, test, and sample packages)
 .PHONY: test-go
 test-go:
 	$(call print_info,"Running Go tests...")
 	cd $(CORE_DIR) && go test -v -race ./...
+	cd sdks/go/sdk && go test -v -race ./...
+	cd sdks/go/test && go test -v -race ./...
+	cd sdks/go/sample && go test -v -race ./...
 	$(call print_status,"Go tests passed")
 
 ## test-java - Run Java tests only
