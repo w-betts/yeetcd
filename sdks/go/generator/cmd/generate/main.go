@@ -110,11 +110,6 @@ func findPipelineFunctions(dir string) ([]string, error) {
 					continue
 				}
 
-				// Check if function name ends with "Pipeline"
-				if !strings.HasSuffix(fn.Name.Name, "Pipeline") {
-					continue
-				}
-
 				// Check if function is exported (first letter is uppercase)
 				if !ast.IsExported(fn.Name.Name) {
 					continue
