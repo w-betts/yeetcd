@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yeetcd/yeetcd/internal/core/proto/mock/yeetcd/protocol/mock"
+	"github.com/yeetcd/yeetcd/pkg/proto/mock"
 )
 
 func TestMockWorkRequestSerialization(t *testing.T) {

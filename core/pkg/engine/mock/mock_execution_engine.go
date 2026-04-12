@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/yeetcd/yeetcd/internal/core/proto/mock/yeetcd/protocol/mock"
+	"github.com/yeetcd/yeetcd/pkg/proto/mock"
 	"github.com/yeetcd/yeetcd/pkg/engine"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

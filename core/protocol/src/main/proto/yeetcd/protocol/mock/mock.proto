@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package yeetcd.protocol.mock;
 
-option go_package = "github.com/yeetcd/yeetcd/internal/core/proto/mock/yeetcd/protocol/mock";
+option go_package = "github.com/yeetcd/yeetcd/pkg/proto/mock";
 
 service MockExecutionService {
   rpc RunWork(MockWorkRequest) returns (MockWorkResponse);

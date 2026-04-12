@@ -1,0 +1,7 @@
+name: "sample"
+language: "GO"
+buildImage: "golang:1.23"
+buildCmd: "go mod tidy && go build ./..."
+artifacts:
+  - name: "binary"
+    path: "."

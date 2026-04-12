@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.1
-// source: yeetcd/protocol/mock/mock.proto
+// source: core/protocol/src/main/proto/yeetcd/protocol/mock/mock.proto
 
 package mock
 
@@ -35,7 +35,7 @@ type MockWorkRequest struct {
 
 func (x *MockWorkRequest) Reset() {
 	*x = MockWorkRequest{}
-	mi := &file_yeetcd_protocol_mock_mock_proto_msgTypes[0]
+	mi := &file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -47,7 +47,7 @@ func (x *MockWorkRequest) String() string {
 func (*MockWorkRequest) ProtoMessage() {}
 
 func (x *MockWorkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_yeetcd_protocol_mock_mock_proto_msgTypes[0]
+	mi := &file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -60,7 +60,7 @@ func (x *MockWorkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MockWorkRequest.ProtoReflect.Descriptor instead.
 func (*MockWorkRequest) Descriptor() ([]byte, []int) {
-	return file_yeetcd_protocol_mock_mock_proto_rawDescGZIP(), []int{0}
+	return file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *MockWorkRequest) GetImage() string {
@@ -117,7 +117,7 @@ type MockWorkResponse struct {
 
 func (x *MockWorkResponse) Reset() {
 	*x = MockWorkResponse{}
-	mi := &file_yeetcd_protocol_mock_mock_proto_msgTypes[1]
+	mi := &file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -129,7 +129,7 @@ func (x *MockWorkResponse) String() string {
 func (*MockWorkResponse) ProtoMessage() {}
 
 func (x *MockWorkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_yeetcd_protocol_mock_mock_proto_msgTypes[1]
+	mi := &file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -142,7 +142,7 @@ func (x *MockWorkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MockWorkResponse.ProtoReflect.Descriptor instead.
 func (*MockWorkResponse) Descriptor() ([]byte, []int) {
-	return file_yeetcd_protocol_mock_mock_proto_rawDescGZIP(), []int{1}
+	return file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *MockWorkResponse) GetExitCode() int32 {
@@ -185,7 +185,7 @@ type MockImageBuildRequest struct {
 
 func (x *MockImageBuildRequest) Reset() {
 	*x = MockImageBuildRequest{}
-	mi := &file_yeetcd_protocol_mock_mock_proto_msgTypes[2]
+	mi := &file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -197,7 +197,7 @@ func (x *MockImageBuildRequest) String() string {
 func (*MockImageBuildRequest) ProtoMessage() {}
 
 func (x *MockImageBuildRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_yeetcd_protocol_mock_mock_proto_msgTypes[2]
+	mi := &file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -210,7 +210,7 @@ func (x *MockImageBuildRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MockImageBuildRequest.ProtoReflect.Descriptor instead.
 func (*MockImageBuildRequest) Descriptor() ([]byte, []int) {
-	return file_yeetcd_protocol_mock_mock_proto_rawDescGZIP(), []int{2}
+	return file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *MockImageBuildRequest) GetImage() string {
@@ -252,7 +252,7 @@ type MockImageBuildResponse struct {
 
 func (x *MockImageBuildResponse) Reset() {
 	*x = MockImageBuildResponse{}
-	mi := &file_yeetcd_protocol_mock_mock_proto_msgTypes[3]
+	mi := &file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -264,7 +264,7 @@ func (x *MockImageBuildResponse) String() string {
 func (*MockImageBuildResponse) ProtoMessage() {}
 
 func (x *MockImageBuildResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_yeetcd_protocol_mock_mock_proto_msgTypes[3]
+	mi := &file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -277,7 +277,7 @@ func (x *MockImageBuildResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MockImageBuildResponse.ProtoReflect.Descriptor instead.
 func (*MockImageBuildResponse) Descriptor() ([]byte, []int) {
-	return file_yeetcd_protocol_mock_mock_proto_rawDescGZIP(), []int{3}
+	return file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *MockImageBuildResponse) GetSuccess() bool {
@@ -301,11 +301,11 @@ func (x *MockImageBuildResponse) GetImageRef() string {
 	return ""
 }
 
-var File_yeetcd_protocol_mock_mock_proto protoreflect.FileDescriptor
+var File_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto protoreflect.FileDescriptor
 
-const file_yeetcd_protocol_mock_mock_proto_rawDesc = "" +
+const file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDesc = "" +
 	"\n" +
-	"\x1fyeetcd/protocol/mock/mock.proto\x12\x14yeetcd.protocol.mock\"\xa9\x02\n" +
+	"<core/protocol/src/main/proto/yeetcd/protocol/mock/mock.proto\x12\x14yeetcd.protocol.mock\"\xa9\x02\n" +
 	"\x0fMockWorkRequest\x12\x14\n" +
 	"\x05image\x18\x01 \x01(\tR\x05image\x12\x10\n" +
 	"\x03cmd\x18\x02 \x03(\tR\x03cmd\x12M\n" +
@@ -338,22 +338,22 @@ const file_yeetcd_protocol_mock_mock_proto_rawDesc = "" +
 	"\x14MockExecutionService\x12X\n" +
 	"\aRunWork\x12%.yeetcd.protocol.mock.MockWorkRequest\x1a&.yeetcd.protocol.mock.MockWorkResponse\x12g\n" +
 	"\n" +
-	"BuildImage\x12+.yeetcd.protocol.mock.MockImageBuildRequest\x1a,.yeetcd.protocol.mock.MockImageBuildResponseBHZFgithub.com/yeetcd/yeetcd/pkg/proto/mockb\x06proto3"
+	"BuildImage\x12+.yeetcd.protocol.mock.MockImageBuildRequest\x1a,.yeetcd.protocol.mock.MockImageBuildResponseB)Z'github.com/yeetcd/yeetcd/pkg/proto/mockb\x06proto3"
 
 var (
-	file_yeetcd_protocol_mock_mock_proto_rawDescOnce sync.Once
-	file_yeetcd_protocol_mock_mock_proto_rawDescData []byte
+	file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDescOnce sync.Once
+	file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDescData []byte
 )
 
-func file_yeetcd_protocol_mock_mock_proto_rawDescGZIP() []byte {
-	file_yeetcd_protocol_mock_mock_proto_rawDescOnce.Do(func() {
-		file_yeetcd_protocol_mock_mock_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_yeetcd_protocol_mock_mock_proto_rawDesc), len(file_yeetcd_protocol_mock_mock_proto_rawDesc)))
+func file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDescGZIP() []byte {
+	file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDescOnce.Do(func() {
+		file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDesc), len(file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDesc)))
 	})
-	return file_yeetcd_protocol_mock_mock_proto_rawDescData
+	return file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDescData
 }
 
-var file_yeetcd_protocol_mock_mock_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
-var file_yeetcd_protocol_mock_mock_proto_goTypes = []any{
+var file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_goTypes = []any{
 	(*MockWorkRequest)(nil),        // 0: yeetcd.protocol.mock.MockWorkRequest
 	(*MockWorkResponse)(nil),       // 1: yeetcd.protocol.mock.MockWorkResponse
 	(*MockImageBuildRequest)(nil),  // 2: yeetcd.protocol.mock.MockImageBuildRequest
@@ -361,7 +361,7 @@ var file_yeetcd_protocol_mock_mock_proto_goTypes = []any{
 	nil,                            // 4: yeetcd.protocol.mock.MockWorkRequest.EnvVarsEntry
 	nil,                            // 5: yeetcd.protocol.mock.MockWorkResponse.OutputPathsEntry
 }
-var file_yeetcd_protocol_mock_mock_proto_depIdxs = []int32{
+var file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_depIdxs = []int32{
 	4, // 0: yeetcd.protocol.mock.MockWorkRequest.env_vars:type_name -> yeetcd.protocol.mock.MockWorkRequest.EnvVarsEntry
 	5, // 1: yeetcd.protocol.mock.MockWorkResponse.output_paths:type_name -> yeetcd.protocol.mock.MockWorkResponse.OutputPathsEntry
 	0, // 2: yeetcd.protocol.mock.MockExecutionService.RunWork:input_type -> yeetcd.protocol.mock.MockWorkRequest
@@ -375,26 +375,26 @@ var file_yeetcd_protocol_mock_mock_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_yeetcd_protocol_mock_mock_proto_init() }
-func file_yeetcd_protocol_mock_mock_proto_init() {
-	if File_yeetcd_protocol_mock_mock_proto != nil {
+func init() { file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_init() }
+func file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_init() {
+	if File_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_yeetcd_protocol_mock_mock_proto_rawDesc), len(file_yeetcd_protocol_mock_mock_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDesc), len(file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_yeetcd_protocol_mock_mock_proto_goTypes,
-		DependencyIndexes: file_yeetcd_protocol_mock_mock_proto_depIdxs,
-		MessageInfos:      file_yeetcd_protocol_mock_mock_proto_msgTypes,
+		GoTypes:           file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_goTypes,
+		DependencyIndexes: file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_depIdxs,
+		MessageInfos:      file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_msgTypes,
 	}.Build()
-	File_yeetcd_protocol_mock_mock_proto = out.File
-	file_yeetcd_protocol_mock_mock_proto_goTypes = nil
-	file_yeetcd_protocol_mock_mock_proto_depIdxs = nil
+	File_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto = out.File
+	file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_goTypes = nil
+	file_core_protocol_src_main_proto_yeetcd_protocol_mock_mock_proto_depIdxs = nil
 }
