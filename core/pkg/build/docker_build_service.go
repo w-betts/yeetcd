@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	pb "github.com/yeetcd/yeetcd/pkg/proto/pipeline"
 	"github.com/yeetcd/yeetcd/pkg/config"
 	"github.com/yeetcd/yeetcd/pkg/engine"
+	pb "github.com/yeetcd/yeetcd/pkg/proto/pipeline"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -87,19 +87,29 @@ func (d *DockerBuildService) Build(ctx context.Context, source Source) (*BuildRe
 	}, nil
 }
 
-// buildProjectSkipped creates a build result without running maven build
-// Used when --skip-build is set - assumes classes are pre-compiled
+// buildProjectSkipped creates a build result without running build
+// Used when --skip-build is set - assumes artifacts are pre-compiled
 func (d *DockerBuildService) buildProjectSkipped(ctx context.Context, extractionDir, projectPath string, yeetcdConfig config.YeetcdConfig) (*SourceBuildResult, error) {
-	// The project directory should already have compiled classes
+	// The project directory should already have compiled artifacts
 	projectDir := extractionDir
 	if projectPath != "." {
 		projectDir = filepath.Join(extractionDir, projectPath)
 	}
 
-	// Verify that target directory exists (classes should be pre-compiled)
-	targetDir := filepath.Join(projectDir, "target")
-	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
-		return nil, fmt.Errorf("target directory not found at %s (run 'mvn compile' first)", targetDir)
+	// Verify that build output exists based on language
+	switch yeetcdConfig.Language {
+	case config.SourceLanguageJava:
+		// Java: check for target directory
+		targetDir := filepath.Join(projectDir, "target")
+		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+			return nil, fmt.Errorf("target directory not found at %s (run 'mvn compile' first)", targetDir)
+		}
+	case config.SourceLanguageGo:
+		// Go: check for go.mod (Go compiles on the fly)
+		goModPath := filepath.Join(projectDir, "go.mod")
+		if _, err := os.Stat(goModPath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("go.mod not found at %s", goModPath)
+		}
 	}
 
 	// Build output directory paths from artifacts

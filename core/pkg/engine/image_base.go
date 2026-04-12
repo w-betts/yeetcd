@@ -10,6 +10,7 @@ type ImageBase int
 
 const (
 	JAVA ImageBase = iota
+	GOLANG
 )
 
 // BaseImage returns the base image name
@@ -17,6 +18,8 @@ func (i ImageBase) BaseImage() string {
 	switch i {
 	case JAVA:
 		return "maven:3.9.9-eclipse-temurin-17"
+	case GOLANG:
+		return "golang:1.23"
 	default:
 		return ""
 	}
@@ -24,6 +27,7 @@ func (i ImageBase) BaseImage() string {
 
 // EntryPoint returns the entry point command for the image.
 // For JAVA, it builds a classpath from the artifact parent directory and artifact names.
+// For GOLANG, it returns the path to the compiled binary.
 func (i ImageBase) EntryPoint(artifactParentDirectoryPath string, artifactDefinitionNames []string) []string {
 	switch i {
 	case JAVA:
@@ -35,6 +39,9 @@ func (i ImageBase) EntryPoint(artifactParentDirectoryPath string, artifactDefini
 		}
 		classPath := strings.Join(classPathParts, ":")
 		return []string{"java", "-cp", classPath}
+	case GOLANG:
+		// Go compiles to a single binary
+		return []string{"./pipeline"}
 	default:
 		return nil
 	}

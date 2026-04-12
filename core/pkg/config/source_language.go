@@ -70,8 +70,7 @@ func (s SourceLanguage) GetImageBase() engine.ImageBase {
 	case SourceLanguageJava:
 		return engine.JAVA
 	case SourceLanguageGo:
-		// TODO: Add GOLANG to engine.ImageBase
-		return engine.JAVA // Temporary: use JAVA base for now
+		return engine.GOLANG
 	default:
 		return -1
 	}
