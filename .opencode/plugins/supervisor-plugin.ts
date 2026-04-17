@@ -40,12 +40,12 @@ function formatTimestamp(): string {
   return new Date().toISOString()
 }
 
-function supervisorDir(worktree: string): string {
-  return path.join(worktree, ".opencode", "sessions", "supervisor")
+function decisionLogsDir(worktree: string): string {
+  return path.join(worktree, ".opencode", "decision-logs")
 }
 
-function ensureSupervisorDir(worktree: string): string {
-  const dir = supervisorDir(worktree)
+function ensureDecisionLogsDir(worktree: string): string {
+  const dir = decisionLogsDir(worktree)
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true })
   }
@@ -53,7 +53,7 @@ function ensureSupervisorDir(worktree: string): string {
 }
 
 function getLogPath(worktree: string, sessionID: string): string {
-  return path.join(ensureSupervisorDir(worktree), `${sessionID}.yaml`)
+  return path.join(ensureDecisionLogsDir(worktree), `${sessionID}.yaml`)
 }
 
 function loadLog(worktree: string, sessionID: string): DecisionLog {
@@ -245,12 +245,19 @@ Output your response as JSON with this format:
       if (input.tool === "question" && input.sessionID) {
         const args = input.args as any
         const questions = args?.questions || []
-        const userAnswers = output.output
+
+        // Extract user answers from output.parts (not output.output which returns raw chars)
+        const userAnswers = output.parts
+          ?.map((p: any) => p.text || "")
+          .join("")
+          .split(/\n(?=Answer:)/)
+          .map((s: string) => s.replace(/^Answer:\s*/i, "").trim())
 
         // Log each user's answer
         for (let i = 0; i < questions.length; i++) {
           const q = questions[i]
-          const answer = userAnswers[i] || "no answer"
+          // Use meaningful answer from parts, fallback to index-based extraction
+          const answer = userAnswers?.[i] || userAnswers?.[0] || "no answer captured"
           addEntry(input.sessionID, input.sessionID, {
             timestamp: formatTimestamp(),
             type: "user_input",
@@ -264,7 +271,6 @@ Output your response as JSON with this format:
     // Hook: chat.message - capture user messages
     "chat.message": async (input, output) => {
       // Only capture user messages
-      if (output.message?.role !== "user") return
       if (!input.sessionID) return
 
       const messageText = output.parts
@@ -276,7 +282,7 @@ Output your response as JSON with this format:
         addEntry(worktree, input.sessionID, {
           timestamp: formatTimestamp(),
           type: "user_input",
-          description: messageText,
+          description: `User message: ${messageText}`,
         })
       }
     },
