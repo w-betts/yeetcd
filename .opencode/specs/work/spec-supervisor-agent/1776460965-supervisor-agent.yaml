@@ -1,0 +1,142 @@
+# Spec (updated)
+# Updated: 2026-04-17T21:30:50.577Z
+
+version: 2
+problem_statement: "We need a supervisor mechanism that monitors agent progress throughout opencode workflows, detects when agents are misaligned with user intent, not making progress, or stalled, and escalates appropriately to keep agents on track."
+goals:
+  - "Create a supervisor_log tool that agents call after making decisions or encountering difficulties"
+  - "Store a decision log (user inputs + agent decisions + agent difficulties) in chronological order"
+  - "Invoke supervisor LLM to analyze the log and detect issues"
+  - "Return guidance to the agent: proceed normally, ask a clarification question, or escalate to user"
+constraints:
+  - "Must not significantly slow down agent workflows"
+  - "Should be opt-in for agents (they choose to call the tool)"
+  - "Supervisor should not have full control - escalation is always via the agent using question tool"
+tech_choices:
+  - area: "Logging"
+    choice: "File-based log in .opencode/sessions/supervisor/"
+    rationale: "Matches existing session storage pattern, survives restarts"
+  - area: "Supervisor LLM invocation"
+    choice: "Create a new session for supervisor analysis"
+    rationale: "Avoids recursion, clean context"
+  - area: "User input capture"
+    choice: "tool.execute.after hook for question tool + chat.message hook for other user inputs"
+    rationale: "question tool captures user answers, chat.message catches other inputs"
+architecture:
+  description: "A plugin provides a supervisor_log tool. Agents call it after key decisions or difficulties. The tool internally creates a new session, calls LLM with the decision log + user guidance, returns analysis. If intervene, agent naturally uses question tool."
+  components:
+    - name: "supervisor_log tool"
+      responsibility: "Log decisions/difficulties, invoke supervisor LLM, return analysis"
+      interfaces:
+        - "type: decision | difficulty"
+        - "description: what's happening"
+        - "context: relevant state"
+      decision_guidance: "Log a decision when: (1) taking an approach that differs from what was agreed with the user in the spec/plan, (2) making a choice where user intent was ambiguous, (3) diverging from explicit user guidance. NOT: routine implementation choices."
+      difficulty_guidance: "Log a difficulty when: (1) repeatedly attempting the same approach without success, (2) unable to resolve an error after reasonable attempts, (3) unsure what the user wants."
+    - name: "Decision log storage"
+      responsibility: "Store chronological log"
+      interfaces:
+        - "File: .opencode/sessions/supervisor/<session-id>.log"
+    - name: "Supervisor LLM"
+      responsibility: "Analyze log, detect issues"
+      interfaces:
+        - "Input: decision log + guidance"
+        - "Output: status, question?"
+    - name: "Plugin for user inputs"
+      responsibility: "Auto-capture user messages and answers"
+      interfaces:
+        - "Hook: tool.execute.after for question"
+        - "Hook: chat.message for other inputs"
+test_strategy:
+  approach: "Unit tests for log storage, integration test for supervisor LLM"
+  test_patterns:
+    - language: "typescript"
+      pattern: "Unit tests"
+    - language: "typescript"
+      pattern: "Integration tests"
+phases:
+  - name: "Design supervisor_log tool and log format"
+    description: "Define what's logged, format, storage location"
+    status: "pending"
+    is_release_boundary: false
+    file_changes:
+      - path: ".opencode/plugins/supervisor-plugin.ts"
+        action: "create"
+        description: "Plugin with supervisor_log tool"
+        is_test: false
+    test_cases: []
+    chunks:
+      - name: "Define log structure"
+        description: "Define what gets logged (user inputs, decisions, difficulties) and when"
+        status: "pending"
+        file_changes: []
+        test_cases: []
+  - name: "Implement user input auto-capture"
+    description: "Hook into chat.message to auto-log user inputs"
+    status: "pending"
+    is_release_boundary: false
+    file_changes:
+      - action: "modify"
+        description: "Add tool.execute.after hook for question"
+        is_test: false
+        path: ".opencode/plugins/supervisor-plugin.ts"
+    test_cases: []
+    chunks:
+      - name: "Add chat.message hook"
+        description: "Implement plugin hook to capture user inputs"
+        status: "pending"
+        file_changes: []
+        test_cases: []
+  - name: "Create supervisor LLM prompt"
+    description: "Write prompt for analyzing log and detecting issues"
+    status: "pending"
+    is_release_boundary: false
+    file_changes:
+      - path: ".opencode/prompts/supervisor.md"
+        action: "create"
+        description: "Supervisor prompt"
+        is_test: false
+    test_cases: []
+    chunks:
+      - name: "Write supervisor prompt"
+        description: "Create .opencode/prompts/supervisor.md with detection logic"
+        status: "pending"
+        file_changes: []
+        test_cases: []
+  - name: "Wire supervisor LLM invocation"
+    description: "Tool creates session, calls supervisor, returns analysis"
+    status: "pending"
+    is_release_boundary: false
+    file_changes: []
+    test_cases: []
+    chunks:
+      - name: "Invoke supervisor LLM"
+        description: "Implement session.prompt call in tool"
+        status: "pending"
+        file_changes: []
+        test_cases: []
+  - name: "Integrate into agent prompts"
+    description: "Tell agents when to call supervisor_log"
+    status: "pending"
+    is_release_boundary: false
+    file_changes:
+      - path: ".opencode/prompts/spec.md"
+        action: "modify"
+        description: "Add supervisor_log guidance"
+        is_test: false
+      - path: ".opencode/prompts/vibe.md"
+        action: "modify"
+        description: "Add supervisor_log guidance"
+        is_test: false
+      - path: ".opencode/prompts/fix.md"
+        action: "modify"
+        description: "Add supervisor_log guidance"
+        is_test: false
+    test_cases: []
+    chunks:
+      - name: "Add guidance to specs"
+        description: "Update spec.md, vibe.md, fix.md with supervisor_log guidance"
+        status: "pending"
+        file_changes: []
+        test_cases: []
+status: "completed"
