@@ -242,9 +242,15 @@ Output your response as JSON with this format:
 
     // Hook: tool.execute.after for question tool - capture user answers
     "tool.execute.after": async (input, output) => {
+      // Debug logging
+      console.log('[supervisor-plugin] tool.execute.after:', input.tool, 'sessionID:', input.sessionID)
+      
       if (input.tool === "question" && input.sessionID) {
         const args = input.args as any
         const questions = args?.questions || []
+
+        console.log('[supervisor-plugin] question args received:', JSON.stringify(args?.questions?.slice(0, 1)))
+        console.log('[supervisor-plugin] output:', JSON.stringify(output).substring(0, 200))
 
         // Extract user answers from output.parts (not output.output which returns raw chars)
         const userAnswers = output.parts
@@ -253,11 +259,14 @@ Output your response as JSON with this format:
           .split(/\n(?=Answer:)/)
           .map((s: string) => s.replace(/^Answer:\s*/i, "").trim())
 
+        console.log('[supervisor-plugin] extracted answers:', userAnswers)
+
         // Log each user's answer
         for (let i = 0; i < questions.length; i++) {
           const q = questions[i]
           // Use meaningful answer from parts, fallback to index-based extraction
           const answer = userAnswers?.[i] || userAnswers?.[0] || "no answer captured"
+          console.log('[supervisor-plugin] logging answer:', answer)
           addEntry(input.sessionID, input.sessionID, {
             timestamp: formatTimestamp(),
             type: "user_input",
@@ -268,18 +277,19 @@ Output your response as JSON with this format:
       }
     },
 
-    // Hook: chat.message - capture user messages
-    "chat.message": async (input, output) => {
-      // Only capture user messages
-      if (!input.sessionID) return
+    // Hook: chat.message - messages sent to LLM
+    // Format: async (input, output) where input has sessionID, output has message/parts
+    "chat.message": async ({ sessionID }, { message, parts }) => {
+      if (!message?.content) return
+      
+      const messageText = message.content.substring(0, 500)
+      
+      // Debug logging to diagnose if hook is invoked at all
+      console.log('[supervisor-plugin] chat.message hook:', message.role, 'sessionID:', sessionID, 'text:', messageText.substring(0, 50))
 
-      const messageText = output.parts
-        ?.map((p: any) => p.text || "")
-        .join("")
-        .substring(0, 500)
-
-      if (messageText) {
-        addEntry(worktree, input.sessionID, {
+      // Only log user messages (initial user prompt)
+      if (message.role === "user" && sessionID) {
+        addEntry(worktree, sessionID, {
           timestamp: formatTimestamp(),
           type: "user_input",
           description: `User message: ${messageText}`,
