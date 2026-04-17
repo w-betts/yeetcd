@@ -77,7 +77,11 @@ function loadLog(worktree: string, sessionID: string): DecisionLog {
 
 function saveLog(worktree: string, log: DecisionLog): void {
   const logPath = getLogPath(worktree, log.session_id)
-  fs.writeFileSync(logPath, yaml.stringify(log, { lineWidth: 0 }))
+  try {
+    fs.writeFileSync(logPath, yaml.stringify(log, { lineWidth: 0 }))
+  } catch (err) {
+    debugLog(worktree, 'saveLog: ERROR writing file:', String(err))
+  }
 }
 
 function addEntry(worktree: string, sessionID: string, entry: LogEntry): void {
@@ -88,10 +92,19 @@ function addEntry(worktree: string, sessionID: string, entry: LogEntry): void {
 
 // --- Plugin ---
 
+// Store client globally for use in tool execution
+let globalClient: any = null
+
 export const SupervisorPlugin: Plugin = async (ctx) => {
-  const { worktree } = ctx
+  const { worktree, client } = ctx
+  
+  // Store the client from plugin context for use in tool execution
+  globalClient = client
 
   return {
+    event: async ({ event }) => {
+      // No action needed on events currently
+    },
     tool: {
       supervisor_log: tool({
         description:
@@ -112,9 +125,10 @@ export const SupervisorPlugin: Plugin = async (ctx) => {
             .optional(tool.schema.record(tool.schema.string(), tool.schema.unknown()))
             .describe("Relevant context (e.g., what was agreed, what failed)"),
         },
-        async execute(args, context) {
-          const { sessionID, client } = context
-          const sessionIDToUse = sessionID || "default"
+        async execute(args, input) {
+          const sessionIDToUse = input.sessionID || "default"
+          // Use global client from plugin context instead of input.client (which doesn't exist)
+          const client = globalClient
 
           // Add entry to log
           const entry: LogEntry = {
@@ -181,59 +195,78 @@ Output your response as JSON with this format:
               })
             }
 
-            // Send prompt to supervisor
-            const promptResult = await client.session.prompt({
+            // Send prompt to supervisor - use parts array format
+            await client.session.prompt({
               path: { id: supSessionID },
-              body: { message: supervisorPrompt },
+              body: {
+                noReply: true,
+                parts: [{ type: 'text', text: supervisorPrompt }],
+              },
             })
 
-            // Get the supervisor's response
-            const messages = await client.session.messages({
-              path: { id: supSessionID },
-              query: { limit: 5 },
-            })
+            // Wait for supervisor response with polling
+            const maxAttempts = 20
+            const delayMs = 500
+            let assistantResponse: any = null
 
-            // Parse the supervisor's response
-            const assistantMessages = messages.data?.filter(
-              (m: any) => m.role === "assistant"
-            )
-            if (assistantMessages && assistantMessages.length > 0) {
-              const lastMessage = assistantMessages[assistantMessages.length - 1]
-              const content = lastMessage.parts
-                ?.map((p: any) => p.text || "")
-                .join("") || ""
-
-              // Try to parse JSON response
-              let result = { status: "proceed" as const, analysis: "" }
-              try {
-                const match = content.match(/\{[\s\S]*\}/)
-                if (match) {
-                  result = JSON.parse(match[0])
-                }
-              } catch {
-                result.analysis = content.substring(0, 200)
-              }
-
-              // Add supervisor analysis to log
-              addEntry(worktree, sessionIDToUse, {
-                timestamp: formatTimestamp(),
-                type: "supervisor_analysis",
-                description: result.analysis,
-                status: result.status,
-                question: result.question,
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+              // Get the supervisor's response
+              const messages = await client.session.messages({
+                path: { id: supSessionID },
+                query: { limit: 10 },
               })
 
-              // Return result to agent
+              // Look for assistant message
+              const assistantMessages = messages.data?.filter(
+                (m: any) => m.role === "assistant"
+              )
+              
+              if (assistantMessages && assistantMessages.length > 0) {
+                assistantResponse = assistantMessages[assistantMessages.length - 1]
+                break
+              }
+
+              // Wait before next poll
+              await new Promise(resolve => setTimeout(resolve, delayMs))
+            }
+
+            if (!assistantResponse) {
               return JSON.stringify({
-                status: result.status,
-                question: result.question,
-                analysis: result.analysis,
+                status: "proceed",
+                analysis: "Supervisor did not respond in time",
               })
             }
 
+            // Parse the supervisor's response
+            const content = assistantResponse.parts
+              ?.map((p: any) => p.text || "")
+              .join("") || ""
+
+            // Try to parse JSON response
+            let result = { status: "proceed" as const, analysis: "" }
+            try {
+              const match = content.match(/\{[\s\S]*\}/)
+              if (match) {
+                result = JSON.parse(match[0])
+              }
+            } catch {
+              result.analysis = content.substring(0, 200)
+            }
+
+            // Add supervisor analysis to log
+            addEntry(worktree, sessionIDToUse, {
+              timestamp: formatTimestamp(),
+              type: "supervisor_analysis",
+              description: result.analysis,
+              status: result.status,
+              question: result.question,
+            })
+
+            // Return result to agent
             return JSON.stringify({
-              status: "proceed",
-              analysis: "No supervisor response",
+              status: result.status,
+              question: result.question,
+              analysis: result.analysis,
             })
           } catch (err) {
             console.error("[supervisor-plugin] Error:", err)
@@ -248,21 +281,12 @@ Output your response as JSON with this format:
 
     // Hook: tool.execute.after for question tool - capture user answers
     "tool.execute.after": async (input, output) => {
-      // Debug logging to file
-      debugLog(worktree, 'tool.execute.after:', input.tool, 'sessionID:', input.sessionID)
-      
       // Add null check for output - can be undefined in some cases
-      if (!output) {
-        debugLog(worktree, 'tool.execute.after: output is undefined, skipping')
-        return
-      }
+      if (!output) return
       
       if (input.tool === "question" && input.sessionID) {
         const args = input.args as any
         const questions = args?.questions || []
-
-        debugLog(worktree, 'question args received:', args?.questions?.slice(0, 1))
-        debugLog(worktree, 'output:', JSON.stringify(output).substring(0, 500))
 
         // Extract user answers from output.metadata.answers (primary) or output.output (fallback)
         let userAnswers: string[] | undefined
@@ -282,15 +306,10 @@ Output your response as JSON with this format:
             ?.map((s: string) => s.replace(/^Answer:\s*/i, "").trim())
         }
 
-        debugLog(worktree, 'extracted answers:', userAnswers)
-
         // Log each user's answer
         for (let i = 0; i < questions.length; i++) {
           const q = questions[i]
-          // Use meaningful answer from parts, fallback to index-based extraction
           const answer = userAnswers?.[i] || userAnswers?.[0] || "no answer captured"
-          debugLog(worktree, 'logging answer:', answer)
-          // FIXED: pass worktree as first arg instead of sessionID
           addEntry(worktree, input.sessionID, {
             timestamp: formatTimestamp(),
             type: "user_input",
@@ -302,20 +321,21 @@ Output your response as JSON with this format:
     },
 
     // Hook: chat.message - messages sent to/from LLM
-    // Format from docs: 'chat.message': async (input, { message, parts }) => ...
-    // Try first param may have sessionID
+    // The message object doesn't have content - text is in the parts array
     "chat.message": async (input: any, { message, parts }: any) => {
-      if (!message?.content) return
-      
-      const messageText = message.content.substring(0, 500)
       const sessionID = input?.sessionID || 'unknown'
       
-      // Debug logging to diagnose if hook is invoked at all
-      debugLog(worktree, 'chat.message hook:', message.role, 'sessionID:', sessionID, 'text:', messageText.substring(0, 50))
+      // Extract text from parts array (not message.content which doesn't exist)
+      const messageText = (parts || [])
+        .filter((p: any) => p.type === 'text')
+        .map((p: any) => p.text || '')
+        .join('')
+        .substring(0, 500)
+      
+      if (!messageText) return
 
-      // Log user messages (initial user prompt)
-      // Note: question tool responses may not trigger this since they're not LLM messages
-      if (message.role === "user" && sessionID !== 'unknown') {
+      // Log user messages
+      if (message?.role === "user" && sessionID !== 'unknown') {
         addEntry(worktree, sessionID, {
           timestamp: formatTimestamp(),
           type: "user_input",
