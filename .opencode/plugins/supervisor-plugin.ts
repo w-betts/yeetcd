@@ -35,9 +35,15 @@ type DecisionLog = {
 }
 
 // --- Helpers ---
-
 function formatTimestamp(): string {
   return new Date().toISOString()
+}
+
+function debugLog(worktree: string, ...args: unknown[]): void {
+  const logPath = path.join(worktree, ".opencode", "supervisor-debug.log")
+  const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ')
+  const line = `[${formatTimestamp()}] ${msg}\n`
+  fs.appendFileSync(logPath, line)
 }
 
 function decisionLogsDir(worktree: string): string {
@@ -242,32 +248,44 @@ Output your response as JSON with this format:
 
     // Hook: tool.execute.after for question tool - capture user answers
     "tool.execute.after": async (input, output) => {
-      // Debug logging
-      console.log('[supervisor-plugin] tool.execute.after:', input.tool, 'sessionID:', input.sessionID)
+      // Debug logging to file
+      debugLog(worktree, 'tool.execute.after:', input.tool, 'sessionID:', input.sessionID)
       
       if (input.tool === "question" && input.sessionID) {
         const args = input.args as any
         const questions = args?.questions || []
 
-        console.log('[supervisor-plugin] question args received:', JSON.stringify(args?.questions?.slice(0, 1)))
-        console.log('[supervisor-plugin] output:', JSON.stringify(output).substring(0, 200))
+        debugLog(worktree, 'question args received:', args?.questions?.slice(0, 1))
+        debugLog(worktree, 'output:', JSON.stringify(output).substring(0, 500))
 
-        // Extract user answers from output.parts (not output.output which returns raw chars)
-        const userAnswers = output.parts
-          ?.map((p: any) => p.text || "")
-          .join("")
-          .split(/\n(?=Answer:)/)
-          .map((s: string) => s.replace(/^Answer:\s*/i, "").trim())
+        // Extract user answers from output.metadata.answers (primary) or output.output (fallback)
+        let userAnswers: string[] | undefined
+        
+        // Primary: metadata.answers is an array of arrays (one per question)
+        const metadataAnswers = output?.metadata?.answers
+        if (metadataAnswers && Array.isArray(metadataAnswers) && metadataAnswers.length > 0) {
+          userAnswers = metadataAnswers.map((a: any) => 
+            Array.isArray(a) ? a.join("\n") : String(a)
+          )
+        }
+        
+        // Fallback: parse from output.output string
+        if (!userAnswers || userAnswers.length === 0) {
+          userAnswers = output?.output
+            ?.split(/\n(?=Answer:)/)
+            ?.map((s: string) => s.replace(/^Answer:\s*/i, "").trim())
+        }
 
-        console.log('[supervisor-plugin] extracted answers:', userAnswers)
+        debugLog(worktree, 'extracted answers:', userAnswers)
 
         // Log each user's answer
         for (let i = 0; i < questions.length; i++) {
           const q = questions[i]
           // Use meaningful answer from parts, fallback to index-based extraction
           const answer = userAnswers?.[i] || userAnswers?.[0] || "no answer captured"
-          console.log('[supervisor-plugin] logging answer:', answer)
-          addEntry(input.sessionID, input.sessionID, {
+          debugLog(worktree, 'logging answer:', answer)
+          // FIXED: pass worktree as first arg instead of sessionID
+          addEntry(worktree, input.sessionID, {
             timestamp: formatTimestamp(),
             type: "user_input",
             description: `Answered question: ${q.header || q.question}`,
@@ -277,23 +295,18 @@ Output your response as JSON with this format:
       }
     },
 
-    // Hook: chat.message - messages sent to LLM
-    // Format: async (input, output) where input has sessionID, output has message/parts
-    "chat.message": async ({ sessionID }, { message, parts }) => {
-      if (!message?.content) return
-      
-      const messageText = message.content.substring(0, 500)
-      
-      // Debug logging to diagnose if hook is invoked at all
-      console.log('[supervisor-plugin] chat.message hook:', message.role, 'sessionID:', sessionID, 'text:', messageText.substring(0, 50))
-
-      // Only log user messages (initial user prompt)
-      if (message.role === "user" && sessionID) {
-        addEntry(worktree, sessionID, {
-          timestamp: formatTimestamp(),
-          type: "user_input",
-          description: `User message: ${messageText}`,
-        })
+    // Hook: message - messages sent to/from LLM
+    // Try both event-based and hook-based approaches
+    event: async ({ event }) => {
+      if (event.type === 'message') {
+        debugLog(worktree, 'message event:', event.type, 'sessionID:', event.properties?.sessionID)
+      }
+    },
+    
+    // Also try tool.execute.before for question tool to ensure hooks are working
+    "tool.execute.before": async (input) => {
+      if (input.tool === 'question') {
+        debugLog(worktree, 'tool.execute.before question:', input.sessionID)
       }
     },
   }
