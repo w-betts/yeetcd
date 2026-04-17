@@ -251,6 +251,12 @@ Output your response as JSON with this format:
       // Debug logging to file
       debugLog(worktree, 'tool.execute.after:', input.tool, 'sessionID:', input.sessionID)
       
+      // Add null check for output - can be undefined in some cases
+      if (!output) {
+        debugLog(worktree, 'tool.execute.after: output is undefined, skipping')
+        return
+      }
+      
       if (input.tool === "question" && input.sessionID) {
         const args = input.args as any
         const questions = args?.questions || []
