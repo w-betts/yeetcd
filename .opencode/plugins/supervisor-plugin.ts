@@ -53,6 +53,7 @@ function decisionLogsDir(worktree: string): string {
 function ensureDecisionLogsDir(worktree: string): string {
   const dir = decisionLogsDir(worktree)
   if (!fs.existsSync(dir)) {
+    debugLog(worktree, 'ensureDecisionLogsDir: creating directory', dir)
     fs.mkdirSync(dir, { recursive: true })
   }
   return dir
@@ -98,12 +99,12 @@ let globalClient: any = null
 export const SupervisorPlugin: Plugin = async (ctx) => {
   const { worktree, client } = ctx
   
-  // Store the client from plugin context for use in tool execution
+// Store the client from plugin context for use in tool execution
   globalClient = client
 
   return {
     event: async ({ event }) => {
-      // No action needed on events currently
+      // Track session events for debugging
     },
     tool: {
       supervisor_log: tool({
@@ -125,7 +126,7 @@ export const SupervisorPlugin: Plugin = async (ctx) => {
             .optional(tool.schema.record(tool.schema.string(), tool.schema.unknown()))
             .describe("Relevant context (e.g., what was agreed, what failed)"),
         },
-        async execute(args, input) {
+async execute(args, input) {
           const sessionIDToUse = input.sessionID || "default"
           // Use global client from plugin context instead of input.client (which doesn't exist)
           const client = globalClient
@@ -171,14 +172,15 @@ Given the decision log below, determine if the agent is:
 
 ${logSummary}
 
-## Guidance
+## CRITICAL: Output format
 
-- If the agent is proceeding correctly: return { status: "proceed" }
-- If there's misalignment, lack of progress, or the agent is stalled: 
-  return { status: "intervene", question: "a question for the user to clarify" }
+You MUST respond with ONLY a JSON object. Do NOT use any tools. Do NOT ask questions using tools. Do NOT write anything before or after the JSON. Output ONLY the JSON object.
 
-Output your response as JSON with this format:
-{ "status": "proceed" | "intervene", "question": "optional question for user", "analysis": "brief explanation" }`
+If the agent is proceeding correctly:
+{ "status": "proceed", "analysis": "brief explanation" }
+
+If there's misalignment, lack of progress, or the agent is stalled:
+{ "status": "intervene", "question": "a question for the user to clarify", "analysis": "brief explanation" }`
 
           try {
             // Create new session for supervisor analysis
@@ -195,52 +197,57 @@ Output your response as JSON with this format:
               })
             }
 
-            // Send prompt to supervisor - use parts array format
-            await client.session.prompt({
+            debugLog(worktree, 'supervisor_log: Sending prompt to supervisor session', supSessionID)
+
+            // Send prompt to supervisor and await the response (no noReply = await response)
+            const promptResult = await client.session.prompt({
               path: { id: supSessionID },
               body: {
-                noReply: true,
                 parts: [{ type: 'text', text: supervisorPrompt }],
               },
             })
 
-            // Wait for supervisor response with polling
-            const maxAttempts = 20
-            const delayMs = 500
-            let assistantResponse: any = null
+            debugLog(worktree, 'supervisor_log: Prompt result received')
 
-            for (let attempt = 0; attempt < maxAttempts; attempt++) {
-              // Get the supervisor's response
+            // Extract the assistant response from the prompt result
+            // The response structure has parts with text content
+            let content = ""
+            if (promptResult?.data?.parts) {
+              content = promptResult.data.parts
+                .map((p: any) => p.text || "")
+                .join("")
+            }
+
+            // If no content from prompt result, try fetching messages
+            if (!content) {
+              debugLog(worktree, 'supervisor_log: No content from prompt result, fetching messages')
               const messages = await client.session.messages({
                 path: { id: supSessionID },
                 query: { limit: 10 },
               })
 
-              // Look for assistant message
+              // Look for assistant message - role is nested under info
               const assistantMessages = messages.data?.filter(
-                (m: any) => m.role === "assistant"
+                (m: any) => m.info?.role === "assistant" || m.role === "assistant"
               )
               
               if (assistantMessages && assistantMessages.length > 0) {
-                assistantResponse = assistantMessages[assistantMessages.length - 1]
-                break
+                const lastMessage = assistantMessages[assistantMessages.length - 1]
+                content = lastMessage.parts
+                  ?.map((p: any) => p.text || "")
+                  .join("") || ""
               }
-
-              // Wait before next poll
-              await new Promise(resolve => setTimeout(resolve, delayMs))
             }
 
-            if (!assistantResponse) {
+            if (!content) {
+              debugLog(worktree, 'supervisor_log: No supervisor response content found')
               return JSON.stringify({
                 status: "proceed",
-                analysis: "Supervisor did not respond in time",
+                analysis: "Supervisor did not provide a response",
               })
             }
 
-            // Parse the supervisor's response
-            const content = assistantResponse.parts
-              ?.map((p: any) => p.text || "")
-              .join("") || ""
+            debugLog(worktree, 'supervisor_log: Supervisor response content:', content.substring(0, 500))
 
             // Try to parse JSON response
             let result = { status: "proceed" as const, analysis: "" }
@@ -269,6 +276,7 @@ Output your response as JSON with this format:
               analysis: result.analysis,
             })
           } catch (err) {
+            debugLog(worktree, 'supervisor_log: Error in supervisor analysis:', String(err))
             console.error("[supervisor-plugin] Error:", err)
             return JSON.stringify({
               status: "proceed",
