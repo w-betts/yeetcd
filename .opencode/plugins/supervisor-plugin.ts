@@ -295,18 +295,26 @@ Output your response as JSON with this format:
       }
     },
 
-    // Hook: message - messages sent to/from LLM
-    // Try both event-based and hook-based approaches
-    event: async ({ event }) => {
-      if (event.type === 'message') {
-        debugLog(worktree, 'message event:', event.type, 'sessionID:', event.properties?.sessionID)
-      }
-    },
-    
-    // Also try tool.execute.before for question tool to ensure hooks are working
-    "tool.execute.before": async (input) => {
-      if (input.tool === 'question') {
-        debugLog(worktree, 'tool.execute.before question:', input.sessionID)
+    // Hook: chat.message - messages sent to/from LLM
+    // Format from docs: 'chat.message': async (input, { message, parts }) => ...
+    // Try first param may have sessionID
+    "chat.message": async (input: any, { message, parts }: any) => {
+      if (!message?.content) return
+      
+      const messageText = message.content.substring(0, 500)
+      const sessionID = input?.sessionID || 'unknown'
+      
+      // Debug logging to diagnose if hook is invoked at all
+      debugLog(worktree, 'chat.message hook:', message.role, 'sessionID:', sessionID, 'text:', messageText.substring(0, 50))
+
+      // Log user messages (initial user prompt)
+      // Note: question tool responses may not trigger this since they're not LLM messages
+      if (message.role === "user" && sessionID !== 'unknown') {
+        addEntry(worktree, sessionID, {
+          timestamp: formatTimestamp(),
+          type: "user_input",
+          description: `User message: ${messageText}`,
+        })
       }
     },
   }
