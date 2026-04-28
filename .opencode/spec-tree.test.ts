@@ -48,6 +48,14 @@ describe('Spec-Tree Orchestrator Prompt', () => {
     expect(content).toMatch(/orchestrator/i);
   });
 
+  test('Mentions working directly (no planners)', () => {
+    const content = readPrompt(ORCHESTRATOR_FILE);
+    expect(content).not.toBeNull();
+    expect(content).toMatch(/directly|work directly/i);
+    // Should NOT mention spawning planners
+    expect(content).not.toMatch(/spawn.*planner|planner.*subagent/i);
+  });
+
   test('Mentions breadth-first exploration', () => {
     const content = readPrompt(ORCHESTRATOR_FILE);
     expect(content).not.toBeNull();
@@ -78,16 +86,10 @@ describe('Spec-Tree Orchestrator Prompt', () => {
     expect(content).toMatch(/spec_tree_get_leaves/);
   });
 
-  test('Mentions spawning spec-tree-planner subagent', () => {
+  test('Mentions surfacing ambiguities early', () => {
     const content = readPrompt(ORCHESTRATOR_FILE);
     expect(content).not.toBeNull();
-    expect(content).toMatch(/spec-tree-planner|@spec-tree-planner/i);
-  });
-
-  test('Describes relay pattern for questions', () => {
-    const content = readPrompt(ORCHESTRATOR_FILE);
-    expect(content).not.toBeNull();
-    expect(content).toMatch(/relay/i);
+    expect(content).toMatch(/ambiguit|early|immediately/i);
   });
 
   test('Describes "What next?" question pattern', () => {
@@ -103,76 +105,23 @@ describe('Spec-Tree Orchestrator Prompt', () => {
     expect(lowerContent).not.toMatch(/function\s+\w+\s*\(/);
     expect(lowerContent).not.toMatch(/class\s+\w+\s*{/);
   });
-});
 
-// ============================================================================
-// Test Suite: Spec-Tree Planner Prompt
-// ============================================================================
-
-describe('Spec-Tree Planner Prompt', () => {
-  const PLANNER_FILE = 'spec-tree-planner.md';
-
-  test('Planner prompt file exists', () => {
-    const content = readPrompt(PLANNER_FILE);
+  test('Mentions batch questions for efficiency', () => {
+    const content = readPrompt(ORCHESTRATOR_FILE);
     expect(content).not.toBeNull();
+    expect(content).toMatch(/batch|efficient/i);
   });
 
-  test('Planner prompt is not empty', () => {
-    const content = readPrompt(PLANNER_FILE);
-    expect(content).not.toBe('');
-    expect(content?.length).toBeGreaterThan(100);
+  test('References node_type field', () => {
+    const content = readPrompt(ORCHESTRATOR_FILE);
+    expect(content).not.toBeNull();
+    expect(content).toMatch(/node_type/i);
   });
 
-  test('Describes planner role as subagent', () => {
-    const content = readPrompt(PLANNER_FILE);
+  test('References depends_on field', () => {
+    const content = readPrompt(ORCHESTRATOR_FILE);
     expect(content).not.toBeNull();
-    expect(content).toMatch(/planner/i);
-  });
-
-  test('Describes exploration process', () => {
-    const content = readPrompt(PLANNER_FILE);
-    expect(content).not.toBeNull();
-    expect(content).toMatch(/explor/i);
-  });
-
-  test('Describes question accumulation', () => {
-    const content = readPrompt(PLANNER_FILE);
-    expect(content).not.toBeNull();
-    expect(content).toMatch(/question/i);
-  });
-
-  test('Does NOT use question tool directly', () => {
-    const content = readPrompt(PLANNER_FILE);
-    expect(content).not.toBeNull();
-    // Should explicitly say NOT to use question tool
-    expect(content).toMatch(/do.*not.*question.*tool|not.*use.*question/i);
-  });
-
-  test('Mentions returning questions to orchestrator', () => {
-    const content = readPrompt(PLANNER_FILE);
-    expect(content).not.toBeNull();
-    expect(content).toMatch(/return.*orchestrator|orchestrator.*question/i);
-  });
-
-  test('References spec_tree_get_my_node tool', () => {
-    const content = readPrompt(PLANNER_FILE);
-    expect(content).not.toBeNull();
-    expect(content).toMatch(/spec_tree_get_my_node/);
-  });
-
-  test('References spec_tree_update tool', () => {
-    const content = readPrompt(PLANNER_FILE);
-    expect(content).not.toBeNull();
-    expect(content).toMatch(/spec_tree_update/);
-  });
-
-  test('Describes "What next?" options', () => {
-    const content = readPrompt(PLANNER_FILE);
-    expect(content).not.toBeNull();
-    expect(content).toMatch(/What next\?/i);
-    expect(content).toMatch(/break down|child nodes/i);
-    expect(content).toMatch(/plan.*detail|leaf/);
-    expect(content).toMatch(/explore more|Explore more/);
+    expect(content).toMatch(/depends_on|dependency/i);
   });
 });
 
@@ -183,14 +132,6 @@ describe('Spec-Tree Planner Prompt', () => {
 describe('Tool Naming Convention (spec_tree_*)', () => {
   test('Orchestrator uses snake_case spec_tree_ tools', () => {
     const content = readPrompt('spec-tree-orchestrator.md');
-    expect(content).not.toBeNull();
-    // Should use spec_tree_* not spectree_*
-    expect(content).not.toMatch(/spectree_/);
-    expect(content).toMatch(/spec_tree_/);
-  });
-
-  test('Planner uses snake_case spec_tree_ tools', () => {
-    const content = readPrompt('spec-tree-planner.md');
     expect(content).not.toBeNull();
     // Should use spec_tree_* not spectree_*
     expect(content).not.toMatch(/spectree_/);
@@ -222,5 +163,33 @@ describe('Spec-Tree Plugin', () => {
     expect(content).toMatch(/spec_tree_update/);
     expect(content).toMatch(/spec_tree_get_my_node/);
     expect(content).toMatch(/spec_tree_get_leaves/);
+  });
+
+  test('Plugin schema includes node_type field', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/node_type/);
+    expect(content).toMatch(/unexpanded|branch|leaf/);
+  });
+
+  test('Plugin schema includes depends_on field', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/depends_on/);
+  });
+
+  test('Plugin schema includes planning_status field', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/planning_status/);
+  });
+
+  test('getLeafNodes only returns nodes with node_type="leaf"', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/node\.node_type === "leaf"/);
+    // Should NOT return nodes just because children.length === 0
+    expect(content).not.toMatch(/if \(node\.children\.length === 0\) \{\s*return \[node\]/);
+  });
+
+  test('spec_tree_get_leaves uses topological sort', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/topologicalSort/);
   });
 });

@@ -27,6 +27,9 @@ const NodeSchema: z.ZodType<Node> = z.object({
   id: z.string().describe("Unique node identifier"),
   title: z.string().describe("Node title"),
   description: z.string().describe("Node description"),
+  node_type: z.enum(["unexpanded", "branch", "leaf"]).optional().describe("Explicit node type: unexpanded (not yet explored), branch (has children, decomposed), leaf (implementation unit)"),
+  depends_on: z.array(z.string()).optional().describe("Node IDs this node depends on for implementation"),
+  planning_status: z.enum(["pending", "exploring", "ready"]).optional().describe("Planning status: pending (not started), exploring (in progress), ready (decomposition complete)"),
   children: z.array(z.lazy(() => NodeSchema)).describe("Child nodes"),
   interaction_log: z
     .array(
@@ -91,6 +94,9 @@ type Node = {
   id: string
   title: string
   description: string
+  node_type?: "unexpanded" | "branch" | "leaf"
+  depends_on?: string[]
+  planning_status?: "pending" | "exploring" | "ready"
   children: Node[]
   interaction_log: { question: string; answer: string; timestamp: string }[]
   tests: {
@@ -192,10 +198,42 @@ function addChildToNode(root: Node, parentId: string, child: Node): Node {
 }
 
 function getLeafNodes(node: Node): Node[] {
-  if (node.children.length === 0) {
+  // Only return nodes explicitly marked as "leaf"
+  if (node.node_type === "leaf") {
     return [node]
   }
-  return node.children.flatMap(getLeafNodes)
+  // If node is "branch" or "unexpanded" with children, recurse
+  if (node.children.length > 0) {
+    return node.children.flatMap(getLeafNodes)
+  }
+  // Node has no children but isn't marked as leaf - it's unexpanded, not a leaf
+  return []
+}
+
+function topologicalSort(nodes: Node[], nodeMap: Map<string, Node>): Node[] {
+  const visited = new Set<string>()
+  const result: Node[] = []
+
+  function visit(node: Node) {
+    if (visited.has(node.id)) return
+    visited.add(node.id)
+
+    // Visit dependencies first
+    if (node.depends_on) {
+      for (const depId of node.depends_on) {
+        const dep = nodeMap.get(depId)
+        if (dep) visit(dep)
+      }
+    }
+
+    result.push(node)
+  }
+
+  for (const node of nodes) {
+    visit(node)
+  }
+
+  return result
 }
 
 function loadSpec(worktree: string): z.infer<typeof SpecTreeSpecSchema> {
@@ -242,6 +280,9 @@ function makeEmptyNode(id: string, title: string, description: string): Node {
     id,
     title,
     description,
+    node_type: "unexpanded",
+    depends_on: [],
+    planning_status: "pending",
     children: [],
     interaction_log: [],
     tests: [],
@@ -332,6 +373,9 @@ Use spec_tree_register_node to add child nodes.`
             return `Node: ${node.id}
 Title: ${node.title}
 Description: ${node.description}
+Type: ${node.node_type || "unexpanded"}
+Planning status: ${node.planning_status || "pending"}
+Depends on: ${node.depends_on?.length ? node.depends_on.join(", ") : "none"}
 Children: ${node.children.length}
 Test cases: ${node.tests.length}
 File changes: ${node.file_changes.length}
@@ -492,6 +536,9 @@ Use spec_tree_read to verify the changes.`
           return `Node: ${node.id}
 Title: ${node.title}
 Description: ${node.description}
+Type: ${node.node_type || "unexpanded"}
+Planning status: ${node.planning_status || "pending"}
+Depends on: ${node.depends_on?.length ? node.depends_on.join(", ") : "none"}
 Children: ${node.children.length}
 Test cases: ${node.tests.length}
 File changes: ${node.file_changes.length}
@@ -502,8 +549,8 @@ Test status: ${node.test_status || "pending"}`
 
       spec_tree_get_leaves: tool({
         description:
-          "Get all leaf nodes from the spec-tree spec in depth-first order. " +
-          "Returns array of leaf nodes ordered left-to-right.",
+          "Get all leaf nodes from the spec-tree spec in dependency order. " +
+          "Returns array of leaf nodes sorted by dependencies (topological sort).",
         args: {},
         async execute(args, context) {
           const { worktree } = context
@@ -514,11 +561,26 @@ Test status: ${node.test_status || "pending"}`
             return `No leaf nodes found. The spec-tree may only have a root node.`
           }
 
-          let output = `Leaf nodes found: ${leaves.length}\n\n`
-          for (let i = 0; i < leaves.length; i++) {
-            const leaf = leaves[i]
+          // Build node map for dependency resolution
+          const nodeMap = new Map<string, Node>()
+          const addToMap = (node: Node) => {
+            nodeMap.set(node.id, node)
+            for (const child of node.children) {
+              addToMap(child)
+            }
+          }
+          addToMap(spec.root)
+
+          // Sort by dependencies
+          const sorted = topologicalSort(leaves, nodeMap)
+
+          let output = `Leaf nodes found: ${sorted.length} (sorted by dependencies)\n\n`
+          for (let i = 0; i < sorted.length; i++) {
+            const leaf = sorted[i]
             output += `${i + 1}. ${leaf.id}: ${leaf.title}\n`
             output += `   Description: ${leaf.description}\n`
+            output += `   Type: ${leaf.node_type || "unexpanded"}\n`
+            output += `   Depends on: ${leaf.depends_on?.length ? leaf.depends_on.join(", ") : "none"}\n`
             output += `   Impl status: ${leaf.impl_status || "pending"}\n`
             output += `   Test status: ${leaf.test_status || "pending"}\n\n`
           }
