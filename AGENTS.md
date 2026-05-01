@@ -337,3 +337,7 @@ Tools provide more deterministic results and better control. Use tools (Bash, Re
 #### Restrict subagent capabilities
 
 When launching subagents, limit their tool access to only the essential tools required for their specific task.
+
+#### Do not test OpenCode prompt files
+
+OpenCode prompt files (`.opencode/prompts/*.md`) are agent system prompts written in Markdown. Testing these files adds no value, so avoid writing tests for them. Focus testing efforts on functional code and business logic instead.
