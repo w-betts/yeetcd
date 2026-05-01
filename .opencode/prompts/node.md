@@ -30,15 +30,22 @@ spec_tree_register_node({ title: "...", description: "..." })
 
 You do NOT need to know your node ID or parent ID. The tool handles this automatically.
 
-### Step 2: Discuss with User
+### Step 2: Discuss with User (MANDATORY - NO EXCEPTIONS)
+
+**🔴 YOU MUST DISCUSS WITH THE USER BEFORE ASKING ABOUT BREAKDOWN**
 
 Discuss solution approaches:
+- **Use `question` tool** to ask open-ended questions: "What are your thoughts on this node?", "How do you see this working?"
 - Clarify requirements
 - Discuss implementation strategy
 - Ask clarifying questions if needed
 - Play back your understanding
 
-### Step 3: Breakdown Decision
+**WHY THIS IS MANDATORY**: Without discussion, there is NO additional information beyond what the parent node already contained. Discussion is the ONLY way to gather new context that informs whether further breakdown is needed.
+
+**DO NOT PROCEED to Step 3 without completing this discussion.**
+
+### Step 3: Breakdown Decision (AFTER discussion only)
 
 Present user with options using the **question tool**:
 
@@ -46,13 +53,25 @@ Present user with options using the **question tool**:
 - **This is deep enough**: Mark as leaf node (implementation unit)
 - **Type your own answer**: Allow user to provide alternative response
 
-### Step 4: Record Decision
+### Step 4: Record Decision (with explicit confirmation for leaf)
 
 If "Break down further":
 - Spawn child node agents for each sub-problem (each child will self-register)
 
 If "This is deep enough":
-- Use `spec_tree_update({ updates: { impl_status: "pending" } })` to mark as ready for implementation
+- **🔴 EXPLICIT CONFIRMATION REQUIRED**: Ask again via `question`:
+  ```
+  question({
+    question: "Are you sure this node is a leaf? This means NO further breakdown - it will be implemented as-is.",
+    header: "Confirm leaf",
+    options: [
+      { label: "Yes, it's a leaf", description: "Confirm - no further breakdown needed" },
+      { label: "Actually, break it down", description: "I changed my mind - let's decompose further" }
+    ]
+  })
+  ```
+- Only after explicit "Yes, it's a leaf" confirmation:
+  - Use `spec_tree_update({ updates: { impl_status: "pending" } })` to mark as ready for implementation
 
 ---
 
