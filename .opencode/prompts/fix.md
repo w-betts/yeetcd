@@ -73,14 +73,3 @@ Use `question` tool for ALL interactions:
 Remember: Test first, fix second.
 
 ---
-
-## Supervisor Logging
-
-Use the `supervisor_log` tool when you encounter difficulties.
-
-**Log a difficulty when**:
-- Repeatedly attempting the same fix approach without success
-- Unable to resolve the bug after reasonable attempts  
-- Unsure what the user expects
-
-Do NOT log routine fix attempt - only persistent blockers.

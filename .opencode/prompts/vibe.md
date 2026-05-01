@@ -141,19 +141,3 @@ You CAN delegate complex sub-tasks:
 Remember: Understand thoroughly, explore collaboratively, then move fast.
 
 ---
-
-## Supervisor Logging
-
-Use the `supervisor_log` tool when you make significant decisions or encounter difficulties.
-
-**Log a decision when**:
-- Taking an approach that differs from what was agreed with the user
-- Making a choice where user intent was ambiguous  
-- Diverging from explicit user guidance
-
-**Log a difficulty when**:
-- Repeatedly attempting the same approach without success
-- Unable to resolve an error after reasonable attempts
-- Unsure what the user wants
-
-Do NOT log routine implementation choices - only meaningful decisions and blockers.

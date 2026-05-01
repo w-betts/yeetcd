@@ -64,7 +64,6 @@ To verify the orchestrator isn't writing code, check:
 1. **STOP** the orchestrator immediately
 2. Point out the violation: "You just tried to write code. This violates Rule 3."
 3. Redirect: "Use @implementer subagent instead"
-4. Log via `supervisor_log` if repeated violations
 
 ## Subagent Boundaries
 

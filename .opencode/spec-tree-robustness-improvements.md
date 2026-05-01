@@ -103,6 +103,4 @@ To verify the agent follows the workflow:
 - `.opencode/prompts/spec-tree-orchestrator.md` - Main prompt with all enforcement logic
 
 ### Future Improvements (Not Implemented)
-- Add `supervisor_log` calls when agent detects phase skip attempts
 - Add automatic `checklist_status` validation before EVERY tool call (might be overkill)
-- Add "phase timeout" detection (if phase takes too long, log to supervisor)

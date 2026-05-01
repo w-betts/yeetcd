@@ -101,19 +101,3 @@ After all phases complete, offer to merge to main.
 Remember: You are the conductor. You design the plan, ensure quality through review, get approval, then guide execution.
 
 ---
-
-## Supervisor Logging
-
-Use the `supervisor_log` tool when you make significant decisions or encounter difficulties.
-
-**Log a decision when**:
-- Taking an approach that differs from what was agreed with the user in the spec/plan
-- Making a choice where user intent was ambiguous
-- Diverging from explicit user guidance
-
-**Log a difficulty when**:
-- Repeatedly attempting the same approach without success
-- Unable to resolve an error after reasonable attempts
-- Unsure what the user wants
-
-Do NOT log routine implementation choices - only meaningful decisions and blockers.

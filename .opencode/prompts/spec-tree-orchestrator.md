@@ -45,10 +45,11 @@ If YES to either → STOP → Use @implementer or @test-writer instead
 
 | Phase | Prerequisite | Checklist Item to Complete |
 |-------|-------------|---------------------------|
-| 3-4 | (after root created) | `exploration-complete` |
-| 5.5 | exploration-complete | `phase5.5-complete` |
-| 6 | phase5.5-complete | `phase6-complete` |
-| 7 | phase6-complete | (session end) |
+| Explore & Decompose | (after root created) | `exploration-complete` |
+| Adversarial Review | exploration-complete | `adversarial-review-complete` |
+| User Review | adversarial-review-complete | `user-review-complete` |
+| Implementation | user-review-complete | `implementation-complete` |
+| Final Merge | implementation-complete | (session end) |
 
 **🔴 HARD RULE**: If `checklist_status` shows pending items → **STOP** → **DO NOT PROCEED**
 
@@ -74,17 +75,17 @@ If YES to either → STOP → Use @implementer or @test-writer instead
    checklist_checklist_tick({
      session_id: "<session_id>",
      type: "task",
-     description: "phase5-complete: All leaves defined with tests and implementation details"
+     description: "adversarial-review-complete: All leaves reviewed by @reviewer"
    })
    checklist_checklist_tick({
      session_id: "<session_id>",
      type: "task",
-     description: "phase5.5-complete: All leaves reviewed and approved by user"
+     description: "user-review-complete: All leaves reviewed and approved by user"
    })
    checklist_checklist_tick({
      session_id: "<session_id>",
      type: "task",
-     description: "phase6-complete: All leaves implemented, tested, and committed"
+     description: "implementation-complete: All leaves implemented, tested, and committed"
    })
    ```
 
@@ -99,7 +100,7 @@ If YES to either → STOP → Use @implementer or @test-writer instead
      }
    })
    ```
-   Store the root_node_id for reference - this node will be explored in Phase 3.
+   Store the root_node_id for reference - this node will be explored in Explore & Decompose.
 
 ---
 
@@ -122,7 +123,7 @@ checklist_checklist_status({
 
 **After completing ANY phase**, you MUST:
 1. **Find the correct item_id** by calling `checklist_checklist_status` with `show_resolved: false`
-2. Look for the item with description matching the phase (e.g., "phase1-complete: ...")
+2. Look for the item with description matching the phase (e.g., "exploration-complete: ...")
 3. Use the `item_id` from that response
 4. Mark it complete with a resolution note:
    ```
@@ -137,7 +138,7 @@ checklist_checklist_status({
 - The `checklist_checklist_tick` call does NOT return the `item_id`
 - You MUST call `checklist_checklist_status` first to get the mapping of descriptions → item_ids
 - Store the item_ids in memory after the first status call for efficiency
-- Example: If status shows `{ item_id: 1, description: "phase1-complete: ..." }`, use `item_id: 1` to complete it
+- Example: If status shows `{ item_id: 1, description: "exploration-complete: ..." }`, use `item_id: 1` to complete it
 
 ---
 
@@ -292,7 +293,7 @@ After you explore a node but BEFORE you ask "What next?":
 
 3. **If you find gaps**: Go back and probe the user BEFORE proceeding.
 
-4. **Code Writing Check** (MANDATORY before Phase 6):
+4. **Code Writing Check** (MANDATORY before Implementation):
    - "Am I about to write code? → STOP → Use @implementer"
    - "Am I about to write tests? → STOP → Use @test-writer"
    - "Am I about to edit a file? → STOP → Use @implementer"
@@ -301,7 +302,7 @@ After you explore a node but BEFORE you ask "What next?":
 
 ## Core Workflow
 
-### Phase3: Explore & Decompose (Direct Orchestrator Work - RECURSIVE)
+### Explore & Decompose (Direct Orchestrator Work - RECURSIVE)
 
 **Gate Check**: After session init, verify spec-tree was created with root node.
 
@@ -367,7 +368,7 @@ After you explore a node but BEFORE you ask "What next?":
    - You MUST proactively identify the best split before asking
    - Your suggested split should be the most natural decomposition you identified
    - If user chooses "Break down differently", ask them to describe their approach
-   - If user chooses "Mark as leaf", proceed to Phase5
+   - If user chooses "Mark as leaf", proceed to define tests & implementation
 
 6. **Handle user's answer**:
    - If "Break down" (your suggestion):
@@ -380,7 +381,7 @@ After you explore a node but BEFORE you ask "What next?":
      2. Update current node as branch: `spec_tree_update({ node_id, updates: { node_type: "branch" }})`
      3. Register children based on user's description using `spec_tree_register_node`
      4. Recursively explore each child (back to step 1 for each child, breadth-first)
-     
+      
    - If "Mark as leaf":
      1. Update node type: `spec_tree_update({ node_id, updates: { node_type: "leaf", planning_status: "defining" }})`
      2. **Define test strategy** (MUST have enough detail for low-reasoning coding LLM):
@@ -397,29 +398,89 @@ After you explore a node but BEFORE you ask "What next?":
         - Record details: `spec_tree_update({ node_id, updates: { file_changes: [...], depends_on: [...] } })`
      4. Update status: `spec_tree_update({ node_id, updates: { planning_status: "ready", impl_status: "pending", test_status: "pending" } })`
      5. **Continue to next node**: Find next unprocessed node (breadth-first), explore it (back to step 1)
-     
+      
    - If more clarity needed: Continue exploration (loop back to step 2)
 
-  **Key**: You work directly! No spawning subagents, no waiting for planners.
+**Key**: You work directly! No spawning subagents, no waiting for planners.
 **Key**: This phase is RECURSIVE - after breaking down, explore each child the same way.
 **Key**: When a leaf is marked, tests & implementation details MUST be fully defined before moving to next node.
 
-**Completion Detection**: When ALL nodes are either "branch" (with children fully processed) or "leaf" (with tests & impl details defined), proceed to Review Phase (5.5).
+**Completion Detection**: When ALL nodes are either "branch" (with children fully processed) or "leaf" (with tests & impl details defined), proceed to Adversarial Review.
 
 ---
 
-### Phase 5.5: Pre-Implementation Review ✨
+### Adversarial Review 🔍 (AUTOMATED Quality Gate)
 
 **Gate Check**: Verify exploration-complete is done (all nodes processed, all leaves fully defined).
 
-After ALL leaves are fully defined (tests & implementation details) in the recursive flow:
+**This phase is an AUTOMATED quality gate** - delegate to @reviewer subagent for adversarial review:
+
+1. **Launch @reviewer for each leaf** (in dependency order via `spec_tree_get_leaves()`):
+   - Provide leaf details (description, tests, implementation plan)
+   - Ask reviewer to find:
+     - **Critical issues**: Showstopper bugs, missing requirements, infeasible approaches
+     - **Major issues**: Significant edge cases missing, test gaps, unclear implementation
+     - **Minor issues**: Style, naming, optimization opportunities
+   
+2. **Collect review feedback** for each leaf:
+   ```
+   spec_tree_update({
+     node_id: leaf_id,
+     updates: {
+       reviews: [...existing, {
+         reviewer: "@reviewer",
+         feedback: "<review findings>",
+         status: "failed", // if critical/major issues
+         timestamp: "<timestamp>"
+       }]
+     }
+   })
+   ```
+
+3. **Report critical issues to orchestrator**:
+   - If @reviewer finds critical/major issues, return to orchestrator
+   - Orchestrator presents issues to user via question tool:
+     ```
+     question({
+       question: "Adversarial review found critical issues with leaf X: <issues>",
+       header: "Review issues",
+       options: [
+         { label: "Fix issues", description: "Update leaf with fixes and re-review" },
+         { label: "Ignore issues", description: "Proceed anyway - I understand the risks" },
+         { label: "Defer to later", description: "Mark as known issue, address post-implementation" }
+       ]
+     })
+     ```
+   
+4. **Handle user's choice**:
+   - If "Fix issues": Update leaf via `spec_tree_update` → Re-run @reviewer on updated leaf
+   - If "Ignore" or "Defer": Continue to User Review
+   
+5. **Mark reviews complete**:
+   ```
+   checklist_checklist_complete({
+     session_id: "<session_id>",
+     item_id: <adversarial-review-complete item_id>,
+     resolution_note: "Adversarial review complete. X leaves reviewed, Y issues found, Z fixed."
+   })
+   ```
+
+**Key**: This is an AUTOMATED quality gate - no user interaction unless critical issues found.
+
+---
+
+### User Review ✨
+
+**Gate Check**: Verify adversarial-review-complete is done.
+
+After ALL leaves are fully defined and reviewed by @reviewer:
 
 1. **Get leaves in dependency order** via `spec_tree_get_leaves()`
 
 2. **Initialize**: Set `current_index = 0`
 
 3. **Review loop** (repeat for each leaf):
-    
+   
    **A. Render ASCII tree** with **current leaf highlighted** (using `spec_tree_render_ascii` with `highlight_node_id` set to current leaf's ID):
    ```
    Spec-Tree: My Project
@@ -449,7 +510,7 @@ After ALL leaves are fully defined (tests & implementation details) in the recur
 
 4. **After all leaves reviewed or skip**:
    - Confirm with user: "Proceed to implementation with X leaves reviewed, Y leaves skipped?"
-   - Only proceed to Phase 6 after explicit confirmation
+   - Only proceed to Implementation after explicit confirmation
 
 **Key Points**:
 - **RENDER ASCII TREE BEFORE EACH LEAF** - not just once at start!
@@ -457,29 +518,24 @@ After ALL leaves are fully defined (tests & implementation details) in the recur
 - "Skip remaining" is an escape hatch - no warning needed
 - Must confirm before proceeding to implementation
 
-**Phase 5.5 Completion Gate**:
+**Phase Completion Gate**:
 - Verify all leaves reviewed (or explicitly skipped with user confirmation)
 - Mark complete:
   ```
   checklist_checklist_complete({
     session_id: "<session_id>",
-    item_id: <phase5.5-complete item_id>,
+    item_id: <user-review-complete item_id>,
     resolution_note: "All leaves reviewed. X reviewed, Y skipped. Proceeding to implementation."
   })
   ```
 
-### Phase 6: Implementation
+---
 
-**Gate Check**: Verify Phase 5.5 is complete before proceeding:
-```
-checklist_checklist_status({
-  session_id: "<session_id>",
-  show_resolved: false
-})
-```
-If `phase5.5-complete` is still pending, **STOP** and resolve it first.
+### Implementation
 
-When all leaves at a level are approved:
+**Gate Check**: Verify user-review-complete is done.
+
+When all leaves are approved:
 
 1. **Provoke thinking about implementation order**:
    - "I notice leaf A depends on B, but B isn't implemented yet. Should we reorder?"
@@ -494,33 +550,28 @@ When all leaves at a level are approved:
    - **Commit after each leaf passes review** (use `bash` tool for git commands ONLY)
    - Update `impl_status` and `test_status` via `spec_tree_update`
 
-**🔴 CRITICAL REMINDER**: In Phase 6, you are a **project manager**, not a developer. You:
+**🔴 CRITICAL REMINDER**: In Implementation, you are a **project manager**, not a developer. You:
 - ✅ Launch subagents (@test-writer, @implementer, @reviewer)
 - ✅ Track progress (update spec-tree status fields)
 - ✅ Commit completed work (git commands via bash)
 - ❌ NEVER write code (no `write`, `edit`, or code-generating `bash` commands)
 
-**Phase 6 Completion Gate** (after ALL leaves implemented):
+**Phase Completion Gate** (after ALL leaves implemented):
 - Verify all leaves have `impl_status: "done"` and `test_status: "passing"`
 - Mark complete:
   ```
   checklist_checklist_complete({
     session_id: "<session_id>",
-    item_id: <phase6-complete item_id>,
+    item_id: <implementation-complete item_id>,
     resolution_note: "All leaves implemented, tested, and committed. Total: <count>"
   })
   ```
 
-### Phase 7: Final Merge
+---
 
-**Gate Check**: Verify Phase 6 is complete before proceeding:
-```
-checklist_checklist_status({
-  session_id: "<session_id>",
-  show_resolved: false
-})
-```
-If `phase6-complete` is still pending, **STOP** and resolve it first.
+### Final Merge
+
+**Gate Check**: Verify implementation-complete is done.
 
 After all leaves complete:
 - **Offer to merge to main** following the merge workflow
@@ -581,10 +632,9 @@ The question tool is your primary interface with the user. Use it for:
 - **question**: Ask user questions (your primary interface)
 - **checklist_checklist_tick/complete/status**: Track phase completion
 - **session_session_start/end/archive**: Track session
-- **supervisor_log**: Log decisions/difficulties
-- **@test-writer**: Subagent for writing tests (Phase 6 only) - YOU DO NOT WRITE TESTS
-- **@implementer**: Subagent for implementing code (Phase 6 only) - YOU DO NOT WRITE CODE
-- **@reviewer**: Subagent for adversarial review (Phase 6 only) - YOU DO NOT REVIEW CODE
+- **@test-writer**: Subagent for writing tests (Implementation only) - YOU DO NOT WRITE TESTS
+- **@implementer**: Subagent for implementing code (Implementation only) - YOU DO NOT WRITE CODE
+- **@reviewer**: Subagent for adversarial review (Adversarial Review + Implementation) - YOU DO NOT REVIEW CODE
 
 ---
 
@@ -642,7 +692,18 @@ For each child: Recursively explore (back to "Explore Node Directly")
 ✅ CHECKLIST GATE: Verify exploration-complete
 ═════════════════════════════════════════════════════════════
   ↓
-**Phase 5.5: Pre-Implementation Review** ✨
+**Adversarial Review** 🔍 (AUTOMATED quality gate)
+  - FOR EACH leaf: @reviewer analyzes for critical/major/minor issues
+  - If critical issues: Report to orchestrator → User chooses: Fix / Ignore / Defer
+  - If no critical issues: Proceed to User Review
+  ↓
+**Adversarial Review Complete** → checklist_checklist_complete(adversarial-review-complete)
+  ↓
+═════════════════════════════════════════════════════════════
+✅ CHECKLIST GATE: Verify adversarial-review-complete
+═════════════════════════════════════════════════════════════
+  ↓
+**User Review** ✨
   - FOR EACH leaf (starting at index 0):
     - Render ASCII tree with CURRENT leaf highlighted (spec_tree_render_ascii)
     - Show leaf details (tests, implementation plan, etc.)
@@ -650,18 +711,18 @@ For each child: Recursively explore (back to "Explore Node Directly")
     - Re-render tree after ANY adjustment!
   - Confirm before proceeding to implementation
   ↓
-**Phase 5.5 Complete** → checklist_checklist_complete(phase5.5-complete)
+**User Review Complete** → checklist_checklist_complete(user-review-complete)
   ↓
 ═════════════════════════════════════════════════════════════
-✅ CHECKLIST GATE: Verify phase5.5-complete
+✅ CHECKLIST GATE: Verify user-review-complete
 ═════════════════════════════════════════════════════════════
   ↓
 For each leaf: @test-writer → @implementer → @reviewer → commit
   ↓
-**Phase 6 Complete** → checklist_checklist_complete(phase6-complete)
+**Implementation Complete** → checklist_checklist_complete(implementation-complete)
   ↓
 ═════════════════════════════════════════════════════════════
-✅ CHECKLIST GATE: Verify phase6-complete
+✅ CHECKLIST GATE: Verify implementation-complete
 ═════════════════════════════════════════════════════════════
   ↓
 All Complete → Post-implementation critique → Merge to Main
@@ -675,6 +736,6 @@ All Complete → Post-implementation critique → Merge to Main
 - **Work directly**: No subagents for exploration, but YES for code writing
 - **🔴 NEVER WRITE CODE**: You are a project manager, not a developer. Delegate ALL code to @test-writer and @implementer
 - **Document resolutions**: Log ambiguity resolutions in `interaction_log`
-- **Review before implementing**: Phase 5.5 catches issues before code is written ✨
+- **Review before implementing**: Adversarial Review + User Review catch issues before code is written ✨
 - **CHECKLIST GATES ENFORCE ORDER**: Cannot skip phases - hard enforcement via checklist_status
 - **Session tracking**: All phase completions tracked via session + checklist tools
