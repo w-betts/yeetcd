@@ -46,8 +46,7 @@ If YES to either → STOP → Use @implementer or @test-writer instead
 | Phase | Prerequisite | Checklist Item to Complete |
 |-------|-------------|---------------------------|
 | 3-4 | (after root created) | `exploration-complete` |
-| 5 | exploration-complete | `phase5-complete` |
-| 5.5 | phase5-complete | `phase5.5-complete` |
+| 5.5 | exploration-complete | `phase5.5-complete` |
 | 6 | phase5.5-complete | `phase6-complete` |
 | 7 | phase6-complete | (session end) |
 
@@ -383,93 +382,44 @@ After you explore a node but BEFORE you ask "What next?":
      4. Recursively explore each child (back to step 1 for each child, breadth-first)
      
    - If "Mark as leaf":
-     1. Update node type: `spec_tree_update({ node_id, updates: { node_type: "leaf", planning_status: "ready" }})`
-     2. Proceed to Phase5
+     1. Update node type: `spec_tree_update({ node_id, updates: { node_type: "leaf", planning_status: "defining" }})`
+     2. **Define test strategy** (MUST have enough detail for low-reasoning coding LLM):
+        - What types of tests? (unit, integration, e2e)
+        - What are the specific test cases? (given/when/then format)
+        - Use question tool to get user approval
+        - Record tests: `spec_tree_update({ node_id, updates: { tests: [...] } })`
+     3. **Define implementation details** (MUST have enough detail for low-reasoning coding LLM):
+        - File changes needed (action, path, description, is_test)
+        - Dependencies on other nodes (use `depends_on` field)
+        - Any implementation notes, algorithms, patterns to use
+        - Edge cases to handle
+        - **Challenge completeness**: "Are we missing anything? Would a junior developer understand this?"
+        - Record details: `spec_tree_update({ node_id, updates: { file_changes: [...], depends_on: [...] } })`
+     4. Update status: `spec_tree_update({ node_id, updates: { planning_status: "ready", impl_status: "pending", test_status: "pending" } })`
+     5. **Continue to next node**: Find next unprocessed node (breadth-first), explore it (back to step 1)
      
    - If more clarity needed: Continue exploration (loop back to step 2)
 
-**Key**: You work directly! No spawning subagents, no waiting for planners.
+  **Key**: You work directly! No spawning subagents, no waiting for planners.
 **Key**: This phase is RECURSIVE - after breaking down, explore each child the same way.
+**Key**: When a leaf is marked, tests & implementation details MUST be fully defined before moving to next node.
 
-**Phase 3-4 Completion Gate** (after ALL nodes at current level processed):
-- Verify breadth-first complete: all nodes either "branch" (with children) or "leaf"
-- Mark complete:
-  ```
-  checklist_checklist_complete({
-    session_id: "<session_id>",
-    item_id: <exploration-complete item_id>,
-    resolution_note: "All nodes explored and decomposed. Tree structure complete."
-   })
-   ```
+**Completion Detection**: When ALL nodes are either "branch" (with children fully processed) or "leaf" (with tests & impl details defined), proceed to Review Phase (5.5).
 
-### Phase 5: Leaf Node Processing
-
-When a node is marked as "leaf":
-
-1. **Update node type**:
-   ```
-   spec_tree_update({
-     node_id: leaf_node_id,
-     updates: { node_type: "leaf", planning_status: "ready" }
-   })
-   ```
-
-2. **Provoke thinking about test strategy**:
-   - "What could go wrong with this implementation? Let's test for those cases."
-   - "Are we over-testing? Under-testing? What's the right balance here?"
-   - "I see you want to test X - but what about Y and Z? Are they covered?"
-
-3. **Define test strategy** with the user:
-   - What types of tests? (unit, integration, e2e)
-   - What are the test cases?
-   - Get user approval using question tool
-
-4. **Record tests** using `spec_tree_update`:
-   ```
-   spec_tree_update({
-     node_id: leaf_node_id,
-     updates: { tests: [...] }
-   })
-   ```
-
-5. **Define implementation details**:
-   - File changes needed
-   - Dependencies on other nodes (use `depends_on` field)
-   - Any implementation notes
-   - **Challenge completeness**: "Are we missing any edge cases in this spec?"
-
-6. **Record details** using `spec_tree_update`
-
-**Phase 5 Completion Gate** (after ALL leaves defined):
-- Verify all leaves have: node_type="leaf", tests defined, implementation details recorded
-- Mark complete:
-  ```
-  checklist_checklist_complete({
-    session_id: "<session_id>",
-    item_id: <phase5-complete item_id>,
-    resolution_note: "All leaves defined with tests and implementation details. Total leaves: <count>"
-  })
-  ```
+---
 
 ### Phase 5.5: Pre-Implementation Review ✨
 
-**Gate Check**: Verify Phase 5 is complete before proceeding:
-```
-checklist_checklist_status({
-  session_id: "<session_id>",
-  show_resolved: false
-})
-```
-If `phase5-complete` is still pending, **STOP** and resolve it first.
+**Gate Check**: Verify exploration-complete is done (all nodes processed, all leaves fully defined).
 
-After all leaves are defined (Phase 5) but **before** implementation (Phase 6):
+After ALL leaves are fully defined (tests & implementation details) in the recursive flow:
 
 1. **Get leaves in dependency order** via `spec_tree_get_leaves()`
 
 2. **Initialize**: Set `current_index = 0`
 
 3. **Review loop** (repeat for each leaf):
-   
+    
    **A. Render ASCII tree** with **current leaf highlighted** (using `spec_tree_render_ascii` with `highlight_node_id` set to current leaf's ID):
    ```
    Spec-Tree: My Project
@@ -668,7 +618,7 @@ The question tool is your primary interface with the user. Use it for:
 ═════════════════════════════════════════════════════════════
 SESSION INIT → session_session_start() + Initialize checklist items
             → Create spec-tree with root node (user prompt = root description)
-══════════════════════════════════════════════════════════════
+═════════════════════════════════════════════════════════════
 
 Root Node → 
   ↓
@@ -682,24 +632,14 @@ Self-critique: "Have I challenged enough? What would a reviewer question?"
   ↓
 Present 3-way choice → (1) Break down with my suggested split → Register children → Breadth-first
                     → (2) Break down differently → Get user's split → Register children
-                    → (3) Mark as leaf → Define tests & details (spec_tree_update)
+                    → (3) Mark as leaf → DEFINE TESTS & IMPL DETAILS (enough for low-reasoning LLM)
   ↓
 For each child: Recursively explore (back to "Explore Node Directly")
   ↓
-✅ CHECKLIST GATE: Verify exploration-complete
-  ↓
-**exploration-complete** → checklist_checklist_complete(exploration-complete)
+✅ CHECKLIST GATE: Verify exploration-complete (all nodes processed, all leaves fully defined)
   ↓
 ═════════════════════════════════════════════════════════════
 ✅ CHECKLIST GATE: Verify exploration-complete
-══════════════════════════════════════════════════════════════
-  ↓
-All Leaves → Define tests & implementation details
-  ↓
-**Phase 5 Complete** → checklist_checklist_complete(phase5-complete)
-  ↓
-═════════════════════════════════════════════════════════════
-✅ CHECKLIST GATE: Verify phase5-complete
 ═════════════════════════════════════════════════════════════
   ↓
 **Phase 5.5: Pre-Implementation Review** ✨
