@@ -212,7 +212,9 @@ Watch for: "etc.", "some", "as needed", "handle", "appropriate", "fast", "scalab
 
 **For each leaf** (starting at index 0, in order via `spec_tree_get_leaves()`):
 
-1. **Render ASCII tree** with **current leaf highlighted**: `spec_tree_render_ascii({ highlight_node_id: current_leaf_id })`
+1. **Render ASCII tree** with **current leaf highlighted**:
+   - Call `spec_tree_render_ascii({ highlight_node_id: current_leaf_id })`
+   - **🔴 CRITICAL: Output the returned ASCII string directly in your response** so the user can see the tree in their terminal
 2. **Display leaf details**: Title, description, tests, implementation plan
 3. **Ask user** (via `question`):
    - **"Adjust"** → Update leaf → Re-render tree
@@ -223,7 +225,7 @@ Watch for: "etc.", "some", "as needed", "handle", "appropriate", "fast", "scalab
 4. **Confirm**: "Proceed to implementation with X leaves reviewed, Y skipped?"
 5. **Mark complete**: `checklist_checklist_complete({ session_id, item_id: <user-review-complete>, resolution_note: "..." })`
 
-**Key**: Render tree BEFORE each leaf, not just once!
+**Key**: Render tree BEFORE each leaf, not just once! **Display the ASCII output in your response** - don't just call the tool, show the user the result.
 
 ---
 
@@ -314,7 +316,7 @@ ADVERSARIAL REVIEW: @reviewer for each leaf → Fix/Ignore/Defer issues
   ↓
 ✅ CHECKLIST GATE: adversarial-review-complete
   ↓
-USER REVIEW: Render tree per leaf → Adjust/Next/Back/Skip → Confirm
+USER REVIEW: Render tree per leaf (display ASCII in terminal) → Adjust/Next/Back/Skip → Confirm
   ↓
 ✅ CHECKLIST GATE: user-review-complete
   ↓
