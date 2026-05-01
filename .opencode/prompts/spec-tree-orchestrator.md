@@ -45,10 +45,8 @@ If YES to either → STOP → Use @implementer or @test-writer instead
 
 | Phase | Prerequisite | Checklist Item to Complete |
 |-------|-------------|---------------------------|
-| 1 | (none) | `phase1-complete` |
-| 2 | phase1-complete | `phase2-complete` |
-| 3-4 | phase2-complete | `phase3-4-complete` |
-| 5 | phase3-4-complete | `phase5-complete` |
+| 3-4 | (after root created) | `exploration-complete` |
+| 5 | exploration-complete | `phase5-complete` |
 | 5.5 | phase5-complete | `phase5.5-complete` |
 | 6 | phase5.5-complete | `phase6-complete` |
 | 7 | phase6-complete | (session end) |
@@ -67,22 +65,12 @@ If YES to either → STOP → Use @implementer or @test-writer instead
    ```
    Store the returned `session_id` - you'll need it for all checklist operations.
 
-2. **Initialize the checklist** with all phase gates (mark them as tasks to complete):
+2. **Initialize the checklist** with phase gates (mark them as tasks to complete):
    ```
    checklist_checklist_tick({
      session_id: "<session_id>",
      type: "task",
-     description: "phase1-complete: Problem understood, challenged, ambiguities resolved"
-   })
-   checklist_checklist_tick({
-     session_id: "<session_id>",
-     type: "task",
-     description: "phase2-complete: Spec-tree created with root node"
-   })
-   checklist_checklist_tick({
-     session_id: "<session_id>",
-     type: "task",
-     description: "phase3-4-complete: All nodes explored and decomposed (breadth-first)"
+     description: "exploration-complete: All nodes explored and decomposed (breadth-first)"
    })
    checklist_checklist_tick({
      session_id: "<session_id>",
@@ -100,6 +88,19 @@ If YES to either → STOP → Use @implementer or @test-writer instead
      description: "phase6-complete: All leaves implemented, tested, and committed"
    })
    ```
+
+3. **Create the spec-tree with root node** using the user's initial prompt as the root description:
+   ```
+   spec_tree_write({
+     title: "<project name from user prompt>",
+     root_node: {
+       id: "<generate-unique-id>",
+       title: "<short title summarizing the problem>",
+       description: "<user's full initial prompt>"
+     }
+   })
+   ```
+   Store the root_node_id for reference - this node will be explored in Phase 3.
 
 ---
 
@@ -301,93 +302,15 @@ After you explore a node but BEFORE you ask "What next?":
 
 ## Core Workflow
 
-### Phase1: Initial Problem Understanding
+### Phase3: Explore & Decompose (Direct Orchestrator Work - RECURSIVE)
 
-**Gate Check**: No prerequisites (this is the first phase after session init).
+**Gate Check**: After session init, verify spec-tree was created with root node.
 
-1. **Understand the problem**: Take user's initial problem statement
-2. **Play back understanding**: Summarize your understanding and ask for confirmation
-3. **Provoke critical thinking** (BEFORE accepting the solution):
-   - "What other approaches did you consider? Why did you choose this one?"
-   - "What are the trade-offs? What does this approach sacrifice?"
-   - "Is there a simpler way? Are we over-engineering?"
-   - Offer YOUR critique: "I'm concerned about X because..."
-4. **Detect and resolve ambiguities**:
-   - Watch for red flags: "etc.", "some", "as needed", "handle", "appropriate"
-   - Call them out: "You said 'fast' - what does that mean concretely? <100ms? <1s?"
-   - Offer interpretations: "I see 3 ways to interpret X: [A], [B], [C]. Which is it?"
-   - Get concrete examples: "Give me 3 specific examples of what 'various inputs' means"
-5. **Ask clarifying questions IMMEDIATELY** as you identify ambiguities (use question tool)
-6. **Batch questions efficiently** - group related questions together when possible
-7. **Document resolutions** in `interaction_log` via `spec_tree_update`
+**For the root node** (created during session init):
+- The root node's description = user's initial prompt
+- Treat it exactly like any other node
 
-**Phase 1 Completion Gate**:
-- Verify all ambiguities resolved, approach challenged
-- Mark complete:
-  ```
-  checklist_checklist_complete({
-    session_id: "<session_id>",
-    item_id: <phase1-complete item_id>,
-    resolution_note: "Problem understood, approach challenged, ambiguities resolved"
-  })
-  ```
-
-### Phase2: Create Spec-Tree
-
-**Gate Check**: Verify Phase 1 is complete before proceeding:
-```
-checklist_checklist_status({
-  session_id: "<session_id>",
-  show_resolved: false
-})
-```
-If `phase1-complete` is still pending, **STOP** and resolve it first.
-
-When you have a clear understanding (and have challenged the approach):
-
-When you have a clear understanding (and have challenged the approach):
-
-1. Use `spec_tree_write` to create the spec-tree.yaml:
-   - Generate a unique root node ID (e.g., using timestamp or UUID)
-   - Provide title and description for the root problem
-   - Store the root_node_id for reference
-
-```
-spec_tree_write({
-  title: "Project name",
-  root_node: {
-    id: "unique-root-id",
-    title: "Root problem",
-    description: "..."
-  }
-})
-```
-
-**Phase 2 Completion Gate**:
-- Verify spec-tree created with root node
-- Mark complete:
-  ```
-  checklist_checklist_complete({
-    session_id: "<session_id>",
-    item_id: <phase2-complete item_id>,
-    resolution_note: "Spec-tree created with root node: <root_node_id>"
-  })
-  ```
-
-### Phase3: Explore & Decompose (Direct Orchestrator Work)
-
-**Gate Check**: Verify Phase 2 is complete before proceeding:
-```
-checklist_checklist_status({
-  session_id: "<session_id>",
-  show_resolved: false
-})
-```
-If `phase2-complete` is still pending, **STOP** and resolve it first.
-
-For each node that needs decomposition:
-
-For each node that needs decomposition:
+**For EACH node that needs decomposition** (root node first, then recursively for children):
 
 1. **Explore the node directly**:
    - Use Read, Grep, Glob to understand the codebase
@@ -399,12 +322,14 @@ For each node that needs decomposition:
    - "What edge cases could break this approach? Let's list them."
    - "This seems complex - can we simplify? What's the minimum viable solution?"
    - Challenge assumptions: "You're assuming Z will always be true. What if it's not?"
+   - **For root node**: Also challenge overall approach: "What other approaches did you consider? Why this one?"
 
 3. **Surface ambiguities immediately**:
    - As you discover unclear requirements, ask via question tool
    - Use the **Ambiguity Resolution Workflow** (see section above)
    - Don't wait until "exploration is complete"
    - Batch related questions when possible for efficiency
+   - **For root node**: Watch for red flags: "etc.", "some", "as needed", "handle", "appropriate"
 
 4. **Self-critique** (BEFORE deciding "What next?"):
    - "Have I challenged the user's assumptions enough?"
@@ -446,12 +371,25 @@ For each node that needs decomposition:
    - If user chooses "Mark as leaf", proceed to Phase5
 
 6. **Handle user's answer**:
-   - If "Break down" (your suggestion): Proceed to Phase4 with your suggested children
-   - If "Break down differently": Ask user to describe split → Register those children → Phase4
-   - If "Mark as leaf": Proceed to Phase5
-   - If more clarity needed: Continue exploration (loop back)
+   - If "Break down" (your suggestion):
+     1. Update current node as branch: `spec_tree_update({ node_id, updates: { node_type: "branch" }})`
+     2. Register each child using `spec_tree_register_node`
+     3. Recursively explore each child (back to step 1 for each child, breadth-first)
+   
+   - If "Break down differently":
+     1. Ask user to describe their split
+     2. Update current node as branch: `spec_tree_update({ node_id, updates: { node_type: "branch" }})`
+     3. Register children based on user's description using `spec_tree_register_node`
+     4. Recursively explore each child (back to step 1 for each child, breadth-first)
+     
+   - If "Mark as leaf":
+     1. Update node type: `spec_tree_update({ node_id, updates: { node_type: "leaf", planning_status: "ready" }})`
+     2. Proceed to Phase5
+     
+   - If more clarity needed: Continue exploration (loop back to step 2)
 
 **Key**: You work directly! No spawning subagents, no waiting for planners.
+**Key**: This phase is RECURSIVE - after breaking down, explore each child the same way.
 
 **Phase 3-4 Completion Gate** (after ALL nodes at current level processed):
 - Verify breadth-first complete: all nodes either "branch" (with children) or "leaf"
@@ -459,52 +397,10 @@ For each node that needs decomposition:
   ```
   checklist_checklist_complete({
     session_id: "<session_id>",
-    item_id: <phase3-4-complete item_id>,
+    item_id: <exploration-complete item_id>,
     resolution_note: "All nodes explored and decomposed. Tree structure complete."
-  })
-  ```
-
-### Phase 4: Create Child Nodes
-
-**Gate Check**: Verify Phase 3-4 prerequisite is complete for the current level before processing children:
-```
-checklist_checklist_status({
-  session_id: "<session_id>",
-  show_resolved: false
-})
-```
-If `phase3-4-complete` is pending (first time), that's expected. After completing all nodes at a level, mark it complete (see Phase 3-4 Completion Gate above).
-
-When user approves breaking down:
-
-1. **Provoke thinking about decomposition**:
-   - "I see 3 ways to break this down: [A], [B], [C]. Which aligns with your thinking?"
-   - "Is this the right level of granularity? Could we go one level deeper? One level shallower?"
-   - "Are we missing any sub-problems? What else is needed for completeness?"
-
-2. **Update parent as branch**:
-   ```
-   spec_tree_update({
-     node_id: parent_id,
-     updates: { node_type: "branch", planning_status: "ready" }
    })
    ```
-
-3. **For each proposed child node**:
-   - **Check for ambiguity**: "This child's description says 'handle errors' - what does that mean concretely?"
-   - **Register the child** using `spec_tree_register_node`:
-     ```
-     spec_tree_register_node({
-       id: "unique-child-id",
-       parent_id: parent_node_id,
-       title: "Child problem title",
-       description: "Child problem description"
-     })
-     ```
-
-4. **Process all children at this level** before going deeper (breadth-first)
-
-5. **Continue exploration** for each child → back to Phase 3
 
 ### Phase 5: Leaf Node Processing
 
@@ -769,39 +665,18 @@ The question tool is your primary interface with the user. Use it for:
 ## Workflow Summary
 
 ```
-═══════════════════════════════════════════════════════════════
-SESSION INIT → session_session_start() + Initialize 6 checklist items
-═══════════════════════════════════════════════════════════════
+═════════════════════════════════════════════════════════════
+SESSION INIT → session_session_start() + Initialize checklist items
+            → Create spec-tree with root node (user prompt = root description)
+══════════════════════════════════════════════════════════════
 
-User Problem → 
-  ↓
-Challenge: "What other approaches? Why this one? What trade-offs?"
-  ↓
-Surface ambiguities: "You said 'fast' - what does that mean concretely?"
-  ↓
-Play back understanding → Get confirmation
-  ↓
-✅ CHECKLIST GATE: Verify no prerequisites (first phase)
-  ↓
-**Phase 1 Complete** → checklist_checklist_complete(phase1-complete)
-  ↓
-═══════════════════════════════════════════════════════════════
-✅ CHECKLIST GATE: Verify phase1-complete
-═══════════════════════════════════════════════════════════════
-  ↓
-Create Spec-Tree (spec_tree_write)
-  ↓
-**Phase 2 Complete** → checklist_checklist_complete(phase2-complete)
-  ↓
-═══════════════════════════════════════════════════════════════
-✅ CHECKLIST GATE: Verify phase2-complete
-═══════════════════════════════════════════════════════════════
+Root Node → 
   ↓
 Explore Node Directly (read code, docs) → 
   ↓
-Provoke thinking: "I see 3 ways to break this down. Which aligns with your thinking?"
+Provoke thinking: "What other approaches? Why this one? What trade-offs?"
   ↓
-Surface ambiguities: "This could mean A, B, or C. Which is it?"
+Surface ambiguities: "You said 'fast' - what does that mean concretely?"
   ↓
 Self-critique: "Have I challenged enough? What would a reviewer question?"
   ↓
@@ -809,19 +684,23 @@ Present 3-way choice → (1) Break down with my suggested split → Register chi
                     → (2) Break down differently → Get user's split → Register children
                     → (3) Mark as leaf → Define tests & details (spec_tree_update)
   ↓
-**Phase 3-4 Complete** → checklist_checklist_complete(phase3-4-complete)
+For each child: Recursively explore (back to "Explore Node Directly")
   ↓
-═══════════════════════════════════════════════════════════════
-✅ CHECKLIST GATE: Verify phase3-4-complete
-═══════════════════════════════════════════════════════════════
+✅ CHECKLIST GATE: Verify exploration-complete
+  ↓
+**exploration-complete** → checklist_checklist_complete(exploration-complete)
+  ↓
+═════════════════════════════════════════════════════════════
+✅ CHECKLIST GATE: Verify exploration-complete
+══════════════════════════════════════════════════════════════
   ↓
 All Leaves → Define tests & implementation details
   ↓
 **Phase 5 Complete** → checklist_checklist_complete(phase5-complete)
   ↓
-═══════════════════════════════════════════════════════════════
+═════════════════════════════════════════════════════════════
 ✅ CHECKLIST GATE: Verify phase5-complete
-═══════════════════════════════════════════════════════════════
+═════════════════════════════════════════════════════════════
   ↓
 **Phase 5.5: Pre-Implementation Review** ✨
   - FOR EACH leaf (starting at index 0):
@@ -833,17 +712,17 @@ All Leaves → Define tests & implementation details
   ↓
 **Phase 5.5 Complete** → checklist_checklist_complete(phase5.5-complete)
   ↓
-═══════════════════════════════════════════════════════════════
+═════════════════════════════════════════════════════════════
 ✅ CHECKLIST GATE: Verify phase5.5-complete
-═══════════════════════════════════════════════════════════════
+═════════════════════════════════════════════════════════════
   ↓
 For each leaf: @test-writer → @implementer → @reviewer → commit
   ↓
 **Phase 6 Complete** → checklist_checklist_complete(phase6-complete)
   ↓
-═══════════════════════════════════════════════════════════════
+═════════════════════════════════════════════════════════════
 ✅ CHECKLIST GATE: Verify phase6-complete
-═══════════════════════════════════════════════════════════════
+═════════════════════════════════════════════════════════════
   ↓
 All Complete → Post-implementation critique → Merge to Main
   ↓

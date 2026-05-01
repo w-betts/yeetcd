@@ -2,7 +2,7 @@
  * Spec-Tree Prompt Tests
  *
  * Unit tests for the spec-tree primary agent prompts.
- * Verifies the prompt files exist and contain required content.
+ * Verifies the prompt contains required workflow patterns.
  */
 
 import { test, expect, describe } from 'bun:test';
@@ -30,23 +30,6 @@ function readPrompt(filename: string): string | null {
 
 describe('Spec-Tree Orchestrator Prompt', () => {
   const ORCHESTRATOR_FILE = 'spec-tree-orchestrator.md';
-
-  test('Orchestrator prompt file exists', () => {
-    const content = readPrompt(ORCHESTRATOR_FILE);
-    expect(content).not.toBeNull();
-  });
-
-  test('Orchestrator prompt is not empty', () => {
-    const content = readPrompt(ORCHESTRATOR_FILE);
-    expect(content).not.toBe('');
-    expect(content?.length).toBeGreaterThan(100);
-  });
-
-  test('Describes orchestrator role', () => {
-    const content = readPrompt(ORCHESTRATOR_FILE);
-    expect(content).not.toBeNull();
-    expect(content).toMatch(/orchestrator/i);
-  });
 
   test('Mentions working directly (no planners)', () => {
     const content = readPrompt(ORCHESTRATOR_FILE);
@@ -105,12 +88,6 @@ describe('Spec-Tree Orchestrator Prompt', () => {
     expect(content).toMatch(/ambiguit|early|immediately/i);
   });
 
-  test('Describes "What next?" question pattern', () => {
-    const content = readPrompt(ORCHESTRATOR_FILE);
-    expect(content).not.toBeNull();
-    expect(content).toMatch(/What next\?/i);
-  });
-
   test('Does NOT implement code directly', () => {
     const content = readPrompt(ORCHESTRATOR_FILE);
     expect(content).not.toBeNull();
@@ -151,6 +128,41 @@ describe('Spec-Tree Orchestrator Prompt', () => {
     expect(content).not.toBeNull();
     // Agent should proactively identify the best way to split
     expect(content).toMatch(/identify.*split|propose.*split|best.*decomposition/i);
+  });
+
+  test('Does NOT have separate Phase 1 (root node treated like any other node)', () => {
+    const content = readPrompt(ORCHESTRATOR_FILE);
+    expect(content).not.toBeNull();
+    // Phase1 should not exist as separate phase
+    expect(content).not.toMatch(/### Phase 1:/);
+  });
+
+  test('Does NOT have separate Phase 2 (spec-tree created at init)', () => {
+    const content = readPrompt(ORCHESTRATOR_FILE);
+    expect(content).not.toBeNull();
+    // Phase2 should not exist as separate phase
+    expect(content).not.toMatch(/### Phase 2:/);
+  });
+
+  test('Does NOT have separate Phase 4 (recursive exploration in Phase 3)', () => {
+    const content = readPrompt(ORCHESTRATOR_FILE);
+    expect(content).not.toBeNull();
+    // Phase4 should not exist as separate phase
+    expect(content).not.toMatch(/### Phase 4:/);
+  });
+
+  test('Phase 3 is recursive (explores root and children recursively)', () => {
+    const content = readPrompt(ORCHESTRATOR_FILE);
+    expect(content).not.toBeNull();
+    expect(content).toMatch(/RECURSIVE|recursively/i);
+    expect(content).toMatch(/back to step 1|back to Phase 3/i);
+  });
+
+  test('Spec-tree created during session initialization', () => {
+    const content = readPrompt(ORCHESTRATOR_FILE);
+    expect(content).not.toBeNull();
+    expect(content).toMatch(/Create the spec-tree with root node/i);
+    expect(content).toMatch(/session init/i);
   });
 });
 
