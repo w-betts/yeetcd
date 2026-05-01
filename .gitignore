@@ -5,3 +5,4 @@ trusted-cas.pem
 
 .worktrees
 bin/
+.opencode/decision-logs/
