@@ -588,6 +588,64 @@ Test status: ${node.test_status || "pending"}`
           return output
         },
       }),
+
+      spec_tree_render_ascii: tool({
+        description:
+          "Render the spec-tree as an ASCII tree visualization. " +
+          "Optionally highlight a specific node (e.g., current leaf being reviewed). " +
+          "Shows node types, status, and tree structure using tree characters.",
+        args: {
+          highlight_node_id: tool.schema
+            .string()
+            .optional()
+            .describe("Optional node ID to highlight with asterisk (*)"),
+        },
+        async execute(args, context) {
+          const { worktree } = context
+          const spec = loadSpec(worktree)
+
+          let output = `Spec-Tree: ${spec.title}\n\n`
+
+          const formatNode = (
+            node: Node,
+            prefix: string = "",
+            isLast: boolean = true,
+            isHighlighted: boolean = false
+          ): string => {
+            const connector = isLast ? "└── " : "├── "
+            const highlight = isHighlighted ? " *" : ""
+            const nodeType = node.node_type || "unexpanded"
+            const implStatus = node.impl_status || "pending"
+            const testStatus = node.test_status || "pending"
+
+            let line = `${prefix}${connector}${node.id}: ${node.title}${highlight}\n`
+            line += `${prefix}${isLast ? "    " : "│   "}Type: ${nodeType}, Impl: ${implStatus}, Test: ${testStatus}\n`
+
+            // Add children
+            for (let i = 0; i < node.children.length; i++) {
+              const child = node.children[i]
+              const childIsLast = i === node.children.length - 1
+              const childIsHighlighted = child.id === args.highlight_node_id
+              line += formatNode(
+                child,
+                prefix + (isLast ? "    " : "│   "),
+                childIsLast,
+                childIsHighlighted
+              )
+            }
+
+            return line
+          }
+
+          output += formatNode(spec.root, "", true, args.highlight_node_id === spec.root.id)
+
+          if (args.highlight_node_id) {
+            output += `\n* = Currently highlighted node\n`
+          }
+
+          return output
+        },
+      }),
     },
   }
 }

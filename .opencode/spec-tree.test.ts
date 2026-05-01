@@ -86,6 +86,18 @@ describe('Spec-Tree Orchestrator Prompt', () => {
     expect(content).toMatch(/spec_tree_get_leaves/);
   });
 
+  test('References spec_tree_render_ascii tool', () => {
+    const content = readPrompt(ORCHESTRATOR_FILE);
+    expect(content).not.toBeNull();
+    expect(content).toMatch(/spec_tree_render_ascii/);
+  });
+
+  test('Mentions Phase 5.5 Pre-Implementation Review', () => {
+    const content = readPrompt(ORCHESTRATOR_FILE);
+    expect(content).not.toBeNull();
+    expect(content).toMatch(/Phase 5\.5|Pre-Implementation Review/);
+  });
+
   test('Mentions surfacing ambiguities early', () => {
     const content = readPrompt(ORCHESTRATOR_FILE);
     expect(content).not.toBeNull();

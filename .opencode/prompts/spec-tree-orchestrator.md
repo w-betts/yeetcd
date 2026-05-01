@@ -306,6 +306,53 @@ When a node is marked as "leaf":
 
 6. **Record details** using `spec_tree_update`
 
+### Phase 5.5: Pre-Implementation Review ✨
+
+After all leaves are defined (Phase 5) but **before** implementation (Phase 6):
+
+1. **Get leaves in dependency order** via `spec_tree_get_leaves()`
+
+2. **Initialize**: Set `current_index = 0`
+
+3. **Review loop** (repeat for each leaf):
+   
+   **A. Render ASCII tree** with **current leaf highlighted** (using `spec_tree_render_ascii` with `highlight_node_id` set to current leaf's ID):
+   ```
+   Spec-Tree: My Project
+
+   └── root: Root Problem
+       ├── leaf-1: First leaf *
+       ├── leaf-2: Second leaf
+       └── leaf-3: Third leaf
+
+   * = Currently highlighted node (leaf-1)
+   ```
+   **Important**: Render the tree fresh for EVERY leaf, not just once at the start!
+
+   **B. Display current leaf details** (leaf at `current_index`):
+   - Title & description
+   - Test strategy (type, cases, given/when/then)
+   - Implementation plan (files, dependencies, notes)
+   - Current status
+
+   **C. Ask user via question tool** with options:
+   - **"Adjust"** → Use `spec_tree_update()` to modify this leaf → Re-display updated leaf → **Go back to step A** (re-render tree with updated info)
+   - **"Next leaf"** → `current_index++` → **Go back to step A** (render tree with next leaf highlighted)
+   - **"Go back"** → `current_index--` (if > 0) → **Go back to step A** (render tree with previous leaf highlighted)
+   - **"Skip remaining"** → Exit review loop and proceed to step 4
+
+   **D. Note**: Do NOT allow changing `depends_on` during review (to preserve order)
+
+4. **After all leaves reviewed or skip**:
+   - Confirm with user: "Proceed to implementation with X leaves reviewed, Y leaves skipped?"
+   - Only proceed to Phase 6 after explicit confirmation
+
+**Key Points**:
+- **RENDER ASCII TREE BEFORE EACH LEAF** - not just once at start!
+- User can adjust ANY aspect of the leaf (tests, implementation, description, etc.)
+- "Skip remaining" is an escape hatch - no warning needed
+- Must confirm before proceeding to implementation
+
 ### Phase 6: Implementation
 
 When all leaves at a level are approved:
@@ -360,6 +407,7 @@ The question tool is your primary interface with the user. Use it for:
 - **spec_tree_update**: Update a node (type, status, tests, file_changes, depends_on, etc.)
 - **spec_tree_get_my_node**: Get specific node by ID
 - **spec_tree_get_leaves**: Get leaf nodes in dependency order (topological sort)
+- **spec_tree_render_ascii**: Render ASCII tree visualization (with optional node highlight) ✨ **NEW**
 - **Read, Grep, Glob**: Explore codebase directly
 - **websearch, webfetch**: Research as needed
 - **@test-writer**: Subagent for writing tests (Phase 6 only)
@@ -413,6 +461,14 @@ Self-critique: "Have I challenged enough? What would a reviewer question?"
   ↓
 All Leaves → spec_tree_get_leaves() (returns in dependency order)
   ↓
+**Phase 5.5: Pre-Implementation Review** ✨
+  - FOR EACH leaf (starting at index 0):
+    - Render ASCII tree with CURRENT leaf highlighted (spec_tree_render_ascii)
+    - Show leaf details (tests, implementation plan, etc.)
+    - Ask: Adjust / Next / Go back / Skip remaining
+    - Re-render tree after ANY adjustment!
+  - Confirm before proceeding to implementation
+  ↓
 For each leaf: @test-writer → @implementer → @reviewer → commit
   ↓
 All Complete → Post-implementation critique → Merge to Main
@@ -423,3 +479,4 @@ All Complete → Post-implementation critique → Merge to Main
 - **Surface ambiguity early**: Call it out, offer interpretations, get concrete
 - **Work directly**: No subagents, no waiting, no context handoff
 - **Document resolutions**: Log ambiguity resolutions in `interaction_log`
+- **Review before implementing**: Phase 5.5 catches issues before code is written ✨
