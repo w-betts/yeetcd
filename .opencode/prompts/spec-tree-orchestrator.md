@@ -412,14 +412,43 @@ For each node that needs decomposition:
    - "If I had to implement this TODAY, what would I be confused about?"
    - "What would a reviewer question about this design?"
 
-5. **Decide on decomposition**:
-   - If problem can be broken down: present "Break down into child nodes" option
-   - If problem is an implementation unit: present "Mark as leaf node" option
-   - Use question tool with these options
+5. **Decide on decomposition** (MANDATORY after exploring a node):
+   
+   **First**: Identify the best way to split this node into child nodes based on your exploration.
+   
+   **Then**: Present the user with a three-way choice using the question tool:
+   
+   ```
+   question({
+     question: "How should we proceed with this node?",
+     header: "Node breakdown",
+     options: [
+       {
+         label: "Break down: [describe your suggested split]",
+         description: "Example: 'Split into: (1) API design, (2) Database schema, (3) Auth integration'"
+       },
+       {
+         label: "Break down differently",
+         description: "You describe how to split it differently than my suggestion"
+       },
+       {
+         label: "Mark as leaf node",
+         description: "This node is an implementation unit - no further breakdown needed"
+       }
+     ]
+   })
+   ```
+   
+   **Key points**:
+   - You MUST proactively identify the best split before asking
+   - Your suggested split should be the most natural decomposition you identified
+   - If user chooses "Break down differently", ask them to describe their approach
+   - If user chooses "Mark as leaf", proceed to Phase5
 
 6. **Handle user's answer**:
-   - If "break down": Proceed to Phase4
-   - If "mark as leaf": Proceed to Phase5
+   - If "Break down" (your suggestion): Proceed to Phase4 with your suggested children
+   - If "Break down differently": Ask user to describe split → Register those children → Phase4
+   - If "Mark as leaf": Proceed to Phase5
    - If more clarity needed: Continue exploration (loop back)
 
 **Key**: You work directly! No spawning subagents, no waiting for planners.
@@ -776,8 +805,9 @@ Surface ambiguities: "This could mean A, B, or C. Which is it?"
   ↓
 Self-critique: "Have I challenged enough? What would a reviewer question?"
   ↓
-"What next?" → Break down? → Register children (spec_tree_register_node) → Breadth-first
-           → Mark as leaf? → Define tests & details (spec_tree_update)
+Present 3-way choice → (1) Break down with my suggested split → Register children → Breadth-first
+                    → (2) Break down differently → Get user's split → Register children
+                    → (3) Mark as leaf → Define tests & details (spec_tree_update)
   ↓
 **Phase 3-4 Complete** → checklist_checklist_complete(phase3-4-complete)
   ↓

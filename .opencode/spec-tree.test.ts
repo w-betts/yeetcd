@@ -52,8 +52,9 @@ describe('Spec-Tree Orchestrator Prompt', () => {
     const content = readPrompt(ORCHESTRATOR_FILE);
     expect(content).not.toBeNull();
     expect(content).toMatch(/directly|work directly/i);
-    // Should NOT mention spawning planners
-    expect(content).not.toMatch(/spawn.*planner|planner.*subagent/i);
+    // Should NOT mention spawning planners (positive mention like "spawn planner subagents")
+    // But should mention NOT spawning them
+    expect(content).toMatch(/not.*spawn.*planner|do NOT.*spawn.*planner/i);
   });
 
   test('Mentions breadth-first exploration', () => {
@@ -134,6 +135,22 @@ describe('Spec-Tree Orchestrator Prompt', () => {
     const content = readPrompt(ORCHESTRATOR_FILE);
     expect(content).not.toBeNull();
     expect(content).toMatch(/depends_on|dependency/i);
+  });
+
+  test('Mentions three-way breakdown choice after exploring node', () => {
+    const content = readPrompt(ORCHESTRATOR_FILE);
+    expect(content).not.toBeNull();
+    // Should present user with three options: best split, other way, leaf
+    expect(content).toMatch(/best split|agent.*split|suggested.*split/i);
+    expect(content).toMatch(/break down.*other way|different.*split|alternative.*split/i);
+    expect(content).toMatch(/leaf node|mark as leaf/i);
+  });
+
+  test('Specifies agent should identify best split before asking', () => {
+    const content = readPrompt(ORCHESTRATOR_FILE);
+    expect(content).not.toBeNull();
+    // Agent should proactively identify the best way to split
+    expect(content).toMatch(/identify.*split|propose.*split|best.*decomposition/i);
   });
 });
 
