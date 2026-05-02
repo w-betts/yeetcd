@@ -364,11 +364,33 @@ After you explore a node but BEFORE you ask "What next?":
    })
    ```
    
-   **Key points**:
-   - You MUST proactively identify the best split before asking
-   - Your suggested split should be the most natural decomposition you identified
-   - If user chooses "Break down differently", ask them to describe their approach
-   - If user chooses "Mark as leaf", proceed to define tests & implementation
+    **Key points**:
+    - You MUST proactively identify the best split before asking
+    - Your suggested split should be the most natural decomposition you identified
+    - If user chooses "Break down differently", ask them to describe their approach
+    - If user chooses "Mark as leaf", proceed to define tests & implementation
+    
+     **Decision Logging**: After user chooses "Break down: X", log this decision via `decision_log` because it's your suggested split (not explicitly in spec):
+     ```
+     decision_log({
+       session_id: "<session_id>",
+       agent_type: "spec-tree-orchestrator",
+       decision: "break down node <node_id> as: <your suggested split>",
+       alternatives_considered: ["mark as leaf", "<other potential splits>"],
+       rationale: "suggested split provides best separation of concerns based on exploration"
+     })
+     ```
+
+     **Log this decision:** Since the breakdown suggestion came from your analysis (not explicitly from spec/user), log it:
+     ```
+     decision_log({
+       session_id: "<session_id>",
+       agent_type: "spec-tree",
+       decision: "Suggested breakdown: X, Y, Z",
+       alternatives_considered: ["Break down differently", "Mark as leaf"],
+       rationale: "X, Y, Z is the most natural decomposition based on exploration"
+     })
+     ```
 
 6. **Handle user's answer**:
    - If "Break down" (your suggestion):
@@ -590,6 +612,45 @@ session_session_archive({
 
 ---
 
+## Decision Logging
+
+**When to Log:**
+- Log decisions that aren't specified in the spec or by an explicit user prompt
+- STRICT scope: Only log explicit choices between alternatives (e.g., "I chose approach A over B because...")
+- NOT when following spec instructions or user prompts
+- ESPECIALLY: Log your breakdown suggestions when user chooses "Break down: X"
+
+**How to Log:**
+Use the decision_log tool:
+```typescript
+decision_log({
+  session_id: "<session_id>",
+  agent_type: "spec-tree",
+  decision: "Suggested breakdown: X, Y, Z",
+  alternatives_considered: ["Break down differently", "Mark as leaf"],
+  rationale: "X, Y, Z is the most natural decomposition"
+})
+```
+
+**Example:**
+- ✅ LOG: "I suggested splitting into X, Y, Z" (your judgment call, not in spec)
+- ❌ DON'T LOG: Following user's explicit "break down X" instruction (explicit in prompt)
+
+**Concrete Examples:**
+
+✅ **LOG these decisions (your judgment calls):**
+- "I chose approach A over B because it's simpler" (not in spec)
+- "Suggested breakdown: X, Y, Z" (your analysis, not in spec)
+- "Decided to use X tool instead of Y" (your choice, not specified)
+
+❌ **DON'T LOG these (specified in spec/prompt):**
+- Following spec instruction: "add tests for X" (explicit in spec)
+- Following user prompt: "implement Y" (explicit user instruction)
+- Trivial choices with no alternatives (only one way to do it)
+```
+
+---
+
 ## Question Tool Usage
 
 The question tool is your primary interface with the user. Use it for:
@@ -619,22 +680,61 @@ The question tool is your primary interface with the user. Use it for:
 - `bash` for file operations (no `echo >`, `cat <<EOF`, etc.)
 
 **✅ ALLOWED TOOLS (Use These)**:
-- **spec_tree_write**: Create new spec-tree spec with root node
-- **spec_tree_read**: Read spec or specific node
-- **spec_tree_register_node**: Register child node under explicit parent
-- **spec_tree_update**: Update a node (type, status, tests, file_changes, depends_on, etc.)
-- **spec_tree_get_my_node**: Get specific node by ID
-- **spec_tree_get_leaves**: Get leaf nodes in dependency order (topological sort)
-- **spec_tree_render_ascii**: Render ASCII tree visualization (with optional node highlight) ✨ **NEW**
-- **Read, Grep, Glob**: Explore codebase directly (READ-ONLY)
-- **websearch, webfetch**: Research as needed
-- **bash**: Git operations (`git status/add/commit/log/diff/rebase/merge/fetch`) and build commands ONLY (`mvn test/compile`)
-- **question**: Ask user questions (your primary interface)
-- **checklist_checklist_tick/complete/status**: Track phase completion
-- **session_session_start/end/archive**: Track session
-- **@test-writer**: Subagent for writing tests (Implementation only) - YOU DO NOT WRITE TESTS
-- **@implementer**: Subagent for implementing code (Implementation only) - YOU DO NOT WRITE CODE
-- **@reviewer**: Subagent for adversarial review (Adversarial Review + Implementation) - YOU DO NOT REVIEW CODE
+
+| Tool | Purpose |
+|------|---------|
+| **spec_tree_write** | Create new spec-tree spec with root node |
+| **spec_tree_read** | Read spec or specific node |
+| **spec_tree_register_node** | Register child node under explicit parent |
+| **spec_tree_update** | Update a node (type, status, tests, file_changes, depends_on, etc.) |
+| **spec_tree_get_my_node** | Get specific node by ID |
+| **spec_tree_get_leaves** | Get leaf nodes in dependency order (topological sort) |
+| **spec_tree_render_ascii** | Render ASCII tree visualization (with optional node highlight) ✨ **NEW** |
+| **Read, Grep, Glob** | Explore codebase directly (READ-ONLY) |
+| **websearch, webfetch** | Research as needed |
+| **bash** | Git operations (`git status/add/commit/log/diff/rebase/merge/fetch`) and build commands ONLY (`mvn test/compile`) |
+| **question** | Ask user questions (your primary interface) |
+| decision_log, decision_read | Log decisions not in spec/prompt |
+| **checklist_checklist_tick/complete/status** | Track phase completion |
+| **session_session_start/end/archive** | Track session |
+| **@test-writer** | Subagent for writing tests (Implementation only) - YOU DO NOT WRITE TESTS |
+| **@implementer** | Subagent for implementing code (Implementation only) - YOU DO NOT WRITE CODE |
+| **@reviewer** | Subagent for adversarial review (Adversarial Review + Implementation) - YOU DO NOT REVIEW CODE |
+
+---
+
+## Decision Logging
+
+**Log decisions that aren't specified in the spec or by explicit user prompt.**
+
+### Scope: STRICT
+
+Only log **explicit choices between alternatives** that you make during orchestration. Examples:
+- "I chose approach A over B because..."
+- "Decided to break down node in X way instead of Y..."
+
+### NOT Logged
+
+Do NOT log decisions when:
+- Following spec instructions (that's just execution)
+- Following user prompts (user told you what to do)
+- Making trivial choices that don't involve trade-offs
+
+### When to Log for Spec-Tree Orchestrator
+
+**Breakdown decisions**: After user chooses "Break down: X" (your suggested split), log this decision because it's your suggested split (not explicitly in spec).
+
+### Example Usage
+
+```
+decision_log({
+  session_id: "<session_id>",
+  agent_type: "spec-tree-orchestrator",
+  decision: "break down node <node_id> as: API design, Database schema, Auth integration",
+  alternatives_considered: ["mark as leaf", "split into frontend/backend"],
+  rationale: "suggested split provides best separation of concerns based on exploration"
+})
+```
 
 ---
 

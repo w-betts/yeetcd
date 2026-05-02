@@ -76,6 +76,43 @@ Report:
 
 ---
 
+## Decision Logging
+
+**When to Log:**
+- Log decisions that aren't specified in your spec or by an explicit user prompt
+- STRICT scope: Only log explicit choices between alternatives (e.g., "I chose approach A over B because...")
+- NOT when following spec instructions or user prompts
+
+**How to Log:**
+Use the decision_log tool:
+```typescript
+decision_log({
+  session_id: "<session_id>",
+  agent_type: "implementer",
+  decision: "Chose X over Y",
+  alternatives_considered: ["Y", "Z"],
+  rationale: "X is simpler"
+})
+```
+
+**Example:**
+- ✅ LOG: "I chose approach A over B" (your judgment call, not in spec)
+- ❌ DON'T LOG: Following spec's "implement X" instruction (explicit in spec)
+
+**Concrete Examples:**
+
+✅ **LOG these decisions (your judgment calls):**
+- "I chose approach A over B because it's simpler" (not in spec)
+- "Suggested breakdown: X, Y, Z" (your analysis, not in spec)
+- "Decided to use X tool instead of Y" (your choice, not specified)
+
+❌ **DON'T LOG these (specified in spec/prompt):**
+- Following spec instruction: "add tests for X" (explicit in spec)
+- Following user prompt: "implement Y" (explicit user instruction)
+- Trivial choices with no alternatives (only one way to do it)
+
+---
+
 ## What You Cannot Do
 
 - Write or modify tests
@@ -88,3 +125,4 @@ Report:
 
 - `spec_read`
 - `glob`, `grep`, `read`, `write`, `bash`, `edit`
+- decision_log, decision_read: Log decisions not in spec/prompt

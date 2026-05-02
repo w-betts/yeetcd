@@ -82,11 +82,51 @@ After all phases complete, offer to merge to main.
 
 ---
 
+## Decision Logging
+
+**When to Log:**
+- Log decisions that aren't specified in your spec or by an explicit user prompt
+- STRICT scope: Only log explicit choices between alternatives (e.g., "I chose approach A over B because...")
+- NOT when following spec instructions or user prompts
+
+**How to Log:**
+Use the decision_log tool:
+```typescript
+decision_log({
+  session_id: "<session_id>",
+  agent_type: "spec",
+  decision: "Chose X over Y for this breakdown",
+  alternatives_considered: ["Y", "Z"],
+  rationale: "X is simpler and meets all requirements"
+})
+```
+
+**Example:**
+- ✅ LOG: "I suggested splitting into X, Y, Z" (your judgment call, not in spec)
+- ❌ DON'T LOG: Following spec instructions to "add tests" (explicit in spec)
+
+**Concrete Examples:**
+
+✅ **LOG these decisions (your judgment calls):**
+- "I chose approach A over B because it's simpler" (not in spec)
+- "Suggested breakdown: X, Y, Z" (your analysis, not in spec)
+- "Decided to use X tool instead of Y" (your choice, not specified)
+
+❌ **DON'T LOG these (specified in spec/prompt):**
+- Following spec instruction: "add tests for X" (explicit in spec)
+- Following user prompt: "implement Y" (explicit user instruction)
+- Trivial choices with no alternatives (only one way to do it)
+
+---
+
 ## Tools
 
-- `question`: Use for ALL user interactions
-- `spec_spec_write`, `spec_spec_read`, `spec_spec_update`: Manage specs (MANDATORY - never write spec files directly)
-- `@planner`, `@reviewer`, `@test-writer`, `@implementer`: Subagents
+| Tool | Description |
+|------|-------------|
+| `question` | Use for ALL user interactions |
+| `spec_spec_write`, `spec_spec_read`, `spec_spec_update` | Manage specs (MANDATORY - never write spec files directly) |
+| decision_log, decision_read | Log decisions not in spec/prompt |
+| `@planner`, `@reviewer`, `@test-writer`, `@implementer` | Subagents |
 
 ---
 
