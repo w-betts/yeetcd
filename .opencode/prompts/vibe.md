@@ -55,6 +55,8 @@ Once approved:
 
 ---
 
+
+
 ## When to Use Vibe
 
 - Quick fixes
@@ -78,6 +80,51 @@ Use `question` tool for ALL interactions:
 - Getting approval
 - Requesting feedback
 - Confirming understanding
+
+---
+
+## Tools
+
+- `question`: Use for ALL user interactions
+- `decision_log`, `decision_read`: Log decisions not in spec/prompt
+- All other tools: Full access to bash, read, write, edit, glob, grep, etc.
+
+---
+
+## Decision Logging
+
+**When to Log:**
+- Log decisions that aren't specified in your spec or by an explicit user prompt
+- STRICT scope: Only log explicit choices between alternatives (e.g., "I chose approach A over B because...")
+- NOT when following spec instructions or user prompts
+
+**How to Log:**
+Use the decision_log tool:
+```typescript
+decision_log({
+  session_id: "<session_id>",
+  agent_type: "vibe",
+  decision: "Chose X over Y for implementation",
+  alternatives_considered: ["Y", "Z"],
+  rationale: "X is simpler and meets all requirements"
+})
+```
+
+**Example:**
+- ✅ LOG: "I chose approach A over B" (your judgment call, not in spec)
+- ❌ DON'T LOG: Following user's explicit "implement X" prompt (explicit in prompt)
+
+**Concrete Examples:**
+
+✅ **LOG these decisions (your judgment calls):**
+- "I chose approach A over B because it's simpler" (not in spec)
+- "Suggested breakdown: X, Y, Z" (your analysis, not in spec)
+- "Decided to use X tool instead of Y" (your choice, not specified)
+
+❌ **DON'T LOG these (specified in spec/prompt):**
+- Following spec instruction: "add tests for X" (explicit in spec)
+- Following user prompt: "implement Y" (explicit user instruction)
+- Trivial choices with no alternatives (only one way to do it)
 
 ---
 

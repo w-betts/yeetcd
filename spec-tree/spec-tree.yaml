@@ -1,71 +1,344 @@
-title: "Go SDK for Yeetcd Pipeline Definitions"
+title: "Agent Decision Logging System"
 version: 1
 root:
-  id: "go-sdk-root"
-  title: "Go SDK for Yeetcd Pipeline Definitions"
-  description: "Create Go SDK for defining pipelines in Go, with test SDK and sample for e2e testing"
-  node_type: "unexpanded"
+  id: "root-decision-log"
+  title: "Agent Decision Logging"
+  description: "Let's make it so that agent flows log decisions they make that aren't specified in their spec or by an explicit user prompt. These should be logged to a file so that they survive session restarts."
+  node_type: "branch"
   depends_on: []
   planning_status: "pending"
   children:
-    - id: "go-sdk-types"
-      title: "Go SDK Core Types"
-      description: "Core Go types: Pipeline, Work, WorkDefinition, Conditions, Parameters. Mirror Java SDK API in Go"
-      node_type: "unexpanded"
+    - id: "decision-tool"
+      title: "Create decision_log tool"
+      description: "Create decision.ts tool with decision_log (write) and decision_read (read) functions. Follow existing patterns from session.ts and checklist.ts. Store logs in .opencode/decision-logs/<session-id>.yaml (already gitignored). Schema: session_id, timestamp, agent_type, decision, alternatives_considered, rationale."
+      node_type: "leaf"
       depends_on: []
-      planning_status: "pending"
-      children: []
-      interaction_log: []
-      tests: []
-      file_changes: []
-    - id: "go-sdk-generator"
-      title: "Generator Tool"
-      description: "Create generate command, implement static source parsing to find pipeline functions, output pipelines.pb"
-      node_type: "unexpanded"
-      depends_on: ["go-sdk-types"]
-      planning_status: "pending"
+      planning_status: "ready"
       children: []
       interaction_log: []
       tests:
-        - description: "Generator produces valid protobuf from sample pipelines"
-          type: "integration"
-          target_component: "generator"
+        - description: "decision_log tool writes to correct path .opencode/decision-logs/<session-id>.yaml"
+          type: "unit"
+          target_component: "decision.ts"
           contracts:
-            - "generator finds exported *Pipeline() functions"
-            - "generator outputs valid protobuf"
-            - "protobuf can be parsed by controller"
-          given_when_then: "Given sample project with 7 pipeline functions, when generator runs, then valid protobuf is produced with 7 pipelines"
-      file_changes: []
-    - id: "go-sdk-test"
-      title: "Test SDK"
-      description: "Mirror Java's FakePipelineRunner - mock execution engine, test builders for behavior"
-      node_type: "unexpanded"
-      depends_on: ["go-sdk-types"]
+            - "decision_log()"
+          given_when_then: "GIVEN session_id='test-123' and worktree='/project' with .opencode directory, WHEN decision_log is called with valid args, THEN file is created at '/project/.opencode/decision-logs/test-123.yaml' with decisions array containing 1 entry"
+        - description: "decision_log tool appends to existing decision log file"
+          type: "unit"
+          target_component: "decision.ts"
+          contracts:
+            - "decision_log()"
+          given_when_then: "GIVEN decision log file already exists with 1 entry in decisions array, WHEN decision_log is called with new decision, THEN file contains decisions array with 2 entries (appended, not overwritten)"
+        - description: "decision_log tool validates required fields (session_id, agent_type, decision)"
+          type: "unit"
+          target_component: "decision.ts"
+          contracts:
+            - "decision_log()"
+          given_when_then: "GIVEN decision_log called with missing required field (e.g., no session_id), THEN returns error message and does not write file"
+        - description: "decision_read tool reads decision log correctly"
+          type: "unit"
+          target_component: "decision.ts"
+          contracts:
+            - "decision_read()"
+          given_when_then: "GIVEN decision log file exists with decisions array containing entries, WHEN decision_read is called with session_id, THEN returns formatted string with all decision entries"
+        - description: "decision_read tool handles missing session gracefully"
+          type: "unit"
+          target_component: "decision.ts"
+          contracts:
+            - "decision_read()"
+          given_when_then: "GIVEN no decision log exists for session_id, WHEN decision_read is called, THEN returns appropriate 'not found' message"
+        - description: "YAML schema uses array of decisions with all required fields"
+          type: "unit"
+          target_component: "decision.ts"
+          contracts:
+            - "DecisionLogSchema"
+          given_when_then: "GIVEN DecisionLogSchema defined with Zod, WHEN validating decision log object, THEN accepts {session_id: string, decisions: array of {timestamp, agent_type, decision, alternatives_considered, rationale}}"
+        - description: "opencode.json contains decision.ts in plugin array"
+          type: "unit"
+          target_component: "opencode.json"
+          contracts:
+            - "plugin array"
+          given_when_then: "GIVEN opencode.json file, WHEN reading plugin array, THEN contains './.opencode/tools/decision.ts'"
+      test_status: "passed"
+      file_changes:
+        - action: "create"
+          description: "Create decision logging tool with decision_log (write/append) and decision_read (read) functions. Schema: {session_id, decisions: array}"
+          is_test: false
+          path: ".opencode/tools/decision.ts"
+        - action: "create"
+          description: "Unit tests for decision logging tool (array schema)"
+          is_test: true
+          path: ".opencode/decision.test.ts"
+        - action: "modify"
+          description: "Add decision.ts to plugin array so tools are loaded"
+          is_test: false
+          path: "opencode.json"
+      impl_status: "completed"
+    - id: "update-agent-prompts"
+      title: "Update all agent prompts"
+      description: "Update all agent prompts (spec, vibe, fix, spec-tree-orchestrator, implementer, reviewer, test-writer) to: 1) Add decision logging instructions, 2) Define when to log (strict: only explicit choices between alternatives not in spec/prompt), 3) Show how to use decision_log tool, 4) Add to tools list."
+      node_type: "branch"
+      depends_on: []
       planning_status: "pending"
-      children: []
+      children:
+        - id: "update-primary-agents"
+          title: "Update primary agents"
+          description: "Update spec.md, vibe.md, fix.md, spec-tree-orchestrator.md to: 1) Add 'Decision Logging' section explaining when to log (strict: only explicit choices between alternatives not in spec/prompt), 2) Show decision_log tool usage example, 3) Add decision_log to tools list, 4) Add instruction to log breakdown decisions"
+          node_type: "leaf"
+          depends_on:
+            - "decision-tool"
+          planning_status: "ready"
+          children: []
+          interaction_log: []
+          tests:
+            - description: "spec.md contains decision_log in tools list"
+              type: "unit"
+              target_component: "spec.md"
+              contracts:
+                - "Tools section"
+              given_when_then: "GIVEN spec.md prompt file, WHEN read by agent, THEN tools list contains 'decision_log' and 'decision_read'"
+            - description: "spec.md has Decision Logging section"
+              type: "unit"
+              target_component: "spec.md"
+              contracts:
+                - "Decision Logging section"
+              given_when_then: "GIVEN spec.md prompt file, WHEN searched for 'Decision Logging', THEN section exists explaining when to log (strict: only explicit choices between alternatives)"
+            - description: "vibe.md contains decision_log in tools list"
+              type: "unit"
+              target_component: "vibe.md"
+              contracts:
+                - "Tools section"
+              given_when_then: "GIVEN vibe.md prompt file, WHEN read by agent, THEN tools list contains 'decision_log'"
+            - description: "vibe.md has Decision Logging section"
+              type: "unit"
+              target_component: "vibe.md"
+              contracts:
+                - "Decision Logging section"
+              given_when_then: "GIVEN vibe.md prompt file, WHEN searched for 'Decision Logging', THEN section exists"
+            - description: "fix.md contains decision_log in tools list"
+              type: "unit"
+              target_component: "fix.md"
+              contracts:
+                - "Tools section"
+              given_when_then: "GIVEN fix.md prompt file, WHEN read by agent, THEN tools list contains 'decision_log'"
+            - description: "fix.md has Decision Logging section"
+              type: "unit"
+              target_component: "fix.md"
+              contracts:
+                - "Decision Logging section"
+              given_when_then: "GIVEN fix.md prompt file, WHEN searched for 'Decision Logging', THEN section exists"
+            - description: "spec-tree-orchestrator.md logs breakdown decisions"
+              type: "unit"
+              target_component: "spec-tree-orchestrator.md"
+              contracts:
+                - "Explore & Decompose section"
+              given_when_then: "GIVEN spec-tree-orchestrator.md, WHEN agent makes breakdown choice (e.g., 'Break down: X, Y, Z'), THEN instructions say to log this decision via decision_log"
+          test_status: "passed"
+          file_changes:
+            - action: "modify"
+              description: "Add Decision Logging section and decision_log to tools list"
+              is_test: false
+              path: ".opencode/prompts/spec.md"
+            - action: "modify"
+              description: "Add Decision Logging section and decision_log to tools list"
+              is_test: false
+              path: ".opencode/prompts/vibe.md"
+            - action: "modify"
+              description: "Add Decision Logging section and decision_log to tools list"
+              is_test: false
+              path: ".opencode/prompts/fix.md"
+            - action: "modify"
+              description: "Add Decision Logging section, decision_log to tools, and instruction to log breakdown decisions"
+              is_test: false
+              path: ".opencode/prompts/spec-tree-orchestrator.md"
+          impl_status: "completed"
+        - id: "update-subagents"
+          title: "Update subagents"
+          description: "Update implementer.md, reviewer.md, test-writer.md to: 1) Add decision logging instructions (when they make choices not in their spec), 2) Show decision_log tool usage, 3) Add to tools list"
+          node_type: "leaf"
+          depends_on:
+            - "decision-tool"
+          planning_status: "ready"
+          children: []
+          interaction_log: []
+          tests:
+            - description: "implementer.md contains decision_log in tools list"
+              type: "unit"
+              target_component: "implementer.md"
+              contracts:
+                - "Tools section"
+              given_when_then: "GIVEN implementer.md prompt file, WHEN read by agent, THEN tools list contains 'decision_log'"
+            - description: "implementer.md has Decision Logging instructions"
+              type: "unit"
+              target_component: "implementer.md"
+              contracts:
+                - "Decision Logging section"
+              given_when_then: "GIVEN implementer.md prompt file, WHEN searched for decision logging instructions, THEN section exists explaining when subagent makes choices not in spec"
+            - description: "reviewer.md contains decision_log in tools list"
+              type: "unit"
+              target_component: "reviewer.md"
+              contracts:
+                - "Tools section"
+              given_when_then: "GIVEN reviewer.md prompt file, WHEN read by agent, THEN tools list contains 'decision_log'"
+            - description: "reviewer.md has Decision Logging instructions"
+              type: "unit"
+              target_component: "reviewer.md"
+              contracts:
+                - "Decision Logging section"
+              given_when_then: "GIVEN reviewer.md prompt file, WHEN searched for decision logging instructions, THEN section exists"
+            - description: "test-writer.md contains decision_log in tools list"
+              type: "unit"
+              target_component: "test-writer.md"
+              contracts:
+                - "Tools section"
+              given_when_then: "GIVEN test-writer.md prompt file, WHEN read by agent, THEN tools list contains 'decision_log'"
+            - description: "test-writer.md has Decision Logging instructions"
+              type: "unit"
+              target_component: "test-writer.md"
+              contracts:
+                - "Decision Logging section"
+              given_when_then: "GIVEN test-writer.md prompt file, WHEN searched for decision logging instructions, THEN section exists"
+          test_status: "passed"
+          file_changes:
+            - action: "modify"
+              description: "Add Decision Logging section and decision_log to tools list"
+              is_test: false
+              path: ".opencode/prompts/implementer.md"
+            - action: "modify"
+              description: "Add Decision Logging section and decision_log to tools list"
+              is_test: false
+              path: ".opencode/prompts/reviewer.md"
+            - action: "modify"
+              description: "Add Decision Logging section and decision_log to tools list"
+              is_test: false
+              path: ".opencode/prompts/test-writer.md"
+          impl_status: "completed"
+        - id: "add-decision-examples"
+          title: "Add decision logging examples"
+          description: "Add concrete examples to each agent prompt showing when to log decisions (e.g., 'I chose approach A over B because...') and when NOT to log (e.g., following explicit spec instructions)."
+          node_type: "leaf"
+          depends_on:
+            - "update-primary-agents"
+            - "update-subagents"
+          planning_status: "ready"
+          children: []
+          interaction_log: []
+          tests:
+            - description: "spec.md has concrete examples of decision logging"
+              type: "unit"
+              target_component: "spec.md"
+              contracts:
+                - "Decision Logging section"
+              given_when_then: "GIVEN spec.md, WHEN searching for examples, THEN shows 'I chose approach A over B because...' and 'Following spec instruction = no log needed'"
+            - description: "vibe.md has concrete examples of decision logging"
+              type: "unit"
+              target_component: "vibe.md"
+              contracts:
+                - "Decision Logging section"
+              given_when_then: "GIVEN vibe.md, WHEN searching for examples, THEN shows when vibe agent should log implementation choices not in spec"
+            - description: "fix.md has concrete examples of decision logging"
+              type: "unit"
+              target_component: "fix.md"
+              contracts:
+                - "Decision Logging section"
+              given_when_then: "GIVEN fix.md, WHEN searching for examples, THEN shows when fix agent should log choices not in spec"
+            - description: "spec-tree-orchestrator.md shows breakdown decision logging example"
+              type: "unit"
+              target_component: "spec-tree-orchestrator.md"
+              contracts:
+                - "Decision Logging section"
+              given_when_then: "GIVEN spec-tree-orchestrator.md, WHEN reading Decision Logging section, THEN shows example: 'I suggested splitting into X, Y, Z because...'"
+            - description: "implementer.md has concrete examples of decision logging"
+              type: "unit"
+              target_component: "implementer.md"
+              contracts:
+                - "Decision Logging section"
+              given_when_then: "GIVEN implementer.md, WHEN searching for examples, THEN shows when implementer should log choices not in spec"
+            - description: "reviewer.md has concrete examples of decision logging"
+              type: "unit"
+              target_component: "reviewer.md"
+              contracts:
+                - "Decision Logging section"
+              given_when_then: "GIVEN reviewer.md, WHEN searching for examples, THEN shows when reviewer should log choices not in spec"
+            - description: "test-writer.md has concrete examples of decision logging"
+              type: "unit"
+              target_component: "test-writer.md"
+              contracts:
+                - "Decision Logging section"
+              given_when_then: "GIVEN test-writer.md, WHEN searching for examples, THEN shows when test-writer should log choices not in spec"
+          test_status: "passed"
+          file_changes:
+            - action: "modify"
+              description: "Add concrete examples of when to log decisions (and when not to)"
+              is_test: false
+              path: ".opencode/prompts/spec.md"
+            - action: "modify"
+              description: "Add concrete examples of when to log decisions"
+              is_test: false
+              path: ".opencode/prompts/vibe.md"
+            - action: "modify"
+              description: "Add concrete examples of when to log decisions"
+              is_test: false
+              path: ".opencode/prompts/fix.md"
+            - action: "modify"
+              description: "Add concrete examples of when to log decisions"
+              is_test: false
+              path: ".opencode/prompts/spec-tree-orchestrator.md"
+            - action: "modify"
+              description: "Add concrete examples of when to log decisions"
+              is_test: false
+              path: ".opencode/prompts/implementer.md"
+            - action: "modify"
+              description: "Add concrete examples of when to log decisions"
+              is_test: false
+              path: ".opencode/prompts/reviewer.md"
+            - action: "modify"
+              description: "Add concrete examples of when to log decisions"
+              is_test: false
+              path: ".opencode/prompts/test-writer.md"
+          impl_status: "completed"
       interaction_log: []
       tests: []
       file_changes: []
-    - id: "go-sdk-sample"
-      title: "Sample Project"
-      description: "Create sample project demonstrating all features, use for e2e testing"
-      node_type: "unexpanded"
-      depends_on: ["go-sdk-types", "go-sdk-generator", "go-sdk-test"]
-      planning_status: "pending"
+    - id: "add-examples-docs"
+      title: "Add examples and documentation"
+      description: "Add concrete examples of decision logging in agent prompts, create a brief documentation file explaining the feature, and ensure the .opencode/.gitignore correctly excludes decision-logs directory."
+      node_type: "leaf"
+      depends_on:
+        - "add-decision-examples"
+      planning_status: "ready"
       children: []
       interaction_log: []
-      tests: []
-      file_changes: []
-    - id: "go-sdk-integration"
-      title: "Controller Integration"
-      description: "Update controller to read embedded pipelines.pb, update yeetcd.yaml to support GO language"
-      node_type: "unexpanded"
-      depends_on: ["go-sdk-generator", "go-sdk-sample"]
-      planning_status: "pending"
-      children: []
-      interaction_log: []
-      tests: []
-      file_changes: []
+      tests:
+        - description: "Decision logging documentation exists"
+          type: "unit"
+          target_component: "decision-logging.md"
+          contracts:
+            - "Documentation"
+          given_when_then: "GIVEN .opencode/docs/ directory, WHEN checking for decision-logging.md, THEN file exists with explanation of feature and examples"
+        - description: ".gitignore excludes decision-logs"
+          type: "unit"
+          target_component: ".opencode/.gitignore"
+          contracts:
+            - ".gitignore"
+          given_when_then: "GIVEN .opencode/.gitignore file, WHEN reading contents, THEN contains 'decision-logs' entry"
+        - description: "Documentation explains strict scope"
+          type: "unit"
+          target_component: "decision-logging.md"
+          contracts:
+            - "Documentation"
+          given_when_then: "GIVEN decision-logging.md, WHEN reading, THEN explains 'strict' scope: only log explicit choices between alternatives not in spec/prompt"
+      test_status: "passed"
+      file_changes:
+        - action: "create"
+          description: "Create brief documentation file explaining decision logging feature"
+          is_test: false
+          path: ".opencode/docs/decision-logging.md"
+        - action: "modify"
+          description: "Ensure decision-logs is in .gitignore"
+          is_test: false
+          path: ".opencode/.gitignore"
+      impl_status: "completed"
   interaction_log: []
   tests: []
   file_changes: []

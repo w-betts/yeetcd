@@ -217,6 +217,7 @@
     "./.opencode/plugins/notification-plugin.ts",
     "./.opencode/tools/session.ts",
     "./.opencode/tools/checklist.ts",
+    "./.opencode/tools/decision.ts",
     "./.opencode/plugins/spec-tree-plugin.ts",
     "./.opencode/plugins/supervisor-plugin.ts"
   ],
