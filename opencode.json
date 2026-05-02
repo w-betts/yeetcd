@@ -188,6 +188,11 @@
       "permission": {
         "question": "allow",
         "doc_read": "allow",
+        "edit": {
+          "*": "deny"
+        },
+        "write": "deny",
+        "apply_patch": "deny",
         "task": {
           "*": "deny",
           "node": "allow",
