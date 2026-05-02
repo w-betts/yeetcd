@@ -136,9 +136,25 @@ spec_tree_write({
 
 **Gate Check:** Verify spec-tree root node exists.
 
-**For EACH node (breadth-first):**
+**🔴 RECURSIVE WORKFLOW - ABSOLUTE DEFINITION:**
 
-1. **Explore directly** - Read, Grep, Glob, websearch
+When you break down a node and register children, you **MUST** process **EVERY child node** through the **COMPLETE workflow below** (steps 1-5). This is NOT optional.
+
+**"Recurse" means EXACTLY this:**
+1. For **EACH child node** just registered
+2. Process that child through steps 1-5 (Explore → Question → Self-critique → Decide Decomposition)
+3. If that child is broken down further, repeat for **ITS** children
+4. Only after **ALL descendants** of the original node are processed (either as leaves or fully decomposed branches) do you move to the next node at the same level
+
+**BREADTH-FIRST EXECUTION (MANDATORY ORDER):**
+- Level 0: Process root node
+- Level 1: Process **ALL** children of root (complete workflow for each)
+- Level 2: Process **ALL** grandchildren (complete workflow for each)
+- Continue until all nodes are either "leaf" or "branch" with all children processed
+
+**For EACH node (apply the COMPLETE workflow):**
+
+1. **Explore directly** - Read, Grep, Glob, websearch (appropriate to this node's granularity)
 2. **Provoke thinking** - Challenge approach, surface trade-offs, question assumptions
 3. **🔒 ASK AT LEAST ONE QUESTION AT THIS NODE'S GRANULARITY (MANDATORY - NO EXCEPTIONS):**
     - **MUST use `question` tool BEFORE any breakdown decision**
@@ -152,9 +168,9 @@ spec_tree_write({
     - **MUST WAIT for explicit user response - NEVER assume or proceed without it**
     - **Base your recommendation on the discussion in step 3** - You now have context from user interaction
     - Present 3-way choice via `question`:
-      - **"Break down: [your suggested split]"** → On explicit user approval ONLY → Log decision via `decision_log` → Register children → Recurse
-      - **"Break down differently"** → Get user's split → On explicit user approval ONLY → Register children → Recurse
-      - **"Mark as leaf"** → On explicit user approval ONLY → Define tests & implementation details → Next node
+      - **"Break down: [your suggested split]"** → On explicit user approval ONLY → Log decision via `decision_log` → Register children → **RECURSE (process ALL children through steps 1-5)**
+      - **"Break down differently"** → Get user's split → On explicit user approval ONLY → Register children → **RECURSE (process ALL children through steps 1-5)**
+      - **"Mark as leaf"** → On explicit user approval ONLY → Define tests & implementation details → **Move to next node at same level**
     - **NEVER auto-advance** - Even if the choice seems "obvious", ALWAYS get explicit confirmation
 
 **Leaf definition (MANDATORY):**
