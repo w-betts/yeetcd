@@ -61,4 +61,38 @@ describe('Spec-Tree Plugin', () => {
     const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
     expect(content).toMatch(/topologicalSort/);
   });
+
+  test('Plugin defines spec_tree_list tool', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/spec_tree_list/);
+  });
+
+  test('Plugin defines spec_tree_use tool', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/spec_tree_use/);
+  });
+
+  test('Plugin uses .opencode/spec-trees directory', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/\.opencode\/spec-trees/);
+  });
+
+  test('Plugin has SPEC_TREES_DIR constant', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/SPEC_TREES_DIR/);
+  });
+
+  test('Plugin generates unique spec paths with branch and timestamp', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/generateSpecPath/);
+    expect(content).toMatch(/getBranchName/);
+    expect(content).toMatch(/timestamp/);
+  });
+
+  test('Plugin uses active spec pointer file', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/ACTIVE_SPEC_POINTER/);
+    expect(content).toMatch(/getActiveSpecPath/);
+    expect(content).toMatch(/setActiveSpecPath/);
+  });
 });

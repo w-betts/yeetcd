@@ -6,12 +6,15 @@
  * for explicit parent ID handling - enabling robust node identity.
  *
  * Tools:
- * - spec_tree_write: Create new spec-tree spec with root node
+ * - spec_tree_write: Create new spec-tree spec with root node (saved to .opencode/spec-trees/)
  * - spec_tree_read: Read spec or specific node
  * - spec_tree_register_node: Register child node under explicit parent
  * - spec_tree_update: Update own node
  * - spec_tree_get_my_node: Get own node
  * - spec_tree_get_leaves: Get leaf nodes in depth-first order
+ * - spec_tree_render_ascii: Render spec-tree as ASCII visualization
+ * - spec_tree_list: List all spec-tree files in the repository
+ * - spec_tree_use: Switch the active spec-tree for the current worktree
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
@@ -124,6 +127,9 @@ type Node = {
 
 // --- Helpers ---
 
+const SPEC_TREES_DIR = ".opencode/spec-trees"
+const ACTIVE_SPEC_POINTER = ".active-spec"
+
 function formatValidationErrors(error: z.ZodError): string {
   return error.issues
     .map((issue) => {
@@ -131,6 +137,54 @@ function formatValidationErrors(error: z.ZodError): string {
       return `  - ${p ? p + ": " : ""}${issue.message}`
     })
     .join("\n")
+}
+
+function getBranchName(worktree: string): string {
+  try {
+    const result = require("child_process").execSync(
+      "git -C " + worktree + " rev-parse --abbrev-ref HEAD",
+      { encoding: "utf-8" }
+    )
+    return result.trim()
+  } catch {
+    return "unknown-branch"
+  }
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+}
+
+function generateSpecPath(worktree: string, title: string): string {
+  const branch = getBranchName(worktree)
+  const timestamp = Math.floor(Date.now() / 1000)
+  const titleSlug = slugify(title)
+  const filename = `${branch}-${timestamp}-${titleSlug}.yaml`
+  return path.join(worktree, SPEC_TREES_DIR, filename)
+}
+
+function getActiveSpecPointerPath(worktree: string): string {
+  return path.join(specTreeDir(worktree), ACTIVE_SPEC_POINTER)
+}
+
+function getActiveSpecPath(worktree: string): string | null {
+  const pointerPath = getActiveSpecPointerPath(worktree)
+  if (!fs.existsSync(pointerPath)) {
+    return null
+  }
+  return fs.readFileSync(pointerPath, "utf-8").trim()
+}
+
+function setActiveSpecPath(worktree: string, specPath: string): void {
+  const dir = specTreeDir(worktree)
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
+  }
+  const pointerPath = getActiveSpecPointerPath(worktree)
+  fs.writeFileSync(pointerPath, specPath)
 }
 
 function parseYaml(content: string): unknown {
@@ -150,7 +204,7 @@ function toYamlString(obj: unknown): string {
 }
 
 function specTreeDir(worktree: string): string {
-  return path.join(worktree, "spec-tree")
+  return path.join(worktree, SPEC_TREES_DIR)
 }
 
 function findNodeById(node: Node, id: string): Node | null {
@@ -237,16 +291,20 @@ function topologicalSort(nodes: Node[], nodeMap: Map<string, Node>): Node[] {
 }
 
 function loadSpec(worktree: string): z.infer<typeof SpecTreeSpecSchema> {
-  const specPath = path.join(specTreeDir(worktree), "spec-tree.yaml")
+  const specPath = getActiveSpecPath(worktree)
+
+  if (!specPath) {
+    throw new Error("No active spec-tree found. Use spec_tree_write to create one.")
+  }
 
   if (!fs.existsSync(specPath)) {
-    throw new Error("spec-tree.yaml not found. Use spec_tree_write to create one.")
+    throw new Error(`Spec-tree file not found at ${specPath}. It may have been moved or deleted.`)
   }
 
   const content = fs.readFileSync(specPath, "utf-8")
   const parsed = parseYaml(content)
   if (!parsed) {
-    throw new Error("Invalid YAML in spec-tree.yaml")
+    throw new Error(`Invalid YAML in spec-tree file at ${specPath}`)
   }
 
   const specResult = SpecTreeSpecSchema.safeParse(parsed)
@@ -263,13 +321,23 @@ function saveSpec(
   worktree: string,
   spec: z.infer<typeof SpecTreeSpecSchema>
 ): void {
-  const specPath = path.join(specTreeDir(worktree), "spec-tree.yaml")
+  const specPath = getActiveSpecPath(worktree)
+
+  if (!specPath) {
+    throw new Error("No active spec-tree found. Use spec_tree_write to create one.")
+  }
 
   const result = SpecTreeSpecSchema.safeParse(spec)
   if (!result.success) {
     throw new Error(
       `Invalid spec after update: ${formatValidationErrors(result.error)}`
     )
+  }
+
+  // Ensure directory exists
+  const dir = path.dirname(specPath)
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
   }
 
   fs.writeFileSync(specPath, toYamlString(spec))
@@ -298,7 +366,8 @@ export const SpecTreePlugin: Plugin = async (ctx) => {
       spec_tree_write: tool({
         description:
           "Create a new spec-tree spec file. " +
-          "Initializes a spec-tree.yaml in the spec-tree/ directory. " +
+          "Initializes a uniquely-named YAML file in .opencode/spec-trees/ directory. " +
+          "The filename includes the branch name, timestamp, and title slug. " +
           "Returns the root node ID for reference.",
         args: {
           title: tool.schema.string().describe("Title of the spec-tree spec"),
@@ -312,8 +381,12 @@ export const SpecTreePlugin: Plugin = async (ctx) => {
         },
         async execute(args, context) {
           const { worktree } = context
-          const dir = specTreeDir(worktree)
 
+          // Generate unique spec path with branch, timestamp, and title
+          const specPath = generateSpecPath(worktree, args.title)
+
+          // Ensure directory exists
+          const dir = path.dirname(specPath)
           if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true })
           }
@@ -337,8 +410,11 @@ export const SpecTreePlugin: Plugin = async (ctx) => {
             )
           }
 
-          const specPath = path.join(dir, "spec-tree.yaml")
+          // Write the spec file
           fs.writeFileSync(specPath, toYamlString(spec))
+
+          // Set this as the active spec for this worktree
+          setActiveSpecPath(worktree, specPath)
 
           return `Spec-tree created successfully.
 
@@ -644,6 +720,119 @@ Test status: ${node.test_status || "pending"}`
           }
 
           return output
+        },
+      }),
+
+      spec_tree_list: tool({
+        description:
+          "List all spec-tree files in the repository. " +
+          "Shows the active spec for the current worktree (marked with *). " +
+          "Use spec_tree_use to switch the active spec.",
+        args: {},
+        async execute(args, context) {
+          const { worktree } = context
+          const specTreesDir = specTreeDir(worktree)
+
+          if (!fs.existsSync(specTreesDir)) {
+            return "No spec-trees directory found. Use spec_tree_write to create one."
+          }
+
+          const files = fs.readdirSync(specTreesDir)
+            .filter(f => f.endsWith(".yaml") && f !== ACTIVE_SPEC_POINTER)
+            .sort()
+
+          if (files.length === 0) {
+            return "No spec-tree files found. Use spec_tree_write to create one."
+          }
+
+          const activeSpecPath = getActiveSpecPath(worktree)
+          const activeFilename = activeSpecPath ? path.basename(activeSpecPath) : null
+
+          let output = `Spec-tree files found: ${files.length}\n\n`
+
+          for (const file of files) {
+            const isActive = file === activeFilename
+            const filePath = path.join(specTreesDir, file)
+            const stats = fs.statSync(filePath)
+
+            // Try to read the title from the file
+            let title = "Unknown"
+            try {
+              const content = fs.readFileSync(filePath, "utf-8")
+              const parsed = parseYaml(content)
+              if (parsed && typeof parsed === 'object' && 'title' in parsed) {
+                title = (parsed as any).title
+              }
+            } catch {
+              // Ignore parse errors
+            }
+
+            const prefix = isActive ? "* " : "  "
+            output += `${prefix}${file}\n`
+            output += `    Title: ${title}\n`
+            output += `    Created: ${stats.birthtime.toISOString()}\n\n`
+          }
+
+          output += "* = Active spec for this worktree\n"
+          output += "\nUse spec_tree_use to switch the active spec."
+
+          return output
+        },
+      }),
+
+      spec_tree_use: tool({
+        description:
+          "Switch the active spec-tree for the current worktree. " +
+          "Provide the filename (e.g., 'main-1777677963-my-title.yaml') " +
+          "or the full path relative to the spec-trees directory.",
+        args: {
+          spec_file: tool.schema
+            .string()
+            .describe("Filename or path of the spec-tree YAML file to use as active"),
+        },
+        async execute(args, context) {
+          const { worktree } = context
+          const specTreesDir = specTreeDir(worktree)
+
+          // Resolve the path
+          let specPath: string
+          if (path.isAbsolute(args.spec_file)) {
+            specPath = args.spec_file
+          } else if (args.spec_file.startsWith(SPEC_TREES_DIR)) {
+            specPath = path.join(worktree, args.spec_file)
+          } else {
+            specPath = path.join(specTreesDir, args.spec_file)
+          }
+
+          // Validate the file exists and is a valid spec
+          if (!fs.existsSync(specPath)) {
+            throw new Error(`Spec file not found: ${specPath}`)
+          }
+
+          // Try to parse and validate
+          const content = fs.readFileSync(specPath, "utf-8")
+          const parsed = parseYaml(content)
+          if (!parsed) {
+            throw new Error(`Invalid YAML in spec file: ${specPath}`)
+          }
+
+          const specResult = SpecTreeSpecSchema.safeParse(parsed)
+          if (!specResult.success) {
+            throw new Error(
+              `Invalid spec-tree spec: ${formatValidationErrors(specResult.error)}`
+            )
+          }
+
+          // Set as active
+          setActiveSpecPath(worktree, specPath)
+
+          return `Active spec-tree switched successfully.
+
+File: ${specPath}
+Title: ${specResult.data.title}
+Root Node: ${specResult.data.root.id} - ${specResult.data.root.title}
+
+Use spec_tree_read to view the spec.`
         },
       }),
     },

@@ -1,3 +1,4 @@
 node_modules
 decision-logs
 sessions/supervisor
+.opencode/spec-trees/**/.active-spec
