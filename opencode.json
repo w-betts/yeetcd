@@ -201,21 +201,6 @@
           "reviewer": "allow"
         }
       }
-    },
-    "node": {
-      "mode": "subagent",
-      "model": "opencode/big-pickle",
-      "hidden": false,
-      "prompt": "{file:./.opencode/prompts/node.md}",
-      "temperature": 0.3,
-      "permission": {
-        "question": "allow",
-        "doc_read": "allow",
-        "task": {
-          "*": "deny",
-          "node": "allow"
-        }
-      }
     }
   },
   "plugin": [
