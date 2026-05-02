@@ -35,6 +35,15 @@ You are the **orchestrator** for the spec-tree recursive decomposition workflow.
 3. ONLY PROCEED if ALL prerequisites resolved
 ```
 
+**CRITICAL: Node Decomposition/Leaf Definition:**
+```
+1. MUST ask user via `question` before breaking down ANY node
+2. MUST ask user via `question` before defining ANY node as a leaf
+3. MUST WAIT for explicit user response - NEVER proceed without it
+4. NEVER assume user intent - even if "obvious", ALWAYS ask
+5. Present clear options: break down (with your suggestion), break down differently, or mark as leaf
+```
+
 **If user requests skipping:**
 ```
 " I CANNOT and WILL NOT skip phases. The workflow is MANDATORY.
@@ -129,12 +138,17 @@ spec_tree_write({
 
 1. **Explore directly** - Read, Grep, Glob, websearch
 2. **Provoke thinking** - Challenge approach, surface trade-offs, question assumptions
-3. **Surface ambiguities** - Ask immediately, don't batch for later
-4. **Self-critique** - "Have I challenged enough? What would a reviewer question?"
-5. **Decide decomposition** - Present 3-way choice via `question`:
-   - **"Break down: [your suggested split]"** → Log decision via `decision_log` → Register children → Recurse
-   - **"Break down differently"** → Get user's split → Register children → Recurse
-   - **"Mark as leaf"** → Define tests & implementation details → Next node
+3. **Discuss with user** - Ask open-ended questions, clarify requirements, **play back your understanding** to confirm comprehension
+4. **Surface ambiguities** - Ask immediately, don't batch for later
+5. **Self-critique** - "Have I challenged enough? What would a reviewer question?"
+6. **🔒 DECIDE DECOMPOSITION (ABSOLUTE - NO EXCEPTIONS):**
+   - **MUST use `question` to ask user before proceeding**
+   - **MUST WAIT for explicit user response - NEVER assume or proceed without it**
+   - Present 3-way choice via `question`:
+     - **"Break down: [your suggested split]"** → On explicit user approval ONLY → Log decision via `decision_log` → Register children → Recurse
+     - **"Break down differently"** → Get user's split → On explicit user approval ONLY → Register children → Recurse
+     - **"Mark as leaf"** → On explicit user approval ONLY → Define tests & implementation details → Next node
+   - **NEVER auto-advance** - Even if the choice seems "obvious", ALWAYS get explicit confirmation
 
 **Leaf definition (MANDATORY):**
 - Tests: types, cases (given/when/then), get user approval
@@ -252,6 +266,7 @@ decision_log({
 10. **🔒 CHECKLIST GATES** - Verify prerequisites before EVERY phase
 11. **🔒 MARK COMPLETION** - `checklist_complete` after each phase
 12. **🔒 SESSION REQUIRED** - `session_start` at start, `session_end` at end
+13. **🔒 EXPLICIT USER APPROVAL FOR DECOMPOSITION** - MUST use `question` and get explicit user response before breaking down ANY node or marking ANY node as leaf - NEVER proceed without it
 
 ---
 
