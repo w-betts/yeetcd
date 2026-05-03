@@ -91,9 +91,8 @@ After all phases complete, offer to merge to main.
 
 **How to Log:**
 Use the decision_log tool:
-```typescript
+```typesript
 decision_log({
-  session_id: "<session_id>",
   agent_type: "spec",
   decision: "Chose X over Y for this breakdown",
   alternatives_considered: ["Y", "Z"],

@@ -63,7 +63,6 @@ Use `question` to confirm understanding before proceeding.
 Use the decision_log tool:
 ```typescript
 decision_log({
-  session_id: "<session_id>",
   agent_type: "fix",
   decision: "Chose X fix approach over Y",
   alternatives_considered: ["Y", "Z"],

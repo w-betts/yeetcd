@@ -1,7 +1,0 @@
-session_id: "1775340361-2e70d989"
-workflow_type: "spec"
-started_at: "2026-04-04T22:06:01.227Z"
-branch: "work/spec-use-test-sdk-in-sample"
-problems: []
-ended_at: "2026-04-04T23:58:38.713Z"
-summary: "Rationalized java-test SDK: removed FakePipelineRunner (13 classes), added multi-platform binary build targets, fixed CLISpawner to extract binary from classpath, added tests to java-sample, and updated Makefile with build targets (build-java, test-sample, test-all)"

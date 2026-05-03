@@ -60,25 +60,13 @@ For each workflow type:
 
 ## Workflow Types
 
-Sessions are stored in:
-- `.opencode/sessions/spec/`
-- `.opencode/sessions/vibe/`
-- `.opencode/sessions/fix/`
-- `.opencode/sessions/document/`
+The improve agent analyzes past workflow sessions to propose improvements.
 
 ---
 
 ## Session Format
 
-```yaml
-session_id: "unique-id"
-workflow_type: "spec"
-started_at: "2024-01-15T10:30:00Z"
-problems:
-  - type: "tool_failure"
-    description: "Edit tool failed"
-    severity: "high"
-```
+Sessions contain information about workflow problems encountered.
 
 ---
 
@@ -120,5 +108,3 @@ Use `question` tool for:
 - `read`, `glob`: Read session files
 - `edit`, `write`: Modify prompts/scripts/skills
 - `bash`: Testing
-- `session_mark_analysed`: Mark problems analyzed
-- `session_archive`: Archive processed sessions

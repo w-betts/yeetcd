@@ -73,9 +73,8 @@ Report:
 
 **How to Log:**
 Use the decision_log tool:
-```typescript
+```typesript
 decision_log({
-  session_id: "<session_id>",
   agent_type: "reviewer",
   decision: "Chose X over Y",
   alternatives_considered: ["Y", "Z"],

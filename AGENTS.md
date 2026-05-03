@@ -25,27 +25,6 @@ NEVER assume you know what the user wants without asking.
 
 ---
 
-### Checklist: Tracking Unanswered Questions and Tasks
-
-During agent workflows, important questions and tasks often surface that need to be addressed. **Use the checklist tools** to track these and enforce they're resolved before proceeding.
-
-**Available tools:**
-| Tool | Purpose |
-|------|---------|
-| `checklist_tick` | Add a question or task to track (requires session_id, type: "question" or "task", description) |
-| `checklist_complete` | Mark an item as resolved (requires session_id, item_id, optional resolution_note) |
-| `checklist_status` | View all items for a session (requires session_id, optional show_resolved) |
-
-**When to add items:**
-- User defers a decision ("we'll figure that out later")
-- You discover a question that needs answering before continuing
-- A task surfaces that's outside current scope
-- An assumption is made that should be verified
-
-**Enforcement rule:** Do NOT proceed past a phase boundary or offer to merge until all checklist items are resolved (or explicitly removed with user agreement).
-
----
-
 ## General guidance
 
 ### Git Commits
