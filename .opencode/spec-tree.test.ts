@@ -9,6 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const PLUGIN_FILE = path.join(process.cwd(), 'plugins', 'spec-tree-plugin.ts');
+const PROMPT_FILE = path.join(process.cwd(), 'prompts', 'spec-tree-orchestrator.md');
 
 // ============================================================================
 // Test Suite: Spec-Tree Plugin
@@ -94,5 +95,68 @@ describe('Spec-Tree Plugin', () => {
     expect(content).toMatch(/ACTIVE_SPEC_POINTER/);
     expect(content).toMatch(/getActiveSpecPath/);
     expect(content).toMatch(/setActiveSpecPath/);
+  });
+});
+
+// ============================================================================
+// Test Suite: Spec-Tree Orchestrator Prompt
+// ============================================================================
+
+describe('Spec-Tree Orchestrator Prompt', () => {
+  let content: string;
+
+  test('Prompt file exists', () => {
+    expect(fs.existsSync(PROMPT_FILE)).toBe(true);
+  });
+
+  test('Has CONFIRM MUTUAL UNDERSTANDING step (step 5)', () => {
+    const content = fs.readFileSync(PROMPT_FILE, 'utf-8');
+    expect(content).toMatch(/CONFIRM MUTUAL UNDERSTANDING.*MANDATORY.*NO EXCEPTIONS/);
+  });
+
+  test('Plays back mutual understanding summary', () => {
+    const content = fs.readFileSync(PROMPT_FILE, 'utf-8');
+    expect(content).toMatch(/Play back the mutual understanding.*Summarize what was discussed/);
+  });
+
+  test('Asks confirmation question before breakdown decision', () => {
+    const content = fs.readFileSync(PROMPT_FILE, 'utf-8');
+    expect(content).toMatch(/Are you happy with what we've agreed or do you want to discuss this node further before deciding whether to break it down\?/);
+  });
+
+  test('Repeats confirmation after further discussion', () => {
+    const content = fs.readFileSync(PROMPT_FILE, 'utf-8');
+    expect(content).toMatch(/REPEAT this step.*play back updated understanding/);
+  });
+
+  test('Only proceeds to breakdown after user confirms satisfaction', () => {
+    const content = fs.readFileSync(PROMPT_FILE, 'utf-8');
+    expect(content).toMatch(/Only proceed to step 6 when user explicitly confirms satisfaction/);
+  });
+
+  test('DECIDE DECOMPOSITION is step 6 (not step 5)', () => {
+    const content = fs.readFileSync(PROMPT_FILE, 'utf-8');
+    expect(content).toMatch(/6\.\s*\*\*.*DECIDE DECOMPOSITION/);
+  });
+
+  test('Step 6 references steps 3-5 for context', () => {
+    const content = fs.readFileSync(PROMPT_FILE, 'utf-8');
+    expect(content).toMatch(/Base your recommendation on the discussion in steps 3-5/);
+  });
+
+  test('Recursive workflow references steps 1-6', () => {
+    const content = fs.readFileSync(PROMPT_FILE, 'utf-8');
+    expect(content).toMatch(/steps 1-6.*Explore.*Question.*Self-critique.*Confirm Understanding.*Decide Decomposition/);
+  });
+
+  test('Critical Rules includes confirm mutual understanding rule', () => {
+    const content = fs.readFileSync(PROMPT_FILE, 'utf-8');
+    expect(content).toMatch(/CONFIRM MUTUAL UNDERSTANDING BEFORE BREAKDOWN/);
+    expect(content).toMatch(/Are you happy with what we've agreed/);
+  });
+
+  test('Node Decomposition section includes confirm understanding step', () => {
+    const content = fs.readFileSync(PROMPT_FILE, 'utf-8');
+    expect(content).toMatch(/MUST confirm mutual understanding BEFORE asking about breakdown/);
   });
 });
