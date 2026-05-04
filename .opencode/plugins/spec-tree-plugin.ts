@@ -12,9 +12,11 @@
  * - spec_tree_update: Update own node
  * - spec_tree_get_my_node: Get own node
  * - spec_tree_get_leaves: Get leaf nodes in depth-first order
- * - spec_tree_render_ascii: Render spec-tree as ASCII visualization
  * - spec_tree_list: List all spec-tree files in the repository
  * - spec_tree_use: Switch the active spec-tree for the current worktree
+ *
+ * Note: ASCII tree rendering is done directly by the agent in its response,
+ * not via a tool, to ensure the output is visible to the user.
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
@@ -430,7 +432,7 @@ Use spec_tree_register_node to add child nodes.`
       spec_tree_read: tool({
         description:
           "Read the spec-tree spec file. " +
-          "Returns the full spec or a specific node by ID if provided.",
+          "Returns the full spec as YAML (for tree rendering) or a specific node by ID if provided.",
         args: {
           node_id: tool.schema
             .string()
@@ -459,27 +461,8 @@ Impl status: ${node.impl_status || "pending"}
 Test status: ${node.test_status || "pending"}`
           }
 
-          // Return full spec formatted
-          let output = `Spec-Tree: ${spec.title}
-Root: ${spec.root.id} - ${spec.root.title}
-
-`
-          const formatNode = (n: Node, indent: number = 0): string => {
-            const prefix = "  ".repeat(indent)
-            let s = `${prefix}${n.id}: ${n.title}\n`
-            s += `${prefix}  Description: ${n.description}\n`
-            if (n.children.length > 0) {
-              s += `${prefix}  Children: ${n.children.length}\n`
-              for (const child of n.children) {
-                s += formatNode(child, indent + 1)
-              }
-            } else {
-              s += `${prefix}  Status: impl=${n.impl_status || "pending"}, test=${n.test_status || "pending"}\n`
-            }
-            return s
-          }
-
-          return output + formatNode(spec.root)
+          // Return full spec as YAML for structured parsing and tree rendering
+          return toYamlString(spec)
         },
       }),
 
@@ -665,65 +648,7 @@ Test status: ${node.test_status || "pending"}`
         },
       }),
 
-      spec_tree_render_ascii: tool({
-        description:
-          "Render the spec-tree as an ASCII tree visualization. " +
-          "Optionally highlight a specific node (e.g., current leaf being reviewed). " +
-          "Shows node types, status, and tree structure using tree characters.",
-        args: {
-          highlight_node_id: tool.schema
-            .string()
-            .optional()
-            .describe("Optional node ID to highlight with asterisk (*)"),
-        },
-        async execute(args, context) {
-          const { worktree } = context
-          const spec = loadSpec(worktree)
-
-          let output = `Spec-Tree: ${spec.title}\n\n`
-
-          const formatNode = (
-            node: Node,
-            prefix: string = "",
-            isLast: boolean = true,
-            isHighlighted: boolean = false
-          ): string => {
-            const connector = isLast ? "└── " : "├── "
-            const highlight = isHighlighted ? " *" : ""
-            const nodeType = node.node_type || "unexpanded"
-            const implStatus = node.impl_status || "pending"
-            const testStatus = node.test_status || "pending"
-
-            let line = `${prefix}${connector}${node.id}: ${node.title}${highlight}\n`
-            line += `${prefix}${isLast ? "    " : "│   "}Type: ${nodeType}, Impl: ${implStatus}, Test: ${testStatus}\n`
-
-            // Add children
-            for (let i = 0; i < node.children.length; i++) {
-              const child = node.children[i]
-              const childIsLast = i === node.children.length - 1
-              const childIsHighlighted = child.id === args.highlight_node_id
-              line += formatNode(
-                child,
-                prefix + (isLast ? "    " : "│   "),
-                childIsLast,
-                childIsHighlighted
-              )
-            }
-
-            return line
-          }
-
-          output += formatNode(spec.root, "", true, args.highlight_node_id === spec.root.id)
-
-          if (args.highlight_node_id) {
-            output += `\n* = Currently highlighted node\n`
-          }
-
-          return output
-        },
-      }),
-
-      spec_tree_list: tool({
+       spec_tree_list: tool({
         description:
           "List all spec-tree files in the repository. " +
           "Shows the active spec for the current worktree (marked with *). " +

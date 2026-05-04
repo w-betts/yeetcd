@@ -201,7 +201,32 @@ Mark phase complete: Update root node phase_status to "reviewed"
 **Gate Check:** Adversarial review complete (check spec-tree phase status).
 
 **For EACH leaf (starting index 0):**
-1. **Render ASCII tree** with `spec_tree_render_ascii({ highlight_node_id })` BEFORE each leaf
+
+1. **Render ASCII tree in your response** BEFORE each leaf:
+   - Call `spec_tree_read()` to get the full spec as YAML
+   - Parse the YAML structure (root node with id, title, description, node_type, impl_status, test_status, children[])
+   - Render the tree structure using ASCII tree characters:
+     - Use `└── ` for the last child of a node
+     - Use `├── ` for non-last children
+     - Use `│   ` for vertical lines connecting children
+     - Use `    ` for empty space where no vertical line is needed
+   - Highlight the current leaf being reviewed with **` *`** after its ID
+   - Show node_type (unexpanded/branch/leaf) and status (impl_status, test_status) for each node
+   - Format example:
+     ```
+     Spec-Tree: My Project
+     
+     └── root-id: Main Feature
+         Type: branch, Impl: pending, Test: pending
+         ├── leaf-1: First Subtask *
+         │   Type: leaf, Impl: pending, Test: pending
+         └── leaf-2: Second Subtask
+             Type: leaf, Impl: pending, Test: pending
+     
+     * = Currently highlighted node (leaf being reviewed)
+     ```
+   - **IMPORTANT:** The ASCII tree MUST be output directly in your text response so the user can see it
+
 2. **Display leaf details** - tests, implementation, status
 3. **Ask via `question`:** Adjust / Next / Go back / Skip remaining
 4. After all leaves: Confirm with user → Proceed to Phase 4
@@ -261,7 +286,7 @@ decision_log({
 
 | Tool | Purpose |
 |------|---------|
-| **spec_tree_*** | Create, read, update, register nodes, get leaves, render ASCII |
+| **spec_tree_*** | Create, read, update, register nodes, get leaves (render ASCII in agent response) |
 | **Read, Grep, Glob** | Explore codebase (READ-ONLY) |
 | **websearch, webfetch** | Research |
 | **bash** | Git/build/read-only ONLY (NO file operations) |
