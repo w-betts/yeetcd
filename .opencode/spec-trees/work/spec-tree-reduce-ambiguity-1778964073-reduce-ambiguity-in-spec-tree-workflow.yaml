@@ -1,0 +1,288 @@
+title: "Reduce Ambiguity in Spec-Tree Workflow"
+version: 1
+root:
+  id: "reduce-ambiguity"
+  title: "Reduce ambiguity in spec-tree workflow"
+  description: "Shift left on ambiguity detection across the spec-tree workflow. Lower acceptance of ambiguity when: (1) creating the spec via agent-to-user questions, (2) self-reviewing during decomposition, (3) adversarial review of the spec, (4) implementing (implementer should flag decisions the user would care about)."
+  node_type: "branch"
+  depends_on: []
+  planning_status: "ready"
+  children:
+    - id: "branch-ambiguity-reduction"
+      title: "Ambiguity Reduction Changes"
+      description: "Changes to all prompt files in the spec-tree workflow to implement the 'would-user-care' test with conservative escalation threshold. Contains 4 child leaves."
+      node_type: "branch"
+      depends_on: []
+      planning_status: "ready"
+      children:
+        - id: "leaf-orchestrator"
+          title: "Orchestrator Prompt Changes"
+          description: "Changes to spec-tree-orchestrator.md: (1) More rigorous question patterns with 'would-user-care' filtering — questions must distinguish user-significant ambiguity from trivial details. (2) Structured self-review checklist replacing vague 'have I asked enough?' with explicit ambiguity criteria. (3) Subagent coordination: orchestrator must handle escalation reports from reviewer/implementer by asking the user."
+          node_type: "leaf"
+          depends_on:
+            - "leaf-skill"
+          planning_status: "ready"
+          children: []
+          interaction_log: []
+          tests:
+            - description: "Skill is loaded at startup"
+              type: "unit"
+              target_component: "spec-tree-orchestrator.md"
+              contracts:
+                - "Agent loads would-user-care skill at initialization"
+              given_when_then: "Given the spec-tree-orchestrator prompt, when the agent starts, then it must load the 'would-user-care' skill at the beginning of its session"
+            - description: "Self-review is now a fixed checklist"
+              type: "unit"
+              target_component: "spec-tree-orchestrator.md"
+              contracts:
+                - "Step 4 self-critique replaced with explicit checklist"
+                - "Checklist includes ambiguity criteria from skill"
+              given_when_then: "Given the Phase 1 node processing workflow, when the agent reaches step 4 (self-critique), then it must work through a fixed checklist of ambiguity checks rather than the vague 'Have I asked enough?'"
+            - description: "Question patterns batch aggressively"
+              type: "unit"
+              target_component: "spec-tree-orchestrator.md"
+              contracts:
+                - "Questions are grouped and batched"
+                - "All user-significant ambiguity is covered"
+              given_when_then: "Given any node during decomposition, when the agent asks questions, then it must batch related questions together while still covering all user-significant ambiguity surfaced by the 'would-user-care' criteria"
+            - description: "Subagent escalation follows pause-ask-resume"
+              type: "unit"
+              target_component: "spec-tree-orchestrator.md"
+              contracts:
+                - "Orchestrator pauses subagent when user-significant decision reported"
+                - "Orchestrator asks user via question tool"
+                - "Orchestrator resumes subagent after user response"
+              given_when_then: "Given a subagent (reviewer/implementer) reports a user-significant decision, when the orchestrator receives this report, then it must pause the subagent, ask the user via the question tool, wait for the answer, and then instruct the subagent to resume with the user's direction"
+          test_status: "passed"
+          file_changes:
+            - action: "modify"
+              description: "Add skill loading instruction at the top"
+              is_test: false
+              path: ".opencode/prompts/spec-tree-orchestrator.md"
+            - action: "modify"
+              description: "Replace vague self-critique with fixed ambiguity checklist"
+              is_test: false
+              path: ".opencode/prompts/spec-tree-orchestrator.md"
+            - action: "modify"
+              description: "Add question batching guidance using 'would-user-care' criteria"
+              is_test: false
+              path: ".opencode/prompts/spec-tree-orchestrator.md"
+            - action: "modify"
+              description: "Add subagent escalation protocol (pause-ask-resume)"
+              is_test: false
+              path: ".opencode/prompts/spec-tree-orchestrator.md"
+          impl_status: "completed"
+        - id: "leaf-reviewer"
+          title: "Reviewer Prompt Changes"
+          description: "Changes to reviewer.md: Add ambiguity detection as explicit review criteria alongside technical criteria. Apply 'would-user-care' test to distinguish issues the user would care about from trivial nitpicks. Changed escalation: flagged ambiguities go back to orchestrator who asks the user, rather than reviewer making autonomous judgment."
+          node_type: "leaf"
+          depends_on:
+            - "leaf-skill"
+          planning_status: "ready"
+          children: []
+          interaction_log: []
+          tests:
+            - description: "Ambiguity is a FAIL criterion"
+              type: "unit"
+              target_component: "reviewer.md"
+              contracts:
+                - "Ambiguity added as review criterion alongside existing ones"
+                - "Ambiguity on user-significant items causes FAIL"
+              given_when_then: "Given the reviewer reviewing a spec tree, when it finds a user-significant ambiguity (per would-user-care criteria), then it must mark the review as FAILED and report the ambiguity to the orchestrator"
+            - description: "User decision provenance is verified"
+              type: "unit"
+              target_component: "reviewer.md"
+              contracts:
+                - "Reviewer checks if user-significant decisions had user input"
+                - "Suspicious assumptions are flagged"
+              given_when_then: "Given the reviewer reviewing leaf definitions, when it finds a user-significant decision that appears to have been made by the agent without user input, then it must flag this as an issue"
+            - description: "Skill is loaded at startup"
+              type: "unit"
+              target_component: "reviewer.md"
+              contracts:
+                - "would-user-care skill loaded at initialization"
+              given_when_then: "Given the reviewer prompt, when the agent starts, then it must load the 'would-user-care' skill"
+          test_status: "passed"
+          file_changes:
+            - action: "modify"
+              description: "Add skill loading instruction"
+              is_test: false
+              path: ".opencode/prompts/reviewer.md"
+            - action: "modify"
+              description: "Add ambiguity as FAIL criterion to review criteria"
+              is_test: false
+              path: ".opencode/prompts/reviewer.md"
+            - action: "modify"
+              description: "Add user decision provenance verification"
+              is_test: false
+              path: ".opencode/prompts/reviewer.md"
+          impl_status: "completed"
+        - id: "leaf-implementer"
+          title: "Implementer Prompt Changes"
+          description: "Changes to implementer.md: Replace binary Trivial/Non-Trivial with 3-tier: Mechanical (agent-decidable), Gray-Zone (agent decides but flags uncertainty), User-Significant (must escalate to orchestrator). Add 'would-user-care' checkpoint before any significant decision. Escalation protocol for relaying user-significant decisions back to orchestrator."
+          node_type: "leaf"
+          depends_on:
+            - "leaf-skill"
+          planning_status: "ready"
+          children: []
+          interaction_log: []
+          tests:
+            - description: "Autonomy with STRICT override replaces blanket work-autonomously"
+              type: "unit"
+              target_component: "implementer.md"
+              contracts:
+                - "Work Autonomously section replaced with autonomy-with-override language"
+                - "Emphatic 'MUST' language for escalation"
+              given_when_then: "Given the implementer prompt, when reading the autonomy section, then it must clearly state that the implementer works autonomously for mechanical decisions but MUST escalate for user-significant decisions"
+            - description: "Would-user-care check before every decision"
+              type: "unit"
+              target_component: "implementer.md"
+              contracts:
+                - "Every decision triggers the would-user-care check"
+                - "7 user-significant criteria are enumerated"
+                - "Escalation occurs if any criterion triggered"
+              given_when_then: "Given the implementer implementing code, before making any decision, it must run the 7 would-user-care criteria and escalate if any are triggered; if none triggered, proceed autonomously"
+            - description: "3-tier framework replaces binary tiers"
+              type: "unit"
+              target_component: "implementer.md"
+              contracts:
+                - "Mechanical/Gray-Zone/User-Significant replace Trivial/Non-Trivial"
+                - "Each tier has clear behavior: decide/log/escalate"
+              given_when_then: "Given the implementer encountering an issue during implementation, when categorizing it, then it must use the 3-tier framework and follow the correct action for that tier"
+            - description: "Escalation protocol defined"
+              type: "unit"
+              target_component: "implementer.md"
+              contracts:
+                - "STOP → report to orchestrator with options → wait → resume"
+                - "Protocol is unambiguous"
+              given_when_then: "Given the implementer must escalate, when it reports a user-significant decision to the orchestrator, then it must include the decision context, alternatives considered, and what direction it needs from the user"
+            - description: "Skill loaded at startup"
+              type: "unit"
+              target_component: "implementer.md"
+              contracts:
+                - "would-user-care skill loaded at initialization"
+              given_when_then: "Given the implementer prompt, when the agent starts, then it must load the 'would-user-care' skill"
+          test_status: "passed"
+          file_changes:
+            - action: "modify"
+              description: "Add skill loading instruction"
+              is_test: false
+              path: ".opencode/prompts/implementer.md"
+            - action: "modify"
+              description: "Replace Work Autonomously with autonomy-with-override"
+              is_test: false
+              path: ".opencode/prompts/implementer.md"
+            - action: "modify"
+              description: "Replace binary Trivial/Non-Trivial with 3-tier framework"
+              is_test: false
+              path: ".opencode/prompts/implementer.md"
+            - action: "modify"
+              description: "Add would-user-care check before every decision"
+              is_test: false
+              path: ".opencode/prompts/implementer.md"
+            - action: "modify"
+              description: "Add escalation protocol (STOP-report-wait-resume)"
+              is_test: false
+              path: ".opencode/prompts/implementer.md"
+          impl_status: "completed"
+        - id: "leaf-test-writer"
+          title: "Test-Writer Prompt Changes"
+          description: "Changes to test-writer.md: Surface ambiguous test expectations rather than guessing. Apply 'would-user-care' test when test specifications are unclear — if the uncertainty affects what gets tested or how, escalate to the orchestrator rather than making assumptions."
+          node_type: "leaf"
+          depends_on:
+            - "leaf-skill"
+          planning_status: "ready"
+          children: []
+          interaction_log: []
+          tests:
+            - description: "Autonomy with STRICT override"
+              type: "unit"
+              target_component: "test-writer.md"
+              contracts:
+                - "Work Autonomously replaced with autonomy-with-override"
+                - "Emphatic MUST language for escalation"
+              given_when_then: "Given the test-writer prompt, when reading the autonomy section, then it must clearly state that the test-writer works autonomously for mechanical decisions but MUST escalate for user-significant decisions"
+            - description: "Full would-user-care scope applies"
+              type: "unit"
+              target_component: "test-writer.md"
+              contracts:
+                - "Same 7 user-significant criteria apply to test decisions"
+                - "Test decisions checked before execution"
+              given_when_then: "Given the test-writer writing tests, before making any test-related decision, it must run the 7 would-user-care criteria and escalate if triggered"
+            - description: "Escalation protocol defined"
+              type: "unit"
+              target_component: "test-writer.md"
+              contracts:
+                - "STOP → report to orchestrator → wait → resume"
+                - "Protocol mirrors implementer"
+              given_when_then: "Given the test-writer must escalate, when it reports a user-significant decision to the orchestrator, then it must include context and what direction it needs"
+            - description: "Skill loaded at startup"
+              type: "unit"
+              target_component: "test-writer.md"
+              contracts:
+                - "would-user-care skill loaded at initialization"
+              given_when_then: "Given the test-writer prompt, when the agent starts, then it must load the 'would-user-care' skill"
+          test_status: "passed"
+          file_changes:
+            - action: "modify"
+              description: "Add skill loading instruction"
+              is_test: false
+              path: ".opencode/prompts/test-writer.md"
+            - action: "modify"
+              description: "Replace Work Autonomously with autonomy-with-override"
+              is_test: false
+              path: ".opencode/prompts/test-writer.md"
+            - action: "modify"
+              description: "Add full would-user-care scope and check-before-every-decision"
+              is_test: false
+              path: ".opencode/prompts/test-writer.md"
+            - action: "modify"
+              description: "Add escalation protocol"
+              is_test: false
+              path: ".opencode/prompts/test-writer.md"
+          impl_status: "completed"
+        - id: "leaf-skill"
+          title: "Shared 'Would-User-Care' Skill File"
+          description: "Create .opencode/skills/would-user-care.md defining the shared 'would-user-care' decision framework: conservative escalation threshold, the spectrum of ambiguity (mechanical → gray-zone → user-significant), concrete examples, and the escalation protocol. This is loaded by all other agents via skill({name: 'would-user-care'})."
+          node_type: "leaf"
+          depends_on: []
+          planning_status: "ready"
+          children: []
+          interaction_log: []
+          tests:
+            - description: "Skill file exists at correct path"
+              type: "unit"
+              target_component: ".opencode/skills/would-user-care.md"
+              contracts:
+                - "File structure follows existing skill format"
+              given_when_then: "Given the skill file is created at .opencode/skills/would-user-care.md, when the file is loaded via skill({name: 'would-user-care'}), then it should be readable and follow the same structure as session-tracking.md"
+            - description: "All 8 criteria are defined with examples"
+              type: "unit"
+              target_component: ".opencode/skills/would-user-care.md"
+              contracts:
+                - "7 user-significant criteria"
+                - "1 agent-decidable test"
+                - "Concrete examples for each"
+              given_when_then: "Given the skill file content, when reviewed for completeness, then it should define all 8 criteria (7 escalate + 1 agent-decidable) with concrete examples for each"
+            - description: "Conservative escalation guidance is clear"
+              type: "unit"
+              target_component: ".opencode/skills/would-user-care.md"
+              contracts:
+                - "Escalation protocol defined"
+                - "Pause-ask-resume mechanism specified"
+              given_when_then: "Given the skill file, when read by any agent, then the escalation protocol should be unambiguous: when in doubt, escalate via the orchestrator using pause-ask-resume"
+          test_status: "passed"
+          file_changes:
+            - action: "create"
+              description: "Create shared 'would-user-care' decision framework skill file"
+              is_test: false
+              path: ".opencode/skills/would-user-care.md"
+          impl_status: "completed"
+      interaction_log: []
+      tests: []
+      file_changes: []
+  interaction_log: []
+  tests: []
+  file_changes: []
+  impl_status: "completed"
+  phase_status: "implementation-complete"
