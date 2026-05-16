@@ -96,6 +96,35 @@ describe('Spec-Tree Plugin', () => {
     expect(content).toMatch(/getActiveSpecPath/);
     expect(content).toMatch(/setActiveSpecPath/);
   });
+
+  test('Plugin schema includes phase_status field', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/phase_status/);
+    expect(content).toMatch(/exploring.*decomposed.*reviewed.*approved.*implementing.*completed/);
+  });
+
+  test('spec_tree_update validates leaf requires interaction_log', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/leaf.*interaction_log/);
+    expect(content).toMatch(/empty/);
+  });
+
+  test('spec_tree_update validates depends_on references', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/not found.*depends_on/);
+  });
+
+  test('spec_tree_update validates branch requires children', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/Branch nodes must have/);
+  });
+
+  test('spec_tree_update validates leaf requires tests and file_changes', () => {
+    const content = fs.readFileSync(PLUGIN_FILE, 'utf-8');
+    expect(content).toMatch(/Leaf nodes must have/);
+    expect(content).toMatch(/test case/);
+    expect(content).toMatch(/file change/);
+  });
 });
 
 // ============================================================================

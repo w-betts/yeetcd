@@ -171,9 +171,12 @@ When you break down a node and register children, you **MUST** process **EVERY c
     □ Did I batch related questions together to avoid user fatigue?
     □ Did I capture the user's answers accurately in the interaction_log?
     □ Am I making ANY assumption about user intent that I haven't validated?
+    □ Does this node have at least 1 interaction_log entry before marking as leaf/branch?
     □ Does my proposed decomposition/leaf status respect the user-significant boundary? (i.e., am I marking something as a leaf that contains user-significant decisions?)
     
     If ANY box is unchecked: STOP. Ask more questions. Do NOT proceed until all checks pass.
+    
+    **Note:** The spec_tree_update tool enforces this: you CANNOT set node_type to 'leaf' or 'branch' on a node with an empty interaction_log. Log interactions FIRST via spec_tree_update({ node_id, updates: { interaction_log: [...] }}), then set the node_type.
 5. **🔒 CONFIRM MUTUAL UNDERSTANDING (MANDATORY - NO EXCEPTIONS):**
     - **Play back the mutual understanding** - Summarize what was discussed and agreed at this node
     - **MUST use `question` to ask:** "Are you happy with what we've agreed or do you want to discuss this node further before deciding whether to break it down?"
@@ -194,6 +197,7 @@ When you break down a node and register children, you **MUST** process **EVERY c
     - **NEVER auto-advance** - Even if the choice seems "obvious", ALWAYS get explicit confirmation
 
 **Leaf definition (MANDATORY):**
+- **Interaction log**: Must have at least one entry documenting user discussion at this node's granularity
 - Tests: types, cases (given/when/then), get user approval
 - Implementation: file changes, dependencies (`depends_on`), edge cases
 - Update: `spec_tree_update({ node_id, updates: { node_type: "leaf", planning_status: "ready", tests: [...], file_changes: [...], depends_on: [...] }})`

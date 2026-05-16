@@ -74,6 +74,10 @@ const NodeSchema: z.ZodType<Node> = z.object({
     .enum(["pending", "in_progress", "completed"])
     .optional()
     .describe("Implementation status"),
+  phase_status: z
+    .enum(["exploring", "decomposed", "reviewed", "approved", "implementing", "completed"])
+    .optional()
+    .describe("Workflow phase: exploring (decomposing) → decomposed (structured) → reviewed (adversarial) → approved (user) → implementing (in progress) → completed (done)"),
   reviews: z
     .array(
       z.object({
@@ -89,7 +93,6 @@ const NodeSchema: z.ZodType<Node> = z.object({
 
 const SpecTreeSpecSchema = z.object({
   title: z.string().describe("Spec title"),
-  version: z.number().describe("Spec version"),
   root: NodeSchema.describe("Root node of the spec tree"),
 })
 
@@ -119,6 +122,7 @@ type Node = {
     path: string
   }[]
   impl_status?: "pending" | "in_progress" | "completed"
+  phase_status?: "exploring" | "decomposed" | "reviewed" | "approved" | "implementing" | "completed"
   reviews?: {
     reviewer: string
     feedback: string
@@ -353,11 +357,59 @@ function makeEmptyNode(id: string, title: string, description: string): Node {
     node_type: "unexpanded",
     depends_on: [],
     planning_status: "pending",
+    phase_status: "exploring",
     children: [],
     interaction_log: [],
     tests: [],
     file_changes: [],
   }
+}
+
+// --- Validation ---
+
+function validateNodeUpdate(
+  node: Node,
+  updates: Record<string, unknown>,
+  rootNode: Node
+): string[] {
+  const errors: string[] = []
+  const merged = { ...node, ...updates }
+
+  // Node type validation
+  if (merged.node_type === "leaf") {
+    if (merged.children && Array.isArray(merged.children) && merged.children.length > 0) {
+      errors.push("Cannot set node_type to 'leaf' when node has children. Marking a node as leaf means it will not be further decomposed.")
+    }
+    if (!merged.tests || !Array.isArray(merged.tests) || merged.tests.length === 0) {
+      errors.push("Leaf nodes must have at least one test case defined.")
+    }
+    if (!merged.file_changes || !Array.isArray(merged.file_changes) || merged.file_changes.length === 0) {
+      errors.push("Leaf nodes must have at least one file change defined.")
+    }
+    if (!merged.interaction_log || !Array.isArray(merged.interaction_log) || merged.interaction_log.length === 0) {
+      errors.push("Cannot set node_type to 'leaf' when interaction_log is empty. At least one user interaction is required before finalizing a node.")
+    }
+  }
+
+  if (merged.node_type === "branch") {
+    if (!merged.children || !Array.isArray(merged.children) || merged.children.length === 0) {
+      errors.push("Branch nodes must have at least one child registered.")
+    }
+    if (!merged.interaction_log || !Array.isArray(merged.interaction_log) || merged.interaction_log.length === 0) {
+      errors.push("Cannot set node_type to 'branch' when interaction_log is empty. At least one user interaction is required before finalizing a node.")
+    }
+  }
+
+  // Depends_on validation
+  if (updates.depends_on && Array.isArray(updates.depends_on)) {
+    for (const depId of updates.depends_on) {
+      if (!findNodeById(rootNode, depId)) {
+        errors.push(`Dependency '${depId}' not found in the spec tree. All depends_on references must point to existing nodes.`)
+      }
+    }
+  }
+
+  return errors
 }
 
 // --- Plugin ---
@@ -401,7 +453,6 @@ export const SpecTreePlugin: Plugin = async (ctx) => {
 
           const spec = {
             title: args.title,
-            version: 1,
             root,
           }
 
@@ -551,6 +602,15 @@ Use spec_tree_update to add children or modify status.`
             throw new Error(
               `No node found with id "${args.node_id}". ` +
                 "Call spec_tree_register_node first, or use spec_tree_write for the root."
+            )
+          }
+
+          // Validate the update
+          const validationErrors = validateNodeUpdate(node, args.updates, spec.root)
+          if (validationErrors.length > 0) {
+            throw new Error(
+              `Validation failed for node '${args.node_id}':\n` +
+              validationErrors.map(e => `  - ${e}`).join("\n")
             )
           }
 
