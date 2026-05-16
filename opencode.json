@@ -76,7 +76,7 @@
     },
     "planner": {
       "mode": "subagent",
-      "model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/planner.md}",
       "temperature": 0.2,
@@ -104,7 +104,7 @@
     },
     "test-writer": {
       "mode": "subagent",
-      "model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/test-writer.md}",
       "temperature": 0.3,
@@ -117,7 +117,7 @@
     },
     "implementer": {
       "mode": "subagent",
-      "model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/implementer.md}",
       "temperature": 0.3,
@@ -130,7 +130,7 @@
     },
     "agent-doc-writer": {
       "mode": "subagent",
-      "model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/agent-doc-writer.md}",
       "temperature": 0.3,
@@ -150,7 +150,7 @@
     },
     "human-doc-writer": {
       "mode": "subagent",
-      "model": "opencode/big-pickle",
+      "model": "opencode/deepseek-v4-flash-free",
       "hidden": false,
       "prompt": "{file:./.opencode/prompts/human-doc-writer.md}",
       "temperature": 0.3,
