@@ -34,7 +34,7 @@ AGENT_MAP = {
 }
 
 # Model configuration
-DEFAULT_MODEL = "opencode/big-pickle"
+DEFAULT_MODEL = "opencode/deepseek-v4-flash-free"
 PAID_MODEL = "opencode/minimax-m2.5"
 
 # Constants
@@ -139,7 +139,7 @@ def launch_improve_agent(workflow_types: str, paid: bool = False) -> None:
     # Build the opencode command
     cmd = ["opencode", "--agent", "improve", "--prompt", f"Analyze problems for workflows: {workflow_types}"]
     
-    # Always pass the model - default to big-pickle, or use paid model if requested
+    # Always pass the model
     model = PAID_MODEL if paid else DEFAULT_MODEL
     cmd.extend(["--model", model])
     if paid:
@@ -722,7 +722,7 @@ def launch_agent(work: Optional[WorkItem], agent_name: str, paid: bool = False) 
     # Build the opencode command
     cmd = ["opencode", "--agent", agent_name]
     
-    # Always pass the model - default to big-pickle, or use paid model if requested
+    # Always pass the model
     model = PAID_MODEL if paid else DEFAULT_MODEL
     cmd.extend(["--model", model])
     if paid:
